@@ -51,6 +51,13 @@ import Dashboard from './pages/Dashboard';
 import Leads from './pages/Leads';
 import LeadForm from './pages/LeadForm';
 import LeadDetail from './pages/LeadDetail';
+import Events from './pages/Events';
+import EventForm from './pages/EventForm';
+import EventDetail from './pages/EventDetail';
+import Contacts from './pages/Contacts';
+import Tasks from './pages/Tasks';
+import Venues from './pages/Venues';
+import Payments from './pages/Payments';
 import __Layout from './Layout.jsx';
 
 
@@ -59,6 +66,13 @@ export const PAGES = {
     "Leads": Leads,
     "LeadForm": LeadForm,
     "LeadDetail": LeadDetail,
+    "Events": Events,
+    "EventForm": EventForm,
+    "EventDetail": EventDetail,
+    "Contacts": Contacts,
+    "Tasks": Tasks,
+    "Venues": Venues,
+    "Payments": Payments,
 }
 
 export const pagesConfig = {
