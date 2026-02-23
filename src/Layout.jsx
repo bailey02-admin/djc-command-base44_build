@@ -3,9 +3,9 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import {
-  LayoutDashboard, Users, CalendarDays, Music, ClipboardList,
-  MessageSquare, FileText, DollarSign, Building2, ChevronLeft,
-  ChevronRight, LogOut, Menu, X, Disc3, UserCircle, Search
+  LayoutDashboard, Users, CalendarDays, ClipboardList,
+  FileText, DollarSign, Building2, ChevronLeft,
+  ChevronRight, LogOut, Menu, Disc3, UserCircle, Search, Settings
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -19,6 +19,7 @@ const NAV_ITEMS = [
   { name: "Venues", icon: Building2, page: "Venues" },
   { name: "Payments", icon: DollarSign, page: "Payments" },
   { name: "Reports", icon: FileText, page: "Reports" },
+  { name: "Settings", icon: Settings, page: "Settings" },
 ];
 
 export default function Layout({ children, currentPageName }) {
