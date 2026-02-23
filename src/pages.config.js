@@ -58,6 +58,10 @@ import Contacts from './pages/Contacts';
 import Tasks from './pages/Tasks';
 import Venues from './pages/Venues';
 import Payments from './pages/Payments';
+import MusicPlanner from './pages/MusicPlanner';
+import TimelineBuilder from './pages/TimelineBuilder';
+import Reports from './pages/Reports';
+import DJView from './pages/DJView';
 import __Layout from './Layout.jsx';
 
 
@@ -73,6 +77,10 @@ export const PAGES = {
     "Tasks": Tasks,
     "Venues": Venues,
     "Payments": Payments,
+    "MusicPlanner": MusicPlanner,
+    "TimelineBuilder": TimelineBuilder,
+    "Reports": Reports,
+    "DJView": DJView,
 }
 
 export const pagesConfig = {
