@@ -62,6 +62,7 @@ import MusicPlanner from './pages/MusicPlanner';
 import TimelineBuilder from './pages/TimelineBuilder';
 import Reports from './pages/Reports';
 import DJView from './pages/DJView';
+import ClientPortal from './pages/ClientPortal';
 import __Layout from './Layout.jsx';
 
 
@@ -81,6 +82,7 @@ export const PAGES = {
     "TimelineBuilder": TimelineBuilder,
     "Reports": Reports,
     "DJView": DJView,
+    "ClientPortal": ClientPortal,
 }
 
 export const pagesConfig = {
