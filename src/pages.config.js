@@ -63,6 +63,7 @@ import Reports from './pages/Reports';
 import Tasks from './pages/Tasks';
 import TimelineBuilder from './pages/TimelineBuilder';
 import Venues from './pages/Venues';
+import Settings from './pages/Settings';
 import __Layout from './Layout.jsx';
 
 
@@ -83,6 +84,7 @@ export const PAGES = {
     "Tasks": Tasks,
     "TimelineBuilder": TimelineBuilder,
     "Venues": Venues,
+    "Settings": Settings,
 }
 
 export const pagesConfig = {

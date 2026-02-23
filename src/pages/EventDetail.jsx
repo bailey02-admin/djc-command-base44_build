@@ -7,13 +7,15 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Textarea } from "@/components/ui/textarea";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { format } from "date-fns";
+import { format, differenceInDays } from "date-fns";
 import {
   ArrowLeft, Edit, CalendarDays, MapPin, User, Music, Clock,
-  CheckCircle2, Circle, FileText, DollarSign, MessageSquare, Send, Loader2
+  FileText, DollarSign, MessageSquare, Send, Loader2, AlertTriangle
 } from "lucide-react";
+import ReadinessPanel from "../components/events/ReadinessPanel";
+import ActivityFeed from "../components/leads/ActivityFeed";
+import { calculateReadinessScore } from "../components/crm/pipeline";
 
 const STATUS_OPTIONS = ["booked","planning_in_progress","awaiting_planning_form","final_call_scheduled","finalized","dj_assigned","confirmed","event_completed","survey_sent","review_requested","closed_won","closed_issue"];
 
@@ -21,8 +23,6 @@ export default function EventDetail() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id");
   const queryClient = useQueryClient();
-  const [noteText, setNoteText] = useState("");
-  const [addingNote, setAddingNote] = useState(false);
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event", id],
@@ -62,28 +62,18 @@ export default function EventDetail() {
     queryClient.invalidateQueries(["event", id]);
   };
 
-  const addNote = async () => {
-    if (!noteText.trim()) return;
-    setAddingNote(true);
-    await base44.entities.Activity.create({
-      type: "note", subject: "Note added", description: noteText,
-      related_type: "event", related_id: id, related_name: event?.event_name,
-    });
-    setNoteText("");
-    setAddingNote(false);
-    queryClient.invalidateQueries(["event-activities", id]);
+  const updateReadinessItem = async (key, value) => {
+    const update = { [key]: value };
+    const updatedEvent = { ...event, ...update };
+    const newScore = calculateReadinessScore(updatedEvent);
+    await base44.entities.Event.update(id, { ...update, readiness_score: newScore });
+    queryClient.invalidateQueries(["event", id]);
   };
 
   if (isLoading || !event) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-violet-600" /></div>;
 
-  const checklist = [
-    { label: "Contract Signed", key: "contract_signed", done: event.contract_signed },
-    { label: "Deposit Paid", key: "deposit_paid", done: event.deposit_paid },
-    { label: "Planning Complete", key: "planning_complete", done: event.planning_complete },
-    { label: "Timeline Complete", key: "timeline_complete", done: event.timeline_complete },
-    { label: "Music Complete", key: "music_complete", done: event.music_complete },
-    { label: "Balance Paid", key: "balance_paid", done: event.balance_paid },
-  ];
+  const daysUntil = event.event_date ? differenceInDays(new Date(event.event_date), new Date()) : null;
+  const readiness = calculateReadinessScore(event);
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto space-y-6">
@@ -97,6 +87,22 @@ export default function EventDetail() {
           <div className="flex items-center gap-3 mt-2 text-sm text-gray-500 flex-wrap">
             {event.event_date && <span className="flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5" />{format(new Date(event.event_date), "EEEE, MMMM d, yyyy")}</span>}
             {event.venue_name && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{event.venue_name}</span>}
+          </div>
+          <div className="flex gap-2 mt-2 flex-wrap">
+            <Badge variant="secondary" className="text-xs capitalize">{event.status?.replace(/_/g, " ")}</Badge>
+            <Badge variant="outline" className={`text-xs ${readiness >= 80 ? "border-emerald-200 text-emerald-700" : readiness >= 50 ? "border-amber-200 text-amber-700" : "border-red-200 text-red-600"}`}>
+              {readiness}% Ready
+            </Badge>
+            {daysUntil !== null && (
+              <Badge variant="outline" className={`text-xs ${daysUntil <= 7 ? "border-red-200 text-red-600" : daysUntil <= 30 ? "border-amber-200 text-amber-700" : ""}`}>
+                {daysUntil <= 0 ? "Today!" : `${daysUntil} days`}
+              </Badge>
+            )}
+            {daysUntil !== null && daysUntil <= 14 && readiness < 80 && (
+              <Badge className="bg-red-100 text-red-700 text-xs gap-1">
+                <AlertTriangle className="w-3 h-3" /> Action Needed
+              </Badge>
+            )}
           </div>
         </div>
         <div className="flex gap-2">
@@ -113,66 +119,58 @@ export default function EventDetail() {
       </div>
 
       <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="bg-white border">
+        <TabsList className="bg-white border flex-wrap">
           <TabsTrigger value="overview">Overview</TabsTrigger>
           <TabsTrigger value="music">Music ({musicSelections.length})</TabsTrigger>
           <TabsTrigger value="timeline">Timeline ({timeline.length})</TabsTrigger>
           <TabsTrigger value="payments">Payments ({payments.length})</TabsTrigger>
-          <TabsTrigger value="activity">Activity</TabsTrigger>
+          <TabsTrigger value="activity">Activity ({activities.length})</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
           <div className="grid lg:grid-cols-3 gap-6">
-            <div className="lg:col-span-2 space-y-6">
+            <div className="lg:col-span-2 space-y-4">
               <Card className="border-0 shadow-sm">
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Event Details</CardTitle></CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
-                    <div><span className="text-gray-400">Type</span><p className="font-medium capitalize mt-0.5">{event.event_type?.replace(/_/g, " ")}</p></div>
-                    <div><span className="text-gray-400">Time</span><p className="font-medium mt-0.5">{event.start_time || "TBD"} - {event.end_time || "TBD"}</p></div>
-                    <div><span className="text-gray-400">Guests</span><p className="font-medium mt-0.5">{event.guest_count || "TBD"}</p></div>
-                    <div><span className="text-gray-400">City</span><p className="font-medium mt-0.5">{event.city || "TBD"}</p></div>
-                    <div><span className="text-gray-400">Package</span><p className="font-medium mt-0.5">{event.package_name || "TBD"}</p></div>
-                    <div><span className="text-gray-400">Price</span><p className="font-medium mt-0.5">{event.package_price ? `$${event.package_price.toLocaleString()}` : "TBD"}</p></div>
-                    <div><span className="text-gray-400">DJ</span><p className="font-medium mt-0.5">{event.assigned_dj || "Unassigned"}</p></div>
-                    <div><span className="text-gray-400">MC</span><p className="font-medium mt-0.5">{event.assigned_mc || "Unassigned"}</p></div>
+                    <div><span className="text-gray-400 text-xs">Type</span><p className="font-medium capitalize mt-0.5">{event.event_type?.replace(/_/g, " ")}</p></div>
+                    <div><span className="text-gray-400 text-xs">Time</span><p className="font-medium mt-0.5">{event.start_time || "TBD"} – {event.end_time || "TBD"}</p></div>
+                    <div><span className="text-gray-400 text-xs">Guests</span><p className="font-medium mt-0.5">{event.guest_count || "TBD"}</p></div>
+                    <div><span className="text-gray-400 text-xs">City</span><p className="font-medium mt-0.5">{event.city || "TBD"}</p></div>
+                    <div><span className="text-gray-400 text-xs">Package</span><p className="font-medium mt-0.5">{event.package_name || "TBD"}</p></div>
+                    <div><span className="text-gray-400 text-xs">Price</span><p className="font-medium mt-0.5">{event.package_price ? `$${event.package_price.toLocaleString()}` : "TBD"}</p></div>
+                    <div><span className="text-gray-400 text-xs">DJ</span><p className="font-medium mt-0.5">{event.assigned_dj || "Unassigned"}</p></div>
+                    <div><span className="text-gray-400 text-xs">Finalizer</span><p className="font-medium mt-0.5">{event.assigned_finalizer || "—"}</p></div>
+                    <div><span className="text-gray-400 text-xs">Setup Time</span><p className="font-medium mt-0.5">{event.setup_time || "TBD"}</p></div>
+                    <div><span className="text-gray-400 text-xs">Final Call</span><p className="font-medium mt-0.5">{event.final_call_date || "Not scheduled"}</p></div>
                   </div>
                 </CardContent>
               </Card>
               <Card className="border-0 shadow-sm">
-                <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Contact</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Client Contact</CardTitle></CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div><span className="text-gray-400">Name</span><p className="font-medium mt-0.5">{event.contact_name || "—"}</p></div>
-                    <div><span className="text-gray-400">Email</span><p className="font-medium mt-0.5">{event.contact_email || "—"}</p></div>
-                    <div><span className="text-gray-400">Phone</span><p className="font-medium mt-0.5">{event.contact_phone || "—"}</p></div>
+                    <div><span className="text-gray-400 text-xs">Name</span><p className="font-medium mt-0.5">{event.contact_name || "—"}</p></div>
+                    <div><span className="text-gray-400 text-xs">Email</span><p className="font-medium mt-0.5">{event.contact_email || "—"}</p></div>
+                    <div><span className="text-gray-400 text-xs">Phone</span><p className="font-medium mt-0.5">{event.contact_phone || "—"}</p></div>
                   </div>
                 </CardContent>
               </Card>
-              {(event.internal_notes || event.equipment_notes) && (
-                <Card className="border-0 shadow-sm">
-                  <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Notes</CardTitle></CardHeader>
-                  <CardContent className="space-y-3 text-sm">
-                    {event.internal_notes && <div><span className="text-gray-400 text-xs">Internal</span><p className="mt-1 text-gray-600">{event.internal_notes}</p></div>}
-                    {event.equipment_notes && <div><span className="text-gray-400 text-xs">Equipment</span><p className="mt-1 text-gray-600">{event.equipment_notes}</p></div>}
+              {event.internal_notes && (
+                <Card className="border-0 shadow-sm border-l-4 border-l-amber-400">
+                  <CardContent className="p-4">
+                    <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-1">Internal Notes</p>
+                    <p className="text-sm text-gray-700">{event.internal_notes}</p>
                   </CardContent>
                 </Card>
               )}
             </div>
-            <div className="space-y-6">
+            <div>
               <Card className="border-0 shadow-sm">
-                <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Checklist</CardTitle></CardHeader>
-                <CardContent className="space-y-2">
-                  {checklist.map(item => (
-                    <button
-                      key={item.key}
-                      onClick={() => updateEvent(item.key, !item.done)}
-                      className="flex items-center gap-2.5 w-full p-2 rounded-lg hover:bg-gray-50 transition-colors text-sm"
-                    >
-                      {item.done ? <CheckCircle2 className="w-4 h-4 text-emerald-500" /> : <Circle className="w-4 h-4 text-gray-300" />}
-                      <span className={item.done ? "text-gray-400 line-through" : "text-gray-700"}>{item.label}</span>
-                    </button>
-                  ))}
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Event Readiness</CardTitle></CardHeader>
+                <CardContent>
+                  <ReadinessPanel event={event} onToggle={updateReadinessItem} />
                 </CardContent>
               </Card>
             </div>
@@ -257,31 +255,13 @@ export default function EventDetail() {
         </TabsContent>
 
         <TabsContent value="activity">
-          <Card className="border-0 shadow-sm">
-            <CardContent className="pt-6">
-              <div className="flex gap-2 mb-4">
-                <Textarea value={noteText} onChange={e => setNoteText(e.target.value)} placeholder="Add a note..." rows={2} className="text-sm" />
-                <Button onClick={addNote} disabled={addingNote || !noteText.trim()} size="sm" className="self-end">
-                  {addingNote ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
-                </Button>
-              </div>
-              <div className="space-y-3">
-                {activities.map(a => (
-                  <div key={a.id} className="flex gap-3 text-sm">
-                    <div className="w-8 h-8 rounded-full bg-gray-100 flex items-center justify-center flex-shrink-0">
-                      <MessageSquare className="w-3.5 h-3.5 text-gray-400" />
-                    </div>
-                    <div>
-                      <p className="font-medium">{a.subject}</p>
-                      {a.description && <p className="text-gray-500 mt-0.5">{a.description}</p>}
-                      <p className="text-xs text-gray-300 mt-1">{format(new Date(a.created_date), "MMM d, h:mm a")}</p>
-                    </div>
-                  </div>
-                ))}
-                {activities.length === 0 && <p className="text-center text-gray-400 text-xs py-4">No activity yet</p>}
-              </div>
-            </CardContent>
-          </Card>
+          <ActivityFeed
+            activities={activities}
+            relatedId={id}
+            relatedName={event.event_name}
+            relatedType="event"
+            queryKey="event-activities"
+          />
         </TabsContent>
       </Tabs>
     </div>
