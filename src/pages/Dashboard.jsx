@@ -130,7 +130,7 @@ export default function Dashboard() {
         <StatCard title="Active Leads" value={activeLeads.length} icon={Users} color="violet" subtitle="In pipeline" />
         <StatCard title="Upcoming Events" value={bookedEvents.length} icon={CalendarDays} color="emerald" subtitle="Booked" />
         <StatCard title="Revenue Collected" value={`$${totalRevenue.toLocaleString()}`} icon={DollarSign} color="amber" subtitle="Payments received" />
-        <StatCard title="Close Rate" value={`${bookingRate}%`} icon={TrendingUp} color="blue" subtitle="Lead → Booked" />
+        <StatCard title="Close Rate" value={`${bookingRate}%`} icon={TrendingUp} color="blue" subtitle="Lead → Booked" trend={bookingRate > 25 ? { value: bookingRate, isPositive: true, label: "conversion" } : undefined} />
       </div>
 
       {/* Main content grid */}
