@@ -33,44 +33,18 @@ export default function EventDetail() {
   const [user, setUser] = useState(null);
   React.useEffect(() => { base44.auth.me().then(setUser).catch(() => {}); }, []);
 
-  const { data: event, isLoading } = useQuery({
-    queryKey: ["event", id],
-    queryFn: async () => {
-      const events = await base44.entities.Event.list();
-      return events.find(e => e.id === id);
-    },
+  const { data: bundle, isLoading } = useQuery({
+    queryKey: ["event-bundle", id],
+    queryFn: () => EventAPI.getDetailBundle(id),
     enabled: !!id,
   });
 
-  const { data: activities = [] } = useQuery({
-    queryKey: ["event-activities", id],
-    queryFn: () => base44.entities.Activity.filter({ related_id: id }, "-created_date", 50),
-    enabled: !!id,
-  });
-
-  const { data: musicSelections = [] } = useQuery({
-    queryKey: ["music", id],
-    queryFn: () => base44.entities.MusicSelection.filter({ event_id: id }, "category", 100),
-    enabled: !!id,
-  });
-
-  const { data: timeline = [] } = useQuery({
-    queryKey: ["timeline", id],
-    queryFn: () => base44.entities.TimelineItem.filter({ event_id: id }, "order", 50),
-    enabled: !!id,
-  });
-
-  const { data: payments = [] } = useQuery({
-    queryKey: ["event-payments", id],
-    queryFn: () => base44.entities.Payment.filter({ event_id: id }, "-created_date", 20),
-    enabled: !!id,
-  });
-
-  const { data: tasks = [] } = useQuery({
-    queryKey: ["event-tasks", id],
-    queryFn: () => base44.entities.Task.filter({ related_id: id }, "-due_date", 20),
-    enabled: !!id,
-  });
+  const event = bundle?.event;
+  const activities = bundle?.activities || [];
+  const musicSelections = bundle?.musicSelections || [];
+  const timeline = bundle?.timeline || [];
+  const payments = bundle?.payments || [];
+  const tasks = bundle?.tasks || [];
 
   const updateEvent = async (field, value) => {
     await trackEventChanges(event, { [field]: value }, user?.email || "");
