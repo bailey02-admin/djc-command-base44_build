@@ -6,19 +6,8 @@ import { format } from "date-fns";
 import {
   Table, TableBody, TableCell, TableHead, TableHeader, TableRow,
 } from "@/components/ui/table";
-
-const statusColors = {
-  new: "bg-blue-50 text-blue-700",
-  attempted_contact: "bg-yellow-50 text-yellow-700",
-  contacted: "bg-indigo-50 text-indigo-700",
-  qualified: "bg-violet-50 text-violet-700",
-  proposal_sent: "bg-purple-50 text-purple-700",
-  follow_up: "bg-orange-50 text-orange-700",
-  booked: "bg-emerald-50 text-emerald-700",
-  lost: "bg-red-50 text-red-700",
-  ghosted: "bg-gray-50 text-gray-600",
-  disqualified: "bg-gray-100 text-gray-500",
-};
+import SLABadge from "./SLABadge";
+import { STAGE_MAP } from "../crm/pipeline";
 
 export default function LeadTable({ leads }) {
   return (
@@ -31,7 +20,8 @@ export default function LeadTable({ leads }) {
             <TableHead className="text-xs font-semibold">Date</TableHead>
             <TableHead className="text-xs font-semibold">City</TableHead>
             <TableHead className="text-xs font-semibold">Source</TableHead>
-            <TableHead className="text-xs font-semibold">Status</TableHead>
+            <TableHead className="text-xs font-semibold">Stage</TableHead>
+            <TableHead className="text-xs font-semibold">SLA</TableHead>
             <TableHead className="text-xs font-semibold">Rep</TableHead>
           </TableRow>
         </TableHeader>
@@ -50,10 +40,9 @@ export default function LeadTable({ leads }) {
               <TableCell className="text-sm text-gray-500">{lead.city || "—"}</TableCell>
               <TableCell className="text-sm text-gray-500 capitalize">{lead.lead_source?.replace(/_/g, " ") || "—"}</TableCell>
               <TableCell>
-                <Badge variant="secondary" className={`text-[10px] ${statusColors[lead.status]}`}>
-                  {lead.status?.replace(/_/g, " ")}
-                </Badge>
+                {(() => { const s = STAGE_MAP[lead.pipeline_stage]; return s ? <Badge variant="secondary" className={`text-[10px] ${s.color}`}>{s.label}</Badge> : <span className="text-xs text-gray-400">—</span>; })()}
               </TableCell>
+              <TableCell><SLABadge lead={lead} /></TableCell>
               <TableCell className="text-sm text-gray-500">{lead.assigned_rep || "—"}</TableCell>
             </TableRow>
           ))}
