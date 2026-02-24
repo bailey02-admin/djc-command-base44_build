@@ -329,6 +329,16 @@ export default function LeadDetail() {
         </div>
       </div>
 
+      {/* Send Message Modal */}
+      <SendMessageModal
+        open={sendMsgOpen}
+        onClose={() => setSendMsgOpen(false)}
+        lead={lead}
+        relatedType="lead"
+        relatedId={id}
+        relatedName={`${lead.client_first_name} ${lead.client_last_name}`}
+      />
+
       {/* Mark Lost Dialog */}
       <Dialog open={lostDialog} onOpenChange={setLostDialog}>
         <DialogContent>
