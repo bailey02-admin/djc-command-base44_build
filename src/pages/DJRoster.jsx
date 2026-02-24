@@ -60,7 +60,7 @@ export default function DJRoster() {
   const openEdit = (d) => {
     setEditing(d);
     setForm({ ...EMPTY, ...d });
-    setAdditionalCitiesText((d.additional_cities || []).join(", "));
+    setAdditionalCitiesText((d.additional_cities || []).join(", ") || "");
     setShowModal(true);
   };
 
