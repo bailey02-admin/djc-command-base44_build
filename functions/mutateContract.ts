@@ -1,6 +1,11 @@
 /**
  * Secure Contract mutation endpoint.
  * Actions: create | update | delete | send | sign | void
+ *
+ * Idempotency guarantees:
+ *   send: only logs activity on first send (draft→sent); preserves sent_date on re-send
+ *   sign: no-op if already signed; event.contract_signed = true
+ *   void: only flips event.contract_signed = false if no OTHER signed contract exists for the event
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
@@ -51,40 +56,46 @@ Deno.serve(async (req) => {
 
     if (action === "send") {
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
+      // Fetch first for idempotency
+      const existing = await base44.asServiceRole.entities.Contract.filter({ id });
+      const current = existing[0];
+      if (!current) return Response.json({ error: "Contract not found" }, { status: 404 });
+
+      const wasDraft = current.status === "draft";
       const contract = await base44.asServiceRole.entities.Contract.update(id, {
         status: "sent",
-        sent_date: new Date().toISOString(),
+        // Preserve original sent_date on re-sends
+        sent_date: current.sent_date || new Date().toISOString(),
       });
-      await base44.asServiceRole.entities.Activity.create({
-        type: "email",
-        subject: `Contract sent to ${contract.contact_name}`,
-        related_type: "event",
-        related_id: contract.event_id,
-        outcome: "email_sent",
-        is_internal: false,
-        performed_by: user.email,
-      }).catch(() => {});
+      // Only log activity on first send
+      if (wasDraft) {
+        await base44.asServiceRole.entities.Activity.create({
+          type: "email",
+          subject: `Contract sent to ${contract.contact_name}`,
+          related_type: "event",
+          related_id: contract.event_id,
+          outcome: "email_sent",
+          is_internal: false,
+          performed_by: user.email,
+        }).catch(() => {});
+      }
       return Response.json({ contract });
     }
 
     if (action === "sign") {
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
-
-      // Fetch current contract first for idempotency + signer_name fallback
       const existing = await base44.asServiceRole.entities.Contract.filter({ id });
-      const currentContract = existing[0];
-      if (!currentContract) return Response.json({ error: "Contract not found" }, { status: 404 });
-      if (currentContract.status === "signed") return Response.json({ contract: currentContract });
+      const current = existing[0];
+      if (!current) return Response.json({ error: "Contract not found" }, { status: 404 });
+      // Idempotent: already signed, return as-is
+      if (current.status === "signed") return Response.json({ contract: current });
 
       const now = new Date().toISOString();
       const contract = await base44.asServiceRole.entities.Contract.update(id, {
         status: "signed",
         signed_date: now,
-        signer_name: data.signer_name || currentContract.contact_name,
+        signer_name: data.signer_name || current.contact_name,
       });
-
-      // Sync contract_signed to Event — only set true if this contract is not voided
-      // Also check: if multiple contracts exist, only set true when a live one is signed
       if (contract.event_id) {
         await base44.asServiceRole.entities.Event.update(contract.event_id, {
           contract_signed: true,
@@ -92,7 +103,7 @@ Deno.serve(async (req) => {
       }
       await base44.asServiceRole.entities.Activity.create({
         type: "note",
-        subject: `Contract signed by ${data.signer_name || "client"}`,
+        subject: `Contract signed by ${data.signer_name || current.contact_name || "client"}`,
         related_type: "event",
         related_id: contract.event_id,
         outcome: "completed",
@@ -107,7 +118,7 @@ Deno.serve(async (req) => {
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
       const contract = await base44.asServiceRole.entities.Contract.update(id, { status: "voided" });
 
-      // Only flip contract_signed to false if no OTHER signed contract exists for this event
+      // Only flip event.contract_signed to false if no OTHER non-voided signed contract exists
       if (contract.event_id) {
         const siblings = await base44.asServiceRole.entities.Contract.filter({ event_id: contract.event_id });
         const hasOtherSigned = siblings.some(c => c.id !== contract.id && c.status === "signed");
@@ -116,31 +127,6 @@ Deno.serve(async (req) => {
             contract_signed: false,
           }).catch(() => {});
         }
-      }
-      return Response.json({ contract });
-    }
-
-    if (action === "send") {
-      if (!id) return Response.json({ error: "id required" }, { status: 400 });
-      // Idempotency: only log activity if transitioning from draft
-      const existing = await base44.asServiceRole.entities.Contract.filter({ id });
-      const currentContract = existing[0];
-      if (!currentContract) return Response.json({ error: "Contract not found" }, { status: 404 });
-
-      const contract = await base44.asServiceRole.entities.Contract.update(id, {
-        status: "sent",
-        sent_date: currentContract.sent_date || new Date().toISOString(),
-      });
-      if (currentContract.status === "draft") {
-        await base44.asServiceRole.entities.Activity.create({
-          type: "email",
-          subject: `Contract sent to ${contract.contact_name}`,
-          related_type: "event",
-          related_id: contract.event_id,
-          outcome: "email_sent",
-          is_internal: false,
-          performed_by: user.email,
-        }).catch(() => {});
       }
       return Response.json({ contract });
     }
