@@ -10,12 +10,17 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, differenceInDays } from "date-fns";
 import {
-  ArrowLeft, Edit, CalendarDays, MapPin, User, Music, Clock,
-  FileText, DollarSign, MessageSquare, Send, Loader2, AlertTriangle
+  ArrowLeft, Edit, CalendarDays, MapPin, Music, Clock,
+  DollarSign, Loader2, AlertTriangle, Send, History
 } from "lucide-react";
 import ReadinessPanel from "../components/events/ReadinessPanel";
+import FinalizationChecklist from "../components/events/FinalizationChecklist";
+import ChangeHistoryPanel from "../components/events/ChangeHistoryPanel";
+import EventNextBestAction from "../components/events/EventNextBestAction";
 import ActivityFeed from "../components/leads/ActivityFeed";
+import SendMessageModal from "../components/communication/SendMessageModal";
 import { calculateReadinessScore } from "../components/crm/pipeline";
+import { trackEventChanges } from "../components/crm/changeTracker";
 
 const STATUS_OPTIONS = ["booked","planning_in_progress","awaiting_planning_form","final_call_scheduled","finalized","dj_assigned","confirmed","event_completed","survey_sent","review_requested","closed_won","closed_issue"];
 
@@ -23,6 +28,9 @@ export default function EventDetail() {
   const params = new URLSearchParams(window.location.search);
   const id = params.get("id");
   const queryClient = useQueryClient();
+  const [sendMsgOpen, setSendMsgOpen] = useState(false);
+  const [user, setUser] = useState(null);
+  React.useEffect(() => { base44.auth.me().then(setUser).catch(() => {}); }, []);
 
   const { data: event, isLoading } = useQuery({
     queryKey: ["event", id],
@@ -57,17 +65,27 @@ export default function EventDetail() {
     enabled: !!id,
   });
 
+  const { data: tasks = [] } = useQuery({
+    queryKey: ["event-tasks", id],
+    queryFn: () => base44.entities.Task.filter({ related_id: id }, "-due_date", 20),
+    enabled: !!id,
+  });
+
   const updateEvent = async (field, value) => {
+    await trackEventChanges(event, { [field]: value }, user?.email || "");
     await base44.entities.Event.update(id, { [field]: value });
     queryClient.invalidateQueries(["event", id]);
+    queryClient.invalidateQueries(["change-history", id]);
   };
 
   const updateReadinessItem = async (key, value) => {
     const update = { [key]: value };
     const updatedEvent = { ...event, ...update };
     const newScore = calculateReadinessScore(updatedEvent);
+    await trackEventChanges(event, update, user?.email || "");
     await base44.entities.Event.update(id, { ...update, readiness_score: newScore });
     queryClient.invalidateQueries(["event", id]);
+    queryClient.invalidateQueries(["change-history", id]);
   };
 
   if (isLoading || !event) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-violet-600" /></div>;
@@ -105,10 +123,13 @@ export default function EventDetail() {
             )}
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Link to={createPageUrl("EventForm") + `?id=${event.id}`}>
             <Button variant="outline" size="sm"><Edit className="w-4 h-4 mr-1" />Edit</Button>
           </Link>
+          <Button variant="outline" size="sm" onClick={() => setSendMsgOpen(true)}>
+            <Send className="w-4 h-4 mr-1" />Send Message
+          </Button>
           <Select value={event.status} onValueChange={v => updateEvent("status", v)}>
             <SelectTrigger className="w-44 h-9 text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
@@ -121,10 +142,12 @@ export default function EventDetail() {
       <Tabs defaultValue="overview" className="space-y-6">
         <TabsList className="bg-white border flex-wrap">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="finalization">Finalization</TabsTrigger>
           <TabsTrigger value="music">Music ({musicSelections.length})</TabsTrigger>
           <TabsTrigger value="timeline">Timeline ({timeline.length})</TabsTrigger>
           <TabsTrigger value="payments">Payments ({payments.length})</TabsTrigger>
           <TabsTrigger value="activity">Activity ({activities.length})</TabsTrigger>
+          <TabsTrigger value="history"><History className="w-3 h-3 mr-1" />Changes</TabsTrigger>
         </TabsList>
 
         <TabsContent value="overview">
@@ -166,7 +189,8 @@ export default function EventDetail() {
                 </Card>
               )}
             </div>
-            <div>
+            <div className="space-y-4">
+              <EventNextBestAction event={event} tasks={tasks} />
               <Card className="border-0 shadow-sm">
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Event Readiness</CardTitle></CardHeader>
                 <CardContent>
@@ -254,6 +278,14 @@ export default function EventDetail() {
           </Card>
         </TabsContent>
 
+        <TabsContent value="finalization">
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-6">
+              <FinalizationChecklist event={event} onToggle={updateReadinessItem} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
         <TabsContent value="activity">
           <ActivityFeed
             activities={activities}
@@ -263,7 +295,25 @@ export default function EventDetail() {
             queryKey="event-activities"
           />
         </TabsContent>
+
+        <TabsContent value="history">
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Change History</CardTitle></CardHeader>
+            <CardContent>
+              <ChangeHistoryPanel eventId={id} />
+            </CardContent>
+          </Card>
+        </TabsContent>
       </Tabs>
+
+      <SendMessageModal
+        open={sendMsgOpen}
+        onClose={() => setSendMsgOpen(false)}
+        event={event}
+        relatedType="event"
+        relatedId={id}
+        relatedName={event.event_name}
+      />
     </div>
   );
 }
