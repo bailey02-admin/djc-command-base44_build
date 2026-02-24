@@ -29,18 +29,25 @@ export default function DJAssignModal({ event, onClose, onSaved }) {
     enabled: !!event.event_date,
   });
 
-  const conflicted = new Set(sameDay.filter(e => e.id !== event.id && e.assigned_dj).map(e => e.assigned_dj));
+  // Conflict detection: match on either the new assigned_dj_id field OR legacy free-text name/email
+  const conflicted = new Set([
+    ...sameDay.filter(e => e.id !== event.id && e.assigned_dj_id).map(e => e.assigned_dj_id),
+    ...sameDay.filter(e => e.id !== event.id && !e.assigned_dj_id && e.assigned_dj).map(e => e.assigned_dj),
+  ]);
 
   const filtered = roster.filter(dj =>
     dj.is_active !== false &&
-    (!search || dj.name?.toLowerCase().includes(search.toLowerCase()) || dj.email?.toLowerCase().includes(search.toLowerCase()))
+    (!search || dj.name?.toLowerCase().includes(search.toLowerCase()) ||
+     dj.city?.toLowerCase().includes(search.toLowerCase()) ||
+     dj.email?.toLowerCase().includes(search.toLowerCase()))
   );
 
   const handleAssign = async () => {
     if (!selected) return;
     setSaving(true);
     await EventAPI.update(event.id, {
-      assigned_dj: selected.email || selected.name,
+      assigned_dj: selected.name,       // display name (shown everywhere)
+      assigned_dj_id: selected.id,      // roster ID (conflict detection, linking)
     });
     onSaved();
   };
@@ -65,8 +72,11 @@ export default function DJAssignModal({ event, onClose, onSaved }) {
 
         <div className="space-y-1.5 max-h-72 overflow-y-auto">
           {filtered.map(dj => {
-            const isConflict = conflicted.has(dj.email) || conflicted.has(dj.name);
-            const isCurrent = event.assigned_dj === dj.email || event.assigned_dj === dj.name;
+            // Conflict: matched by ID (new) OR legacy free-text match
+            const isConflict = conflicted.has(dj.id) || conflicted.has(dj.email) || conflicted.has(dj.name);
+            // Current: matched by ID first, then legacy
+            const isCurrent = event.assigned_dj_id === dj.id ||
+              (!event.assigned_dj_id && (event.assigned_dj === dj.email || event.assigned_dj === dj.name));
             const isSelected = selected?.id === dj.id;
 
             return (
