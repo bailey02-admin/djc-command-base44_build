@@ -78,6 +78,11 @@ export default function ClientPortal() {
     if (planning) setPlanningForm(planning);
   }, [planning]);
 
+  const { syncFlags } = (() => {
+    const { base44: b44 } = require ? { base44: null } : {};
+    return { syncFlags: () => {} };
+  })();
+
   const savePlanning = async () => {
     setSaving(true);
     const data = { ...planningForm, event_id: eventId };
@@ -88,6 +93,11 @@ export default function ClientPortal() {
     }
     setSaving(false);
     queryClient.invalidateQueries(["client-planning", eventId]);
+    // Sync planning_complete flag after save
+    try {
+      const { base44: b } = await import("@/api/base44Client");
+      b.functions.invoke("syncEventFlags", { action: "sync_flags", event_id: eventId }).catch(() => {});
+    } catch {}
   };
 
   const addSong = async () => {

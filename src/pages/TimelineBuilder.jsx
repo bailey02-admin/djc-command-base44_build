@@ -10,6 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Plus, Trash2, Clock, GripVertical, Loader2, Save, Sparkles } from "lucide-react";
+import { EventOpsAPI } from "../components/api/secureApi";
 
 const WEDDING_TEMPLATE = [
   { segment_name: "Guest Arrival & Cocktail Music", time: "5:00 PM", end_time: "5:30 PM", order: 1 },
@@ -52,11 +53,13 @@ export default function TimelineBuilder() {
     setSaving(false);
     setAdding(false);
     queryClient.invalidateQueries(["timeline", eventId]);
+    EventOpsAPI.syncFlags(eventId).catch(() => {});
   };
 
   const handleDelete = async (id) => {
     await base44.entities.TimelineItem.delete(id);
     queryClient.invalidateQueries(["timeline", eventId]);
+    EventOpsAPI.syncFlags(eventId).catch(() => {});
   };
 
   const applyTemplate = async () => {
@@ -66,6 +69,7 @@ export default function TimelineBuilder() {
     );
     setSaving(false);
     queryClient.invalidateQueries(["timeline", eventId]);
+    EventOpsAPI.syncFlags(eventId).catch(() => {});
   };
 
   return (
