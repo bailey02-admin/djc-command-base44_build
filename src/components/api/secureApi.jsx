@@ -22,6 +22,11 @@ export const LeadAPI = {
   update: (id, data) =>
     invoke("mutateLead", { action: "update", id, data }).then(r => r.lead),
 
+  save: (id, data) =>
+    id
+      ? invoke("mutateLead", { action: "update", id, data }).then(r => r.lead)
+      : invoke("mutateLead", { action: "create", data }).then(r => r.lead),
+
   advanceStage: (id, data) =>
     invoke("mutateLead", { action: "advance_stage", id, data }).then(r => r.lead),
 
@@ -37,6 +42,10 @@ export const EventAPI = {
   list: (filters = {}, sort = "-event_date", limit = 100) =>
     invoke("getEvents", { filters, sort, limit }).then(r => r.events || []),
 
+  /** Returns { event, activities, tasks, payments, musicSelections, timeline } */
+  getDetailBundle: (id) =>
+    invoke("getEventDetail", { id }),
+
   create: (data) =>
     invoke("mutateEvent", { action: "create", data }).then(r => r.event),
 
@@ -50,6 +59,15 @@ export const EventAPI = {
     invoke("mutateEvent", { action: "delete", id }),
 };
 
+// ─── ACTIVITIES ───────────────────────────────────────────────────────────
+export const ActivityAPI = {
+  forRecord: (related_id, limit = 50) =>
+    invoke("getActivities", { related_id, limit }).then(r => r.activities || []),
+
+  create: (data) =>
+    invoke("mutateActivity", { data }).then(r => r.activity),
+};
+
 // ─── TASKS ────────────────────────────────────────────────────────────────
 export const TaskAPI = {
   list: (filters = {}, sort = "-due_date", limit = 200) =>
@@ -61,6 +79,9 @@ export const TaskAPI = {
   create: (data) =>
     invoke("mutateTasks", { action: "create", data }).then(r => r.task),
 
+  bulkCreate: (tasks) =>
+    Promise.all(tasks.map(t => invoke("mutateTasks", { action: "create", data: t }).then(r => r.task))),
+
   complete: (id) =>
     invoke("mutateTasks", { action: "complete", id }).then(r => r.task),
 
@@ -71,12 +92,6 @@ export const TaskAPI = {
     invoke("mutateTasks", { action: "delete", id }),
 };
 
-// ─── ACTIVITIES ───────────────────────────────────────────────────────────
-export const ActivityAPI = {
-  forRecord: (related_id, limit = 50) =>
-    invoke("getActivities", { related_id, limit }).then(r => r.activities || []),
-};
-
 // ─── PAYMENTS ─────────────────────────────────────────────────────────────
 export const PaymentAPI = {
   list: (limit = 100) =>
@@ -84,4 +99,16 @@ export const PaymentAPI = {
 
   forEvent: (event_id) =>
     invoke("getPayments", { event_id }).then(r => r.payments || []),
+
+  create: (data) =>
+    invoke("mutatePayment", { action: "create", data }).then(r => r.payment),
+
+  update: (id, data) =>
+    invoke("mutatePayment", { action: "update", id, data }).then(r => r.payment),
+};
+
+// ─── REPORTS ──────────────────────────────────────────────────────────────
+export const ReportAPI = {
+  getSummary: (city_filter = "all") =>
+    invoke("getReportSummary", { city_filter }),
 };
