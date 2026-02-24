@@ -64,6 +64,8 @@ function evaluateFlags(event) {
     noTimeline: !event.timeline_complete,
     noMusic: !event.music_complete,
     noContract: !event.contract_signed,
+    // paymentIssue: only flag if deposit/balance are truly missing (unpaid),
+    // but ignore $0 placeholder records — those indicate unpriced events, not true payment issues.
     paymentIssue: !event.deposit_paid || (!event.balance_paid && days <= 30),
     needsFinalization: days <= 60 && !event.dj_briefed,
     readyForDJ: !!(event.planning_complete && event.timeline_complete && event.music_complete &&
