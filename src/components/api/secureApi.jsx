@@ -116,10 +116,28 @@ export const ReportAPI = {
     invoke("getReportSummary", { city_filter }),
 };
 
+// ─── CONTACTS ─────────────────────────────────────────────────────────────
+export const ContactAPI = {
+  list: (filters = {}, sort = "-created_date", limit = 200) =>
+    invoke("getContacts", { filters, sort, limit }).then(r => r.contacts || []),
+
+  get: (id) =>
+    invoke("getContacts", { id }).then(r => r.contact),
+
+  create: (data) =>
+    invoke("mutateContact", { action: "create", data }).then(r => r.contact),
+
+  update: (id, data) =>
+    invoke("mutateContact", { action: "update", id, data }).then(r => r.contact),
+
+  delete: (id) =>
+    invoke("mutateContact", { action: "delete", id }),
+};
+
 // ─── QUOTES ───────────────────────────────────────────────────────────────
 export const QuoteAPI = {
   list: (filters = {}, sort = "-created_date", limit = 200) =>
-    base44.entities.Quote.filter(filters, sort, limit),
+    invoke("getContracts", { filters, sort, limit }).then(r => r.contracts || []),
 
   forLead: (lead_id) =>
     base44.entities.Quote.filter({ lead_id }, "-created_date", 20),
