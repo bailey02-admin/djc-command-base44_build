@@ -2,7 +2,7 @@ import React from "react";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
 import { format, isPast } from "date-fns";
-import { base44 } from "@/api/base44Client";
+import { TaskAPI } from "../api/secureApi";
 
 const priorityColors = {
   low: "bg-gray-100 text-gray-600",
@@ -13,11 +13,11 @@ const priorityColors = {
 
 export default function TaskList({ tasks, onUpdate }) {
   const handleToggle = async (task) => {
-    const newStatus = task.status === "completed" ? "pending" : "completed";
-    await base44.entities.Task.update(task.id, {
-      status: newStatus,
-      completed_date: newStatus === "completed" ? new Date().toISOString() : null,
-    });
+    if (task.status === "completed") {
+      await TaskAPI.update(task.id, { status: "pending", completed_date: null });
+    } else {
+      await TaskAPI.complete(task.id);
+    }
     onUpdate?.();
   };
 
