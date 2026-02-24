@@ -60,10 +60,10 @@ import Leads from './pages/Leads';
 import MusicPlanner from './pages/MusicPlanner';
 import Payments from './pages/Payments';
 import Reports from './pages/Reports';
+import Settings from './pages/Settings';
 import Tasks from './pages/Tasks';
 import TimelineBuilder from './pages/TimelineBuilder';
 import Venues from './pages/Venues';
-import Settings from './pages/Settings';
 import __Layout from './Layout.jsx';
 
 
@@ -81,10 +81,10 @@ export const PAGES = {
     "MusicPlanner": MusicPlanner,
     "Payments": Payments,
     "Reports": Reports,
+    "Settings": Settings,
     "Tasks": Tasks,
     "TimelineBuilder": TimelineBuilder,
     "Venues": Venues,
-    "Settings": Settings,
 }
 
 export const pagesConfig = {

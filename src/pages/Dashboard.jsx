@@ -3,16 +3,19 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Badge } from "@/components/ui/badge";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import {
   Users, CalendarDays, DollarSign, TrendingUp,
-  Plus, ArrowRight, ClipboardList, Music
+  Plus, ArrowRight, ClipboardList, AlertTriangle, Clock, CheckCircle2
 } from "lucide-react";
 import StatCard from "../components/dashboard/StatCard";
 import RecentLeads from "../components/dashboard/RecentLeads";
 import UpcomingEvents from "../components/dashboard/UpcomingEvents";
 import TaskList from "../components/dashboard/TaskList";
+import { differenceInDays, isToday, format } from "date-fns";
+import { calculateReadinessScore } from "../components/crm/pipeline";
 
 export default function Dashboard() {
   const queryClient = useQueryClient();
@@ -37,10 +40,30 @@ export default function Dashboard() {
     queryFn: () => base44.entities.Payment.list("-created_date", 100),
   });
 
+  const [user, setUser] = useState(null);
+  useEffect(() => { base44.auth.me().then(setUser).catch(() => {}); }, []);
+
   const activeLeads = leads.filter(l => !["booked", "lost", "ghosted", "disqualified"].includes(l.status));
   const bookedEvents = events.filter(e => e.event_date && new Date(e.event_date) >= new Date());
   const totalRevenue = payments.filter(p => p.status === "paid").reduce((sum, p) => sum + (p.amount || 0), 0);
   const bookingRate = leads.length > 0 ? Math.round((leads.filter(l => l.status === "booked").length / leads.length) * 100) : 0;
+
+  // SLA breach alerts — leads with no first response & inquiry > 60 min ago
+  const slaBreaches = leads.filter(l =>
+    !l.first_response_date &&
+    l.inquiry_date &&
+    !["lost","ghosted","disqualified","booked"].includes(l.pipeline_stage) &&
+    (Date.now() - new Date(l.inquiry_date).getTime()) > 60 * 60 * 1000
+  );
+
+  // At-risk events — next 14 days, readiness < 80%
+  const atRiskEvents = bookedEvents
+    .map(e => ({ ...e, days: differenceInDays(new Date(e.event_date), new Date()), score: calculateReadinessScore(e) }))
+    .filter(e => e.days <= 14 && e.days >= 0 && e.score < 80)
+    .sort((a, b) => a.days - b.days);
+
+  // Tasks due today
+  const tasksDueToday = tasks.filter(t => t.due_date && isToday(new Date(t.due_date)));
 
   return (
     <div className="p-4 lg:p-8 space-y-8 max-w-7xl mx-auto">
