@@ -137,7 +137,7 @@ export const ContactAPI = {
 // ─── QUOTES ───────────────────────────────────────────────────────────────
 export const QuoteAPI = {
   list: (filters = {}, sort = "-created_date", limit = 200) =>
-    invoke("getContracts", { filters, sort, limit }).then(r => r.contracts || []),
+    base44.entities.Quote.filter(filters, sort, limit),
 
   forLead: (lead_id) =>
     base44.entities.Quote.filter({ lead_id }, "-created_date", 20),
@@ -164,10 +164,10 @@ export const QuoteAPI = {
 // ─── CONTRACTS ────────────────────────────────────────────────────────────
 export const ContractAPI = {
   list: (filters = {}, sort = "-created_date", limit = 200) =>
-    base44.entities.Contract.filter(filters, sort, limit),
+    invoke("getContracts", { filters, sort, limit }).then(r => r.contracts || []),
 
   forEvent: (event_id) =>
-    base44.entities.Contract.filter({ event_id }, "-created_date", 10),
+    invoke("getContracts", { filters: { event_id }, sort: "-created_date", limit: 10 }).then(r => r.contracts || []),
 
   create: (data) =>
     invoke("mutateContract", { action: "create", data }).then(r => r.contract),
