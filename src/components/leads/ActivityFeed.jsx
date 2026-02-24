@@ -1,6 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQueryClient } from "@tanstack/react-query";
+import { ActivityAPI } from "../api/secureApi";
 import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Input } from "@/components/ui/input";
@@ -59,7 +60,7 @@ export default function ActivityFeed({ activities = [], relatedId, relatedName, 
       }),
     };
 
-    await base44.entities.Activity.create(activity);
+    await ActivityAPI.create(activity);
     setText("");
     setNextStep("");
     setCallDuration("");
