@@ -35,8 +35,7 @@ export default function ArchivedRecords() {
     toast.success(`${restoreTarget.entity_type === "lead" ? "Lead" : "Event"} restored successfully.`);
     setRestoring(false);
     setRestoreTarget(null);
-    queryClient.invalidateQueries(["archived-leads"]);
-    queryClient.invalidateQueries(["archived-events"]);
+    queryClient.invalidateQueries(["archived-records"]);
     queryClient.invalidateQueries(["leads"]);
     queryClient.invalidateQueries(["events"]);
   };
