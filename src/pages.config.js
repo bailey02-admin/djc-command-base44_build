@@ -67,6 +67,7 @@ import TimelineBuilder from './pages/TimelineBuilder';
 import Payments from './pages/Payments';
 import Quotes from './pages/Quotes';
 import Contracts from './pages/Contracts';
+import ArchivedRecords from './pages/ArchivedRecords';
 import __Layout from './Layout.jsx';
 
 
@@ -91,6 +92,7 @@ export const PAGES = {
     "Payments": Payments,
     "Quotes": Quotes,
     "Contracts": Contracts,
+    "ArchivedRecords": ArchivedRecords,
 }
 
 export const pagesConfig = {
