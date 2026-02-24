@@ -22,40 +22,27 @@ export default function DJView() {
     base44.auth.me().then(setUser).catch(() => {});
   }, []);
 
-  const { data: event } = useQuery({
+  const { data: eventBundle } = useQuery({
     queryKey: ["dj-event", eventId],
     queryFn: async () => {
-      const events = await base44.entities.Event.list();
-      return events.find(e => e.id === eventId);
+      const r = await base44.functions.invoke("getEventDetail", { id: eventId });
+      return r.data || {};
     },
     enabled: !!eventId,
   });
 
-  const { data: music = [] } = useQuery({
-    queryKey: ["dj-music", eventId],
-    queryFn: () => base44.entities.MusicSelection.filter({ event_id: eventId }, "category", 200),
-    enabled: !!eventId,
-  });
+  const event = eventBundle?.event || null;
+  const music = eventBundle?.musicSelections || [];
+  const timeline = eventBundle?.timeline || [];
+  const planning = eventBundle?.planning || null;
 
-  const { data: timeline = [] } = useQuery({
-    queryKey: ["dj-timeline", eventId],
-    queryFn: () => base44.entities.TimelineItem.filter({ event_id: eventId }, "order", 100),
-    enabled: !!eventId,
-  });
-
-  const { data: planning } = useQuery({
-    queryKey: ["dj-planning", eventId],
-    queryFn: async () => {
-      const plans = await base44.entities.EventPlanning.filter({ event_id: eventId });
-      return plans[0];
-    },
-    enabled: !!eventId,
-  });
-
-  // DJ list view (if no event selected)
+  // DJ list view — uses getEvents which is already scoped to assigned_dj for DJ role
   const { data: myEvents = [] } = useQuery({
     queryKey: ["dj-events"],
-    queryFn: () => base44.entities.Event.list("event_date", 100),
+    queryFn: async () => {
+      const r = await base44.functions.invoke("getEvents", { sort: "event_date", limit: 100 });
+      return r.data?.events || [];
+    },
     enabled: !eventId,
   });
 
