@@ -5,11 +5,11 @@ import { base44 } from "@/api/base44Client";
 import {
   LayoutDashboard, Users, CalendarDays, ClipboardList,
   FileText, MessageSquare, DollarSign, Building2, ChevronLeft,
-  ChevronRight, LogOut, Menu, Disc3, UserCircle, Search, Settings,
-  Layers, Music2
+  ChevronRight, LogOut, Menu, Disc3, UserCircle, Settings,
+  Layers, Music2, FileSignature, Archive, ScrollText
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
+import GlobalSearch from "./components/layout/GlobalSearch";
 
 const NAV_ITEMS = [
   { name: "Dashboard",       icon: LayoutDashboard, page: "Dashboard" },
@@ -18,11 +18,14 @@ const NAV_ITEMS = [
   { name: "Finalizer Queue", icon: Layers,          page: "FinalizerQueue" },
   { name: "Contacts",        icon: UserCircle,      page: "Contacts" },
   { name: "Tasks",           icon: ClipboardList,   page: "Tasks" },
+  { name: "Quotes",          icon: ScrollText,      page: "Quotes" },
+  { name: "Contracts",       icon: FileSignature,   page: "Contracts" },
   { name: "DJ Roster",       icon: Music2,          page: "DJRoster" },
   { name: "Venues",          icon: Building2,       page: "Venues" },
   { name: "Payments",        icon: DollarSign,      page: "Payments" },
   { name: "Templates",       icon: MessageSquare,   page: "MessageTemplates" },
   { name: "Reports",         icon: FileText,        page: "Reports" },
+  { name: "Archive",         icon: Archive,         page: "ArchivedRecords" },
   { name: "Settings",        icon: Settings,        page: "Settings" },
 ];
 
@@ -133,15 +136,7 @@ export default function Layout({ children, currentPageName }) {
           <button className="lg:hidden text-gray-500" onClick={() => setMobileOpen(true)}>
             <Menu className="w-5 h-5" />
           </button>
-          <div className="flex-1 max-w-md">
-            <div className="relative">
-              <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
-              <Input
-                placeholder="Search leads, events, contacts..."
-                className="pl-9 h-9 bg-gray-50/80 border-gray-200 text-sm"
-              />
-            </div>
-          </div>
+          <GlobalSearch />
         </header>
 
         {/* Page content */}
