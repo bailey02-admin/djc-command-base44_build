@@ -64,6 +64,7 @@ import Settings from './pages/Settings';
 import TimelineBuilder from './pages/TimelineBuilder';
 import ContactDetail from './pages/ContactDetail';
 import DJDetail from './pages/DJDetail';
+import Payments from './pages/Payments';
 import __Layout from './Layout.jsx';
 
 
@@ -85,6 +86,7 @@ export const PAGES = {
     "TimelineBuilder": TimelineBuilder,
     "ContactDetail": ContactDetail,
     "DJDetail": DJDetail,
+    "Payments": Payments,
 }
 
 export const pagesConfig = {
