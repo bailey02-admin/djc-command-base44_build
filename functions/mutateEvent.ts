@@ -18,7 +18,8 @@ const EVENT_WRITE_RULES = {
 
 // Fields DJs/finalizers cannot write
 const WRITE_PROTECTED_FIELDS = {
-  dj:               ["package_price", "contact_email", "contact_phone", "lead_id", "assigned_dj", "assigned_mc"],
+  // DJs cannot touch financials, contacts, or reassign themselves/others
+  dj:               ["package_price", "contact_email", "contact_phone", "lead_id", "assigned_dj", "assigned_dj_id", "assigned_mc", "assigned_mc_id"],
   office_finalizer: ["package_price", "lead_id"],
 };
 

@@ -8,10 +8,12 @@ import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 const EVENT_READ_DENIED = new Set(["client"]);
 
 const EVENT_HIDDEN_FIELDS = {
+  // DJs see assigned_dj_id for their own reference but not financial/contact fields
   dj:               ["package_price", "contact_email", "contact_phone", "lead_id", "internal_notes"],
   sales_rep:        ["package_price", "internal_notes"],
   office_finalizer: ["package_price"],
   finance:          ["internal_notes"],
+  // assigned_dj_id is NOT hidden for any role — it's needed for conflict detection in all views
 };
 
 function redactEvent(record, role) {
