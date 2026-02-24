@@ -70,8 +70,10 @@ export default function Dashboard() {
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Dashboard</h1>
-          <p className="text-sm text-gray-500 mt-0.5">Overview of your DJ business operations</p>
+          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
+            {user ? `Good ${new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, {user.full_name?.split(" ")[0] || "there"} 👋` : "Dashboard"}
+          </h1>
+          <p className="text-sm text-gray-500 mt-0.5">{format(new Date(), "EEEE, MMMM d")} · DJ Command CRM</p>
         </div>
         <div className="flex gap-2">
           <Link to={createPageUrl("LeadForm")}>
@@ -82,6 +84,46 @@ export default function Dashboard() {
           </Link>
         </div>
       </div>
+
+      {/* Alert bar */}
+      {(slaBreaches.length > 0 || atRiskEvents.length > 0 || tasksDueToday.length > 0) && (
+        <div className="space-y-2">
+          {slaBreaches.length > 0 && (
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-red-50 border border-red-100 text-sm">
+              <AlertTriangle className="w-4 h-4 text-red-500 flex-shrink-0" />
+              <span className="font-medium text-red-700">{slaBreaches.length} lead{slaBreaches.length > 1 ? "s" : ""} with missed SLA</span>
+              <div className="flex gap-1.5 flex-wrap ml-2">
+                {slaBreaches.slice(0,3).map(l => (
+                  <Link key={l.id} to={createPageUrl("LeadDetail") + `?id=${l.id}`}>
+                    <Badge className="text-[10px] bg-red-100 text-red-700 hover:bg-red-200 cursor-pointer border-0">{l.client_first_name} {l.client_last_name}</Badge>
+                  </Link>
+                ))}
+              </div>
+              {slaBreaches.length > 3 && <span className="text-red-400 text-xs ml-1">+{slaBreaches.length - 3} more</span>}
+            </div>
+          )}
+          {atRiskEvents.length > 0 && (
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-amber-50 border border-amber-100 text-sm">
+              <Clock className="w-4 h-4 text-amber-500 flex-shrink-0" />
+              <span className="font-medium text-amber-700">{atRiskEvents.length} event{atRiskEvents.length > 1 ? "s" : ""} at risk in next 14 days</span>
+              <div className="flex gap-1.5 flex-wrap ml-2">
+                {atRiskEvents.slice(0,3).map(e => (
+                  <Link key={e.id} to={createPageUrl("EventDetail") + `?id=${e.id}`}>
+                    <Badge className="text-[10px] bg-amber-100 text-amber-700 hover:bg-amber-200 cursor-pointer border-0">{e.event_name} · {e.days}d</Badge>
+                  </Link>
+                ))}
+              </div>
+            </div>
+          )}
+          {tasksDueToday.length > 0 && (
+            <div className="flex items-center gap-3 p-3 rounded-xl bg-violet-50 border border-violet-100 text-sm">
+              <CheckCircle2 className="w-4 h-4 text-violet-500 flex-shrink-0" />
+              <span className="font-medium text-violet-700">{tasksDueToday.length} task{tasksDueToday.length > 1 ? "s" : ""} due today</span>
+              <Link to={createPageUrl("Tasks")} className="text-xs text-violet-600 hover:underline ml-auto">View →</Link>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* Stats */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
