@@ -48,8 +48,6 @@
  * The mainPage value must match a key in the PAGES object exactly.
  */
 import ClientPortal from './pages/ClientPortal';
-import Contacts from './pages/Contacts';
-import DJRoster from './pages/DJRoster';
 import DJView from './pages/DJView';
 import Dashboard from './pages/Dashboard';
 import EventDetail from './pages/EventDetail';
@@ -61,12 +59,9 @@ import LeadForm from './pages/LeadForm';
 import Leads from './pages/Leads';
 import MessageTemplates from './pages/MessageTemplates';
 import MusicPlanner from './pages/MusicPlanner';
-import Payments from './pages/Payments';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
-import Tasks from './pages/Tasks';
 import TimelineBuilder from './pages/TimelineBuilder';
-import Venues from './pages/Venues';
 import ContactDetail from './pages/ContactDetail';
 import DJDetail from './pages/DJDetail';
 import __Layout from './Layout.jsx';
@@ -74,8 +69,6 @@ import __Layout from './Layout.jsx';
 
 export const PAGES = {
     "ClientPortal": ClientPortal,
-    "Contacts": Contacts,
-    "DJRoster": DJRoster,
     "DJView": DJView,
     "Dashboard": Dashboard,
     "EventDetail": EventDetail,
@@ -87,12 +80,9 @@ export const PAGES = {
     "Leads": Leads,
     "MessageTemplates": MessageTemplates,
     "MusicPlanner": MusicPlanner,
-    "Payments": Payments,
     "Reports": Reports,
     "Settings": Settings,
-    "Tasks": Tasks,
     "TimelineBuilder": TimelineBuilder,
-    "Venues": Venues,
     "ContactDetail": ContactDetail,
     "DJDetail": DJDetail,
 }
