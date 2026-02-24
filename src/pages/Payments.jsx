@@ -32,7 +32,7 @@ export default function Payments() {
 
   const { data: payments = [] } = useQuery({
     queryKey: ["all-payments"],
-    queryFn: () => base44.entities.Payment.list("-created_date", 200),
+    queryFn: () => PaymentAPI.list(200),
   });
 
   const filtered = payments.filter(p => {
@@ -47,7 +47,7 @@ export default function Payments() {
 
   const handleSave = async () => {
     setSaving(true);
-    await base44.entities.Payment.create({ ...form, amount: Number(form.amount) });
+    await PaymentAPI.create({ ...form, amount: Number(form.amount) });
     setForm({ event_id: "", contact_name: "", amount: "", payment_type: "deposit", due_date: "", status: "pending", payment_method: "credit_card", notes: "" });
     setSaving(false);
     setDialogOpen(false);
