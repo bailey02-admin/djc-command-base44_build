@@ -81,7 +81,7 @@ Deno.serve(async (req) => {
           name: city,
           leads: leads.filter(l => l.city === city).length,
           booked: leads.filter(l => l.city === city && l.status === "booked").length,
-          revenue: allPayments.filter(p => {
+          revenue: realPayments.filter(p => {
             const ev = events.find(e => e.id === p.event_id);
             return ev?.city === city && p.status === "paid";
           }).reduce((s, p) => s + (p.amount || 0), 0),
@@ -102,8 +102,9 @@ Deno.serve(async (req) => {
       .filter(e => e.days >= 0 && e.days <= 30 && e.score < 80)
       .sort((a, b) => a.days - b.days);
 
-    // Key metrics
-    const totalRevenue = allPayments.filter(p => p.status === "paid").reduce((s, p) => s + (p.amount || 0), 0);
+    // Key metrics — exclude $0 placeholder records from all financial calcs
+    const realPayments = allPayments.filter(p => (p.amount || 0) > 0);
+    const totalRevenue = realPayments.filter(p => p.status === "paid").reduce((s, p) => s + (p.amount || 0), 0);
     const bookingRate = fl.length > 0 ? Math.round((fl.filter(l => l.status === "booked").length / fl.length) * 100) : 0;
     const avgBookingValue = fe.filter(e => e.package_price).length > 0
       ? Math.round(fe.filter(e => e.package_price).reduce((s, e) => s + e.package_price, 0) / fe.filter(e => e.package_price).length) : 0;
