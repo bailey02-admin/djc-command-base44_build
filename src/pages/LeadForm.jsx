@@ -37,8 +37,7 @@ export default function LeadForm() {
 
   useEffect(() => {
     if (editId) {
-      base44.entities.Lead.list().then(leads => {
-        const l = leads.find(x => x.id === editId);
+      LeadAPI.get(editId).then(l => {
         if (l) setForm(prev => ({ ...prev, ...l, guest_count: l.guest_count?.toString() || "" }));
       });
     } else {
@@ -58,9 +57,9 @@ export default function LeadForm() {
       sla_status: "on_time",
     };
     if (editId) {
-      await base44.entities.Lead.update(editId, data);
+      await LeadAPI.update(editId, data);
     } else {
-      const lead = await base44.entities.Lead.create(data);
+      const lead = await LeadAPI.create(data);
       await onNewLead(lead);
     }
     navigate(createPageUrl("Leads"));

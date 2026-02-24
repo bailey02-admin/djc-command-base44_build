@@ -32,7 +32,7 @@ export default function Events() {
 
   const { data: events = [] } = useQuery({
     queryKey: ["events"],
-    queryFn: () => base44.entities.Event.list("-event_date", 200),
+    queryFn: () => EventAPI.list({}, "-event_date", 200),
   });
 
   const filtered = events.filter(e => {
