@@ -5,22 +5,25 @@ import { base44 } from "@/api/base44Client";
 import {
   LayoutDashboard, Users, CalendarDays, ClipboardList,
   FileText, MessageSquare, DollarSign, Building2, ChevronLeft,
-  ChevronRight, LogOut, Menu, Disc3, UserCircle, Search, Settings
+  ChevronRight, LogOut, Menu, Disc3, UserCircle, Search, Settings,
+  Layers, Music2
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
 const NAV_ITEMS = [
-  { name: "Dashboard", icon: LayoutDashboard, page: "Dashboard" },
-  { name: "Leads", icon: Users, page: "Leads" },
-  { name: "Events", icon: CalendarDays, page: "Events" },
-  { name: "Contacts", icon: UserCircle, page: "Contacts" },
-  { name: "Tasks", icon: ClipboardList, page: "Tasks" },
-  { name: "Venues", icon: Building2, page: "Venues" },
-  { name: "Payments", icon: DollarSign, page: "Payments" },
-  { name: "Templates", icon: MessageSquare, page: "MessageTemplates" },
-  { name: "Reports", icon: FileText, page: "Reports" },
-  { name: "Settings", icon: Settings, page: "Settings" },
+  { name: "Dashboard",       icon: LayoutDashboard, page: "Dashboard" },
+  { name: "Leads",           icon: Users,           page: "Leads" },
+  { name: "Events",          icon: CalendarDays,    page: "Events" },
+  { name: "Finalizer Queue", icon: Layers,          page: "FinalizerQueue" },
+  { name: "Contacts",        icon: UserCircle,      page: "Contacts" },
+  { name: "Tasks",           icon: ClipboardList,   page: "Tasks" },
+  { name: "DJ Roster",       icon: Music2,          page: "DJRoster" },
+  { name: "Venues",          icon: Building2,       page: "Venues" },
+  { name: "Payments",        icon: DollarSign,      page: "Payments" },
+  { name: "Templates",       icon: MessageSquare,   page: "MessageTemplates" },
+  { name: "Reports",         icon: FileText,        page: "Reports" },
+  { name: "Settings",        icon: Settings,        page: "Settings" },
 ];
 
 export default function Layout({ children, currentPageName }) {
