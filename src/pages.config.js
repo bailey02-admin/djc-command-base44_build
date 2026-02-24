@@ -47,8 +47,10 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
+import ArchivedRecords from './pages/ArchivedRecords';
 import ClientPortal from './pages/ClientPortal';
 import ContactDetail from './pages/ContactDetail';
+import Contracts from './pages/Contracts';
 import DJDetail from './pages/DJDetail';
 import DJView from './pages/DJView';
 import Dashboard from './pages/Dashboard';
@@ -61,19 +63,22 @@ import LeadForm from './pages/LeadForm';
 import Leads from './pages/Leads';
 import MessageTemplates from './pages/MessageTemplates';
 import MusicPlanner from './pages/MusicPlanner';
+import Payments from './pages/Payments';
+import Quotes from './pages/Quotes';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import TimelineBuilder from './pages/TimelineBuilder';
-import Payments from './pages/Payments';
-import Quotes from './pages/Quotes';
-import Contracts from './pages/Contracts';
-import ArchivedRecords from './pages/ArchivedRecords';
+import Contacts from './pages/Contacts';
+import Venues from './pages/Venues';
+import DJRoster from './pages/DJRoster';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
+    "ArchivedRecords": ArchivedRecords,
     "ClientPortal": ClientPortal,
     "ContactDetail": ContactDetail,
+    "Contracts": Contracts,
     "DJDetail": DJDetail,
     "DJView": DJView,
     "Dashboard": Dashboard,
@@ -86,13 +91,14 @@ export const PAGES = {
     "Leads": Leads,
     "MessageTemplates": MessageTemplates,
     "MusicPlanner": MusicPlanner,
+    "Payments": Payments,
+    "Quotes": Quotes,
     "Reports": Reports,
     "Settings": Settings,
     "TimelineBuilder": TimelineBuilder,
-    "Payments": Payments,
-    "Quotes": Quotes,
-    "Contracts": Contracts,
-    "ArchivedRecords": ArchivedRecords,
+    "Contacts": Contacts,
+    "Venues": Venues,
+    "DJRoster": DJRoster,
 }
 
 export const pagesConfig = {
