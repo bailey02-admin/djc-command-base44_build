@@ -21,6 +21,8 @@ import { onStageChange, onEventBooked, logFirstResponse } from "../components/cr
 import StageAdvancer from "../components/leads/StageAdvancer";
 import SLABadge from "../components/leads/SLABadge";
 import ActivityFeed from "../components/leads/ActivityFeed";
+import NextBestAction from "../components/leads/NextBestAction";
+import SendMessageModal from "../components/communication/SendMessageModal";
 
 const LOST_REASONS = ["price","availability","competitor","no_response","changed_plans","diy","other"];
 
@@ -32,6 +34,7 @@ export default function LeadDetail() {
   const [lostDialog, setLostDialog] = useState(false);
   const [lostReason, setLostReason] = useState("");
   const [lostDetail, setLostDetail] = useState("");
+  const [sendMsgOpen, setSendMsgOpen] = useState(false);
 
   const { data: lead, isLoading } = useQuery({
     queryKey: ["lead", id],
@@ -146,6 +149,9 @@ export default function LeadDetail() {
           <Link to={createPageUrl("LeadForm") + `?id=${lead.id}`}>
             <Button variant="outline" size="sm"><Edit className="w-4 h-4 mr-1" />Edit</Button>
           </Link>
+          <Button variant="outline" size="sm" onClick={() => setSendMsgOpen(true)}>
+            <Mail className="w-4 h-4 mr-1" />Send Message
+          </Button>
           <StageAdvancer lead={lead} onUpdate={updateLead} />
           {lead.pipeline_stage !== "lost" && lead.pipeline_stage !== "booked" && (
             <Button size="sm" variant="outline" onClick={() => setLostDialog(true)} className="border-red-200 text-red-600 hover:bg-red-50">
@@ -272,6 +278,9 @@ export default function LeadDetail() {
 
         {/* Sidebar */}
         <div className="space-y-4">
+            {/* Next Best Action */}
+          <NextBestAction lead={lead} tasks={tasks} />
+
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">SLA & Timing</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
