@@ -71,6 +71,7 @@ import TimelineBuilder from './pages/TimelineBuilder';
 import Contacts from './pages/Contacts';
 import Venues from './pages/Venues';
 import DJRoster from './pages/DJRoster';
+import Tasks from './pages/Tasks';
 import __Layout from './Layout.jsx';
 
 
@@ -99,6 +100,7 @@ export const PAGES = {
     "Contacts": Contacts,
     "Venues": Venues,
     "DJRoster": DJRoster,
+    "Tasks": Tasks,
 }
 
 export const pagesConfig = {
