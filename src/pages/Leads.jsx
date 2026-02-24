@@ -21,7 +21,7 @@ export default function Leads() {
 
   const { data: leads = [], isLoading } = useQuery({
     queryKey: ["leads"],
-    queryFn: () => base44.entities.Lead.list("-created_date", 200),
+    queryFn: () => LeadAPI.list({}, "-created_date", 200),
   });
 
   const cities = [...new Set(leads.map(l => l.city).filter(Boolean))];

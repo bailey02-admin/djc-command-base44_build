@@ -39,28 +39,25 @@ export default function LeadDetail() {
 
   const { data: lead, isLoading } = useQuery({
     queryKey: ["lead", id],
-    queryFn: async () => {
-      const leads = await base44.entities.Lead.list();
-      return leads.find(l => l.id === id);
-    },
+    queryFn: () => LeadAPI.get(id),
     enabled: !!id,
   });
 
   const { data: activities = [] } = useQuery({
     queryKey: ["activities", id],
-    queryFn: () => base44.entities.Activity.filter({ related_id: id }, "-created_date", 50),
+    queryFn: () => ActivityAPI.forRecord(id, 50),
     enabled: !!id,
   });
 
   const { data: tasks = [] } = useQuery({
     queryKey: ["tasks", id],
-    queryFn: () => base44.entities.Task.filter({ related_id: id }, "-created_date", 20),
+    queryFn: () => TaskAPI.forRecord(id, "-created_date", 20),
     enabled: !!id,
   });
 
   const updateLead = async (updates, newStage = null) => {
     const prevStage = lead.pipeline_stage;
-    await base44.entities.Lead.update(id, updates);
+    await LeadAPI.update(id, updates);
     queryClient.invalidateQueries(["lead", id]);
 
     if (newStage && newStage !== prevStage) {
@@ -75,7 +72,8 @@ export default function LeadDetail() {
 
   const convertToEvent = async () => {
     setConverting(true);
-    const event = await base44.entities.Event.create({
+    const { EventAPI: EA } = await import("../components/api/secureApi");
+    const event = await EA.create({
       event_name: `${lead.client_first_name} ${lead.client_last_name} - ${lead.event_type?.replace(/_/g, " ")}`,
       event_type: lead.event_type,
       event_date: lead.event_date,
@@ -91,7 +89,7 @@ export default function LeadDetail() {
       status: "booked",
       booked_date: lead.booked_date || new Date().toISOString().split("T")[0],
     });
-    await base44.entities.Lead.update(id, {
+    await LeadAPI.update(id, {
       status: "booked", pipeline_stage: "booked", event_id: event.id,
       booked_date: event.booked_date || new Date().toISOString(),
     });
@@ -102,7 +100,7 @@ export default function LeadDetail() {
 
   const markLost = async () => {
     if (!lostReason) return;
-    await base44.entities.Lead.update(id, {
+    await LeadAPI.markLost(id, {
       status: "lost", pipeline_stage: "lost",
       lost_reason: lostReason, lost_reason_detail: lostDetail,
     });
