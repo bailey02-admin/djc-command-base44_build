@@ -63,7 +63,8 @@ export default function EventDetail() {
     queryClient.invalidateQueries(["change-history", id]);
   };
 
-  if (isLoading || !event) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-violet-600" /></div>;
+  if (isLoading || !bundle) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-violet-600" /></div>;
+  if (!event) return <div className="flex items-center justify-center h-64 text-gray-400 text-sm">Event not found or access denied.</div>;
 
   const daysUntil = event.event_date ? differenceInDays(new Date(event.event_date), new Date()) : null;
   const readiness = calculateReadinessScore(event);
