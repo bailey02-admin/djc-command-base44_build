@@ -116,6 +116,72 @@ export const ReportAPI = {
     invoke("getReportSummary", { city_filter }),
 };
 
+// ─── QUOTES ───────────────────────────────────────────────────────────────
+export const QuoteAPI = {
+  list: (filters = {}, sort = "-created_date", limit = 200) =>
+    base44.entities.Quote.filter(filters, sort, limit),
+
+  forLead: (lead_id) =>
+    base44.entities.Quote.filter({ lead_id }, "-created_date", 20),
+
+  create: (data) =>
+    invoke("mutateQuote", { action: "create", data }).then(r => r.quote),
+
+  update: (id, data) =>
+    invoke("mutateQuote", { action: "update", id, data }).then(r => r.quote),
+
+  send: (id) =>
+    invoke("mutateQuote", { action: "send", id }).then(r => r.quote),
+
+  accept: (id) =>
+    invoke("mutateQuote", { action: "accept", id }).then(r => r.quote),
+
+  decline: (id) =>
+    invoke("mutateQuote", { action: "decline", id }).then(r => r.quote),
+
+  delete: (id) =>
+    invoke("mutateQuote", { action: "delete", id }),
+};
+
+// ─── CONTRACTS ────────────────────────────────────────────────────────────
+export const ContractAPI = {
+  list: (filters = {}, sort = "-created_date", limit = 200) =>
+    base44.entities.Contract.filter(filters, sort, limit),
+
+  forEvent: (event_id) =>
+    base44.entities.Contract.filter({ event_id }, "-created_date", 10),
+
+  create: (data) =>
+    invoke("mutateContract", { action: "create", data }).then(r => r.contract),
+
+  update: (id, data) =>
+    invoke("mutateContract", { action: "update", id, data }).then(r => r.contract),
+
+  send: (id) =>
+    invoke("mutateContract", { action: "send", id }).then(r => r.contract),
+
+  sign: (id, signer_name) =>
+    invoke("mutateContract", { action: "sign", id, data: { signer_name } }).then(r => r.contract),
+
+  void: (id) =>
+    invoke("mutateContract", { action: "void", id }).then(r => r.contract),
+
+  delete: (id) =>
+    invoke("mutateContract", { action: "delete", id }),
+};
+
+// ─── GLOBAL SEARCH ────────────────────────────────────────────────────────
+export const SearchAPI = {
+  search: (q, limit = 5) =>
+    invoke("globalSearch", { q, limit }).then(r => r.results || {}),
+};
+
+// ─── ARCHIVE / RESTORE ────────────────────────────────────────────────────
+export const ArchiveAPI = {
+  restore: (entity_type, id) =>
+    invoke("restoreRecord", { entity_type, id }),
+};
+
 // ─── FLAG SYNC + PAYMENT SCHEDULE ─────────────────────────────────────────
 export const EventOpsAPI = {
   syncFlags: (event_id) =>
