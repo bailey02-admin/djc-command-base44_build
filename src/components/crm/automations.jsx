@@ -1,27 +1,54 @@
+/**
+ * CRM Automation Orchestrator
+ * Fires real DB writes on trigger events.
+ * Uses taskEngine for task generation, logs to AutomationLog + Activity.
+ */
 import { base44 } from "@/api/base44Client";
-import { buildTasksFromTemplate, calculateSLAStatus } from "./pipeline";
+import { buildTasks, completeTask } from "./taskEngine";
+import { calculateSLAStatus } from "./pipeline";
 
+// ─── New Lead ─────────────────────────────────────────────────────────────
 export async function onNewLead(lead) {
   const relatedName = `${lead.client_first_name} ${lead.client_last_name}`;
-  const tasks = buildTasksFromTemplate("new_lead", lead.id, relatedName, "lead");
+  const tasks = buildTasks("new_inquiry", lead.id, relatedName, "lead");
+
   if (tasks.length > 0) await base44.entities.Task.bulkCreate(tasks);
+
   await base44.entities.AutomationLog.create({
     trigger: "new_lead",
     related_type: "lead",
     related_id: lead.id,
     related_name: relatedName,
     tasks_created: tasks.length,
-    notes: "Auto-created call now + follow-up tasks",
+    notes: `Auto-created ${tasks.length} tasks for new inquiry`,
+  });
+
+  // Log a system activity
+  await base44.entities.Activity.create({
+    type: "system",
+    subject: "New lead created — tasks auto-generated",
+    related_type: "lead",
+    related_id: lead.id,
+    related_name: relatedName,
+    is_internal: true,
   });
 }
 
+// ─── Stage Change ─────────────────────────────────────────────────────────
 export async function onStageChange(lead, newStage) {
   const relatedName = `${lead.client_first_name} ${lead.client_last_name}`;
-  const templateMap = { quote_sent: "quote_sent", deposit_requested: "deposit_requested" };
-  const templateKey = templateMap[newStage];
+  const templateKeys = {
+    attempted_contact:      "attempted_contact",
+    qualified:              "qualified",
+    consultation_completed: "consultation_completed",
+    quote_sent:             "quote_sent",
+    deposit_requested:      "deposit_requested",
+    booked:                 "booked",
+  };
+  const templateKey = templateKeys[newStage];
 
   if (templateKey) {
-    const tasks = buildTasksFromTemplate(templateKey, lead.id, relatedName, "lead");
+    const tasks = buildTasks(templateKey, lead.id, relatedName, "lead");
     if (tasks.length > 0) {
       await base44.entities.Task.bulkCreate(tasks);
       await base44.entities.AutomationLog.create({
@@ -30,10 +57,12 @@ export async function onStageChange(lead, newStage) {
         related_id: lead.id,
         related_name: relatedName,
         tasks_created: tasks.length,
+        notes: `Stage → ${newStage}: created ${tasks.length} tasks`,
       });
     }
   }
 
+  // Always log a status_change activity
   await base44.entities.Activity.create({
     type: "status_change",
     subject: `Stage → ${newStage.replace(/_/g, " ")}`,
@@ -44,30 +73,80 @@ export async function onStageChange(lead, newStage) {
   });
 }
 
+// ─── Event Booked ─────────────────────────────────────────────────────────
 export async function onEventBooked(event) {
-  const daysUntil = event.event_date
-    ? Math.floor((new Date(event.event_date) - new Date()) / (1000 * 60 * 60 * 24))
-    : null;
+  const eventDate = event.event_date ? new Date(event.event_date) : null;
+  const daysUntil = eventDate ? Math.floor((eventDate - new Date()) / (1000 * 60 * 60 * 24)) : null;
   if (daysUntil === null) return;
 
-  const tasks = [
-    ...(daysUntil > 60 ? buildTasksFromTemplate("event_60_days", event.id, event.event_name, "event") : []),
-    ...(daysUntil > 30 ? buildTasksFromTemplate("event_30_days", event.id, event.event_name, "event") : []),
-    ...(daysUntil > 14 ? buildTasksFromTemplate("event_14_days", event.id, event.event_name, "event") : []),
-  ];
+  const templateKeys = [];
+  if (daysUntil > 90) templateKeys.push("event_90_days");
+  if (daysUntil > 60) templateKeys.push("event_60_days");
+  if (daysUntil > 30) templateKeys.push("event_30_days");
+  if (daysUntil > 14) templateKeys.push("event_14_days");
+  if (daysUntil <= 14) templateKeys.push("event_7_days");
 
-  if (tasks.length > 0) {
-    await base44.entities.Task.bulkCreate(tasks);
+  const allTasks = templateKeys.flatMap(key =>
+    buildTasks(key, event.id, event.event_name, "event", event.event_date)
+  );
+
+  if (allTasks.length > 0) {
+    await base44.entities.Task.bulkCreate(allTasks);
     await base44.entities.AutomationLog.create({
       trigger: "event_booked",
       related_type: "event",
       related_id: event.id,
       related_name: event.event_name,
+      tasks_created: allTasks.length,
+      notes: `${daysUntil} days out — created tasks from: ${templateKeys.join(", ")}`,
+    });
+  }
+
+  // Log booking activity on the event
+  await base44.entities.Activity.create({
+    type: "status_change",
+    subject: "Event booked — planning tasks generated",
+    related_type: "event",
+    related_id: event.id,
+    related_name: event.event_name,
+    is_internal: true,
+  });
+}
+
+// ─── Event Completed ──────────────────────────────────────────────────────
+export async function onEventCompleted(event) {
+  const tasks = buildTasks("event_completed", event.id, event.event_name, "event");
+  if (tasks.length > 0) {
+    await base44.entities.Task.bulkCreate(tasks);
+    await base44.entities.AutomationLog.create({
+      trigger: "event_completed",
+      related_type: "event",
+      related_id: event.id,
+      related_name: event.event_name,
       tasks_created: tasks.length,
+      notes: "Post-event survey + review tasks",
     });
   }
 }
 
+// ─── Survey Low Score ─────────────────────────────────────────────────────
+export async function onSurveyLowScore(event) {
+  const tasks = buildTasks("survey_low_score", event.id, event.event_name, "event");
+  if (tasks.length > 0) {
+    await base44.entities.Task.bulkCreate(tasks);
+    await base44.entities.Activity.create({
+      type: "system",
+      subject: `⚠️ Low survey score — service recovery initiated`,
+      description: `Survey score: ${event.survey_score}`,
+      related_type: "event",
+      related_id: event.id,
+      related_name: event.event_name,
+      is_internal: true,
+    });
+  }
+}
+
+// ─── First Response Logger ────────────────────────────────────────────────
 export async function logFirstResponse(lead) {
   const now = new Date().toISOString();
   const slaStatus = calculateSLAStatus(lead.inquiry_date, now);
@@ -81,5 +160,18 @@ export async function logFirstResponse(lead) {
     sla_status: slaStatus,
     sla_minutes_elapsed: elapsed,
   });
+
+  await base44.entities.Activity.create({
+    type: "system",
+    subject: `First response logged — ${slaStatus.replace(/_/g, " ")} (${elapsed}m)`,
+    related_type: "lead",
+    related_id: lead.id,
+    related_name: `${lead.client_first_name} ${lead.client_last_name}`,
+    is_internal: true,
+  });
+
   return { slaStatus, elapsed };
 }
+
+// ─── Re-export completeTask for use in UI ─────────────────────────────────
+export { completeTask };
