@@ -106,10 +106,40 @@ Deno.serve(async (req) => {
       if (!ALLOWED.has(role)) return Response.json({ error: "Forbidden" }, { status: 403 });
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
       const contract = await base44.asServiceRole.entities.Contract.update(id, { status: "voided" });
-      // Sync back to event
+
+      // Only flip contract_signed to false if no OTHER signed contract exists for this event
       if (contract.event_id) {
-        await base44.asServiceRole.entities.Event.update(contract.event_id, {
-          contract_signed: false,
+        const siblings = await base44.asServiceRole.entities.Contract.filter({ event_id: contract.event_id });
+        const hasOtherSigned = siblings.some(c => c.id !== contract.id && c.status === "signed");
+        if (!hasOtherSigned) {
+          await base44.asServiceRole.entities.Event.update(contract.event_id, {
+            contract_signed: false,
+          }).catch(() => {});
+        }
+      }
+      return Response.json({ contract });
+    }
+
+    if (action === "send") {
+      if (!id) return Response.json({ error: "id required" }, { status: 400 });
+      // Idempotency: only log activity if transitioning from draft
+      const existing = await base44.asServiceRole.entities.Contract.filter({ id });
+      const currentContract = existing[0];
+      if (!currentContract) return Response.json({ error: "Contract not found" }, { status: 404 });
+
+      const contract = await base44.asServiceRole.entities.Contract.update(id, {
+        status: "sent",
+        sent_date: currentContract.sent_date || new Date().toISOString(),
+      });
+      if (currentContract.status === "draft") {
+        await base44.asServiceRole.entities.Activity.create({
+          type: "email",
+          subject: `Contract sent to ${contract.contact_name}`,
+          related_type: "event",
+          related_id: contract.event_id,
+          outcome: "email_sent",
+          is_internal: false,
+          performed_by: user.email,
         }).catch(() => {});
       }
       return Response.json({ contract });
