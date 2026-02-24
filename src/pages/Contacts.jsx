@@ -31,7 +31,7 @@ export default function Contacts() {
 
   const { data: contacts = [], isLoading } = useQuery({
     queryKey: ["contacts"],
-    queryFn: () => base44.entities.Contact.list("-created_date", 200),
+    queryFn: () => ContactAPI.list({}, "-created_date", 200),
   });
 
   const filtered = contacts.filter(c => {
@@ -45,9 +45,9 @@ export default function Contacts() {
   const handleSave = async () => {
     setSaving(true);
     if (editing) {
-      await base44.entities.Contact.update(editing.id, form);
+      await ContactAPI.update(editing.id, form);
     } else {
-      await base44.entities.Contact.create(form);
+      await ContactAPI.create(form);
     }
     qc.invalidateQueries({ queryKey: ["contacts"] });
     setSaving(false);
@@ -56,7 +56,7 @@ export default function Contacts() {
 
   const handleDelete = async (id) => {
     if (!window.confirm("Delete this contact?")) return;
-    await base44.entities.Contact.delete(id);
+    await ContactAPI.delete(id);
     qc.invalidateQueries({ queryKey: ["contacts"] });
   };
 
