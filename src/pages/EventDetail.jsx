@@ -48,8 +48,8 @@ export default function EventDetail() {
 
   const updateEvent = async (field, value) => {
     await trackEventChanges(event, { [field]: value }, user?.email || "");
-    await base44.entities.Event.update(id, { [field]: value });
-    queryClient.invalidateQueries(["event", id]);
+    await EventAPI.update(id, { [field]: value });
+    queryClient.invalidateQueries(["event-bundle", id]);
     queryClient.invalidateQueries(["change-history", id]);
   };
 
@@ -58,8 +58,8 @@ export default function EventDetail() {
     const updatedEvent = { ...event, ...update };
     const newScore = calculateReadinessScore(updatedEvent);
     await trackEventChanges(event, update, user?.email || "");
-    await base44.entities.Event.update(id, { ...update, readiness_score: newScore });
-    queryClient.invalidateQueries(["event", id]);
+    await EventAPI.toggleReadiness(id, { ...update, readiness_score: newScore });
+    queryClient.invalidateQueries(["event-bundle", id]);
     queryClient.invalidateQueries(["change-history", id]);
   };
 
