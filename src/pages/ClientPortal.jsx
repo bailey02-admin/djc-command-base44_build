@@ -39,35 +39,44 @@ export default function ClientPortal() {
   const { data: event } = useQuery({
     queryKey: ["client-event", eventId],
     queryFn: async () => {
-      const events = await base44.entities.Event.list();
-      return events.find(e => e.id === eventId);
+      const r = await base44.functions.invoke("getEventDetail", { id: eventId });
+      return r.data?.event || null;
     },
     enabled: !!eventId,
   });
 
   const { data: music = [] } = useQuery({
     queryKey: ["client-music", eventId],
-    queryFn: () => base44.entities.MusicSelection.filter({ event_id: eventId }, "category", 200),
+    queryFn: async () => {
+      const r = await base44.functions.invoke("getEventDetail", { id: eventId });
+      return r.data?.musicSelections || [];
+    },
     enabled: !!eventId,
   });
 
   const { data: timeline = [] } = useQuery({
     queryKey: ["client-timeline", eventId],
-    queryFn: () => base44.entities.TimelineItem.filter({ event_id: eventId }, "order", 100),
+    queryFn: async () => {
+      const r = await base44.functions.invoke("getEventDetail", { id: eventId });
+      return r.data?.timeline || [];
+    },
     enabled: !!eventId,
   });
 
   const { data: payments = [] } = useQuery({
     queryKey: ["client-payments", eventId],
-    queryFn: () => base44.entities.Payment.filter({ event_id: eventId }, "due_date", 20),
+    queryFn: async () => {
+      const r = await base44.functions.invoke("getEventDetail", { id: eventId });
+      return r.data?.payments || [];
+    },
     enabled: !!eventId,
   });
 
   const { data: planning, isLoading: planningLoading } = useQuery({
     queryKey: ["client-planning", eventId],
     queryFn: async () => {
-      const plans = await base44.entities.EventPlanning.filter({ event_id: eventId });
-      return plans[0] || null;
+      const r = await base44.functions.invoke("getEventDetail", { id: eventId });
+      return r.data?.planning || null;
     },
     enabled: !!eventId,
   });
@@ -80,27 +89,21 @@ export default function ClientPortal() {
 
   const savePlanning = async () => {
     setSaving(true);
-    const data = { ...planningForm, event_id: eventId };
-    if (planning?.id) {
-      await base44.entities.EventPlanning.update(planning.id, data);
-    } else {
-      await base44.entities.EventPlanning.create(data);
-    }
+    await base44.functions.invoke("clientPortalSave", { action: "save_planning", event_id: eventId, data: planningForm });
     setSaving(false);
     queryClient.invalidateQueries(["client-planning", eventId]);
-    // Sync planning_complete flag after save (fire-and-forget)
-    base44.functions.invoke("syncEventFlags", { action: "sync_flags", event_id: eventId }).catch(() => {});
+    queryClient.invalidateQueries(["client-event", eventId]);
   };
 
   const addSong = async () => {
-    await base44.entities.MusicSelection.create({ ...songForm, event_id: eventId, added_by: "client" });
+    await base44.functions.invoke("clientPortalSave", { action: "add_song", event_id: eventId, data: songForm });
     setSongForm({ category: "must_play", song_title: "", artist: "" });
     setAddingSong(false);
     queryClient.invalidateQueries(["client-music", eventId]);
   };
 
   const deleteSong = async (id) => {
-    await base44.entities.MusicSelection.delete(id);
+    await base44.functions.invoke("clientPortalSave", { action: "delete_song", event_id: eventId, music_id: id });
     queryClient.invalidateQueries(["client-music", eventId]);
   };
 
