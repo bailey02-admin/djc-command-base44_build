@@ -105,44 +105,46 @@ Deno.serve(async (req) => {
       const event = eventArr[0];
       if (!event) return Response.json({ error: "Event not found" }, { status: 404 });
 
-      const today = new Date().toISOString().split("T")[0];
+      const today = new Date();
+      const todayStr = today.toISOString().split("T")[0];
       const daysBeforeFinal = balance_due_days_before || 14;
 
-      let balanceDueDate = today;
-      if (event.event_date) {
-        const eventDt = new Date(event.event_date);
-        eventDt.setDate(eventDt.getDate() - daysBeforeFinal);
-        balanceDueDate = eventDt.toISOString().split("T")[0];
-      }
+      // If no package_price, create $0-placeholder records so staff can fill in manually
+      const depAmount = deposit_amount || (event.package_price ? Math.round(event.package_price * 0.5) : 0);
+      const balAmount = balance_amount || (event.package_price ? Math.round(event.package_price * 0.5) : 0);
 
-      const depAmount = deposit_amount || (event.package_price ? Math.round(event.package_price * 0.5) : null);
-      const balAmount = balance_amount || (event.package_price ? Math.round(event.package_price * 0.5) : null);
+      // Balance due = event_date - N days, but never before today
+      let balanceDueDate = todayStr;
+      if (event.event_date) {
+        const eventDt = new Date(event.event_date + "T00:00:00");
+        eventDt.setDate(eventDt.getDate() - daysBeforeFinal);
+        // If computed due date is in the past (event < 14d away), due today
+        balanceDueDate = eventDt >= today ? eventDt.toISOString().split("T")[0] : todayStr;
+      }
 
       const created = [];
 
-      if (depAmount) {
-        const dep = await base44.asServiceRole.entities.Payment.create({
-          event_id,
-          contact_name: event.contact_name,
-          payment_type: "deposit",
-          amount: depAmount,
-          due_date: deposit_due_date || today,
-          status: "pending",
-        });
-        created.push(dep);
-      }
+      const dep = await base44.asServiceRole.entities.Payment.create({
+        event_id,
+        contact_name: event.contact_name || "",
+        payment_type: "deposit",
+        amount: depAmount,
+        due_date: deposit_due_date || todayStr,
+        status: "pending",
+        notes: depAmount === 0 ? "Price not set — update amount manually" : undefined,
+      });
+      created.push(dep);
 
-      if (balAmount) {
-        const bal = await base44.asServiceRole.entities.Payment.create({
-          event_id,
-          contact_name: event.contact_name,
-          payment_type: "final_balance",
-          amount: balAmount,
-          due_date: balanceDueDate,
-          status: "pending",
-        });
-        created.push(bal);
-      }
+      const bal = await base44.asServiceRole.entities.Payment.create({
+        event_id,
+        contact_name: event.contact_name || "",
+        payment_type: "final_balance",
+        amount: balAmount,
+        due_date: balanceDueDate,
+        status: "pending",
+        notes: balAmount === 0 ? "Price not set — update amount manually" : undefined,
+      });
+      created.push(bal);
 
       // Log activity
       await base44.asServiceRole.entities.Activity.create({

@@ -81,7 +81,7 @@ function filterEvents(events, filterKey) {
     case "all_upcoming":      return decorated;
     case "needs_finalization":return decorated.filter(e => e._flags.needsFinalization);
     case "at_risk":           return decorated.filter(e => e._flags.isAtRisk);
-    case "no_dj":             return decorated.filter(e => e._flags.noDP || e._flags.noDF).filter(e => !e.assigned_dj);
+    case "no_dj":             return decorated.filter(e => e._flags.noDJ);
     case "no_planning":       return decorated.filter(e => e._flags.noPlanning);
     case "no_timeline":       return decorated.filter(e => e._flags.noTimeline);
     case "no_music":          return decorated.filter(e => e._flags.noMusic);
