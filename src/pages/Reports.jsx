@@ -175,19 +175,19 @@ export default function Reports() {
           <div className="grid lg:grid-cols-3 gap-4">
             <Card className="border-0 shadow-sm">
               <CardContent className="p-5 text-center">
-                <p className="text-3xl font-bold text-violet-600">{fe.filter(e => !e.assigned_dj).length}</p>
+                <p className="text-3xl font-bold text-violet-600">{metrics.unassignedDJ || 0}</p>
                 <p className="text-sm text-gray-500 mt-1">Events without DJ assigned</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-5 text-center">
-                <p className="text-3xl font-bold text-amber-600">{fe.filter(e => !e.planning_complete).length}</p>
+                <p className="text-3xl font-bold text-amber-600">{metrics.incompletePlanning || 0}</p>
                 <p className="text-sm text-gray-500 mt-1">Planning forms incomplete</p>
               </CardContent>
             </Card>
             <Card className="border-0 shadow-sm">
               <CardContent className="p-5 text-center">
-                <p className="text-3xl font-bold text-red-600">{fl.filter(l => l.sla_status === "missed").length}</p>
+                <p className="text-3xl font-bold text-red-600">{slaBreaches}</p>
                 <p className="text-sm text-gray-500 mt-1">Missed SLA leads</p>
               </CardContent>
             </Card>
