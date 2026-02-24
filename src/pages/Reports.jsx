@@ -17,72 +17,50 @@ const COLORS = ["#8b5cf6","#6366f1","#3b82f6","#06b6d4","#10b981","#f59e0b","#ef
 export default function Reports() {
   const [cityFilter, setCityFilter] = useState("all");
 
-  const { data: leads = [] } = useQuery({ queryKey: ["leads"], queryFn: () => base44.entities.Lead.list("-created_date", 500) });
-  const { data: events = [] } = useQuery({ queryKey: ["events"], queryFn: () => base44.entities.Event.list("-event_date", 500) });
-  const { data: payments = [] } = useQuery({ queryKey: ["all-payments"], queryFn: () => base44.entities.Payment.list("-created_date", 500) });
+  const { data: summary, isLoading: summaryLoading } = useQuery({
+    queryKey: ["report-summary", cityFilter],
+    queryFn: () => ReportAPI.getSummary(cityFilter),
+  });
 
-  const cities = [...new Set([...leads.map(l => l.city), ...events.map(e => e.city)].filter(Boolean))];
-  const fl = cityFilter === "all" ? leads : leads.filter(l => l.city === cityFilter);
-  const fe = cityFilter === "all" ? events : events.filter(e => e.city === cityFilter);
-
-  const totalRevenue = payments.filter(p => p.status === "paid").reduce((s, p) => s + (p.amount || 0), 0);
-  const bookingRate = fl.length > 0 ? Math.round((fl.filter(l => l.status === "booked").length / fl.length) * 100) : 0;
-  const avgBookingValue = fe.filter(e => e.package_price).length > 0
-    ? Math.round(fe.filter(e => e.package_price).reduce((s, e) => s + e.package_price, 0) / fe.filter(e => e.package_price).length) : 0;
-  const slaBreaches = fl.filter(l => l.sla_status === "missed").length;
+  const cities = summary?.cities || [];
+  const metrics = summary?.metrics || {};
+  const totalRevenue = metrics.totalRevenue || 0;
+  const bookingRate = metrics.bookingRate || 0;
+  const avgBookingValue = metrics.avgBookingValue || 0;
+  const slaBreaches = metrics.missedSLA || 0;
+  const avgResponse = metrics.avgResponseMin || null;
 
   // SLA performance
+  const slaCounts = summary?.slaCounts || {};
   const slaData = [
-    { name: "On Time", value: fl.filter(l => l.sla_status === "on_time").length, color: "#10b981" },
-    { name: "Warning", value: fl.filter(l => l.sla_status === "warning").length, color: "#f59e0b" },
-    { name: "Missed", value: fl.filter(l => l.sla_status === "missed").length, color: "#ef4444" },
+    { name: "On Time", value: slaCounts.on_time || 0, color: "#10b981" },
+    { name: "Warning", value: slaCounts.warning || 0, color: "#f59e0b" },
+    { name: "Missed", value: slaCounts.missed || 0, color: "#ef4444" },
   ].filter(d => d.value > 0);
 
-  // Lead source funnel (show booking rate per source)
-  const sourceBookings = Object.entries(
-    fl.reduce((acc, l) => {
-      const src = l.lead_source || "unknown";
-      if (!acc[src]) acc[src] = { total: 0, booked: 0 };
-      acc[src].total++;
-      if (l.status === "booked") acc[src].booked++;
-      return acc;
-    }, {})
-  ).map(([name, d]) => ({ name: name.replace(/_/g, " "), total: d.total, booked: d.booked, rate: Math.round((d.booked / d.total) * 100) }))
-   .sort((a, b) => b.total - a.total);
+  // Lead source breakdown
+  const sourceCounts = summary?.sourceCounts || {};
+  const sourceBookings = Object.entries(sourceCounts)
+    .map(([src, d]) => ({ name: src.replace(/_/g, " "), total: d.total, booked: d.booked, rate: Math.round((d.booked / d.total) * 100) }))
+    .sort((a, b) => b.total - a.total);
 
   // Pipeline stage distribution
-  const pipelineData = PIPELINE_STAGES.map(s => ({
-    name: s.label,
-    value: fl.filter(l => l.pipeline_stage === s.key).length,
-  })).filter(d => d.value > 0);
+  const pipelineStages = summary?.pipelineStages || {};
+  const pipelineData = PIPELINE_STAGES
+    .map(s => ({ name: s.label, value: pipelineStages[s.key] || 0 }))
+    .filter(d => d.value > 0);
 
-  // Events with low readiness + upcoming
-  const upcomingAtRisk = fe
-    .filter(e => e.event_date && differenceInDays(new Date(e.event_date), new Date()) <= 30 && differenceInDays(new Date(e.event_date), new Date()) >= 0)
-    .map(e => ({ ...e, score: calculateReadinessScore(e), days: differenceInDays(new Date(e.event_date), new Date()) }))
-    .filter(e => e.score < 80)
-    .sort((a, b) => a.days - b.days);
-
-  // Avg response time
-  const respondedLeads = fl.filter(l => l.sla_minutes_elapsed !== null && l.sla_minutes_elapsed !== undefined);
-  const avgResponse = respondedLeads.length > 0
-    ? Math.round(respondedLeads.reduce((s, l) => s + l.sla_minutes_elapsed, 0) / respondedLeads.length) : null;
+  // Events at risk
+  const upcomingAtRisk = summary?.atRiskEvents || [];
 
   // Lost reasons
-  const lostReasons = Object.entries(
-    fl.filter(l => l.status === "lost" && l.lost_reason).reduce((acc, l) => { acc[l.lost_reason] = (acc[l.lost_reason] || 0) + 1; return acc; }, {})
-  ).map(([name, value]) => ({ name: name.replace(/_/g, " "), value })).sort((a, b) => b.value - a.value);
+  const lostReasonCounts = summary?.lostReasons || {};
+  const lostReasons = Object.entries(lostReasonCounts)
+    .map(([name, value]) => ({ name: name.replace(/_/g, " "), value }))
+    .sort((a, b) => b.value - a.value);
 
-  // City comparison
-  const cityData = cities.map(city => ({
-    name: city,
-    leads: leads.filter(l => l.city === city).length,
-    booked: leads.filter(l => l.city === city && l.status === "booked").length,
-    revenue: payments.filter(p => {
-      const ev = events.find(e => e.id === p.event_id);
-      return ev?.city === city && p.status === "paid";
-    }).reduce((s, p) => s + (p.amount || 0), 0),
-  }));
+  // City comparison (admin/manager only — may be empty for other roles)
+  const cityData = summary?.cityComparison || [];
 
   return (
     <div className="p-4 lg:p-8 space-y-8 max-w-7xl mx-auto">
