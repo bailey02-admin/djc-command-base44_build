@@ -64,6 +64,7 @@ import Settings from './pages/Settings';
 import Tasks from './pages/Tasks';
 import TimelineBuilder from './pages/TimelineBuilder';
 import Venues from './pages/Venues';
+import MessageTemplates from './pages/MessageTemplates';
 import __Layout from './Layout.jsx';
 
 
@@ -85,6 +86,7 @@ export const PAGES = {
     "Tasks": Tasks,
     "TimelineBuilder": TimelineBuilder,
     "Venues": Venues,
+    "MessageTemplates": MessageTemplates,
 }
 
 export const pagesConfig = {
