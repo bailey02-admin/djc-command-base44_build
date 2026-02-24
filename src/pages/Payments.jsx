@@ -41,9 +41,11 @@ export default function Payments() {
     return matchSearch && matchStatus;
   });
 
-  const totalPaid = payments.filter(p => p.status === "paid").reduce((s, p) => s + (p.amount || 0), 0);
-  const totalPending = payments.filter(p => p.status === "pending").reduce((s, p) => s + (p.amount || 0), 0);
-  const totalOverdue = payments.filter(p => p.status === "overdue").reduce((s, p) => s + (p.amount || 0), 0);
+  // Exclude $0 placeholder records from financial totals
+  const realPayments = payments.filter(p => (p.amount || 0) > 0);
+  const totalPaid    = realPayments.filter(p => p.status === "paid").reduce((s, p) => s + p.amount, 0);
+  const totalPending = realPayments.filter(p => p.status === "pending").reduce((s, p) => s + p.amount, 0);
+  const totalOverdue = realPayments.filter(p => p.status === "overdue").reduce((s, p) => s + p.amount, 0);
 
   const handleSave = async () => {
     setSaving(true);
@@ -145,7 +147,11 @@ export default function Payments() {
               <TableRow key={p.id}>
                 <TableCell className="text-sm font-medium">{p.contact_name || "—"}</TableCell>
                 <TableCell className="text-sm text-gray-500 capitalize">{p.payment_type?.replace(/_/g, " ")}</TableCell>
-                <TableCell className="text-sm font-bold">${p.amount?.toLocaleString()}</TableCell>
+                <TableCell className="text-sm font-bold">
+                  {(p.amount || 0) === 0
+                    ? <span className="text-amber-600 text-xs font-medium">$0 — needs update</span>
+                    : `$${p.amount.toLocaleString()}`}
+                </TableCell>
                 <TableCell className="text-sm text-gray-500">{p.due_date ? format(new Date(p.due_date), "MMM d, yyyy") : "—"}</TableCell>
                 <TableCell><Badge variant="secondary" className={`text-[10px] ${statusColors[p.status]}`}>{p.status}</Badge></TableCell>
                 <TableCell className="text-sm text-gray-500 capitalize">{p.payment_method?.replace(/_/g, " ") || "—"}</TableCell>

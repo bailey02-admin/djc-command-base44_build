@@ -49,11 +49,13 @@
  */
 import ClientPortal from './pages/ClientPortal';
 import Contacts from './pages/Contacts';
+import DJRoster from './pages/DJRoster';
 import DJView from './pages/DJView';
 import Dashboard from './pages/Dashboard';
 import EventDetail from './pages/EventDetail';
 import EventForm from './pages/EventForm';
 import Events from './pages/Events';
+import FinalizerQueue from './pages/FinalizerQueue';
 import LeadDetail from './pages/LeadDetail';
 import LeadForm from './pages/LeadForm';
 import Leads from './pages/Leads';
@@ -65,19 +67,19 @@ import Settings from './pages/Settings';
 import Tasks from './pages/Tasks';
 import TimelineBuilder from './pages/TimelineBuilder';
 import Venues from './pages/Venues';
-import FinalizerQueue from './pages/FinalizerQueue';
-import DJRoster from './pages/DJRoster';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
     "ClientPortal": ClientPortal,
     "Contacts": Contacts,
+    "DJRoster": DJRoster,
     "DJView": DJView,
     "Dashboard": Dashboard,
     "EventDetail": EventDetail,
     "EventForm": EventForm,
     "Events": Events,
+    "FinalizerQueue": FinalizerQueue,
     "LeadDetail": LeadDetail,
     "LeadForm": LeadForm,
     "Leads": Leads,
@@ -89,8 +91,6 @@ export const PAGES = {
     "Tasks": Tasks,
     "TimelineBuilder": TimelineBuilder,
     "Venues": Venues,
-    "FinalizerQueue": FinalizerQueue,
-    "DJRoster": DJRoster,
 }
 
 export const pagesConfig = {
