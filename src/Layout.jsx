@@ -18,6 +18,7 @@ const NAV_ITEMS = [
   { name: "Tasks", icon: ClipboardList, page: "Tasks" },
   { name: "Venues", icon: Building2, page: "Venues" },
   { name: "Payments", icon: DollarSign, page: "Payments" },
+  { name: "Templates", icon: FileText, page: "MessageTemplates" },
   { name: "Reports", icon: FileText, page: "Reports" },
   { name: "Settings", icon: Settings, page: "Settings" },
 ];
