@@ -112,3 +112,12 @@ export const ReportAPI = {
   getSummary: (city_filter = "all") =>
     invoke("getReportSummary", { city_filter }),
 };
+
+// ─── FLAG SYNC + PAYMENT SCHEDULE ─────────────────────────────────────────
+export const EventOpsAPI = {
+  syncFlags: (event_id) =>
+    invoke("syncEventFlags", { action: "sync_flags", event_id }),
+
+  createPaymentSchedule: (event_id, opts = {}) =>
+    invoke("syncEventFlags", { action: "create_payment_schedule", event_id, ...opts }),
+};
