@@ -2,6 +2,7 @@ import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LeadAPI, TaskAPI, ActivityAPI } from "../components/api/secureApi";
+
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -104,7 +105,7 @@ export default function LeadDetail() {
       status: "lost", pipeline_stage: "lost",
       lost_reason: lostReason, lost_reason_detail: lostDetail,
     });
-    await base44.entities.Activity.create({
+    await ActivityAPI.create({
       type: "status_change",
       subject: `Marked Lost — ${lostReason.replace(/_/g, " ")}`,
       description: lostDetail,
