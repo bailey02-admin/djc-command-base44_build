@@ -1,8 +1,7 @@
 /**
  * Secure Event mutation endpoint.
- * DJs: read-only (all mutations blocked).
- * Sales reps: cannot create/update events directly.
- * Office finalizer: can update (for planning/finalization fields) but not create.
+ * Actions: create | update | toggle_readiness | delete
+ * Enforces role-based access, city scoping, field-level write protection.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
@@ -12,20 +11,28 @@ const EVENT_WRITE_RULES = {
   sales_manager:    { create: true, update: true, delete: false },
   sales_rep:        { create: false, update: false, delete: false },
   dj:               { create: false, update: false, delete: false },
-  office_finalizer: { create: false, update: true,  delete: false },
+  office_finalizer: { create: false, update: true, delete: false },
   finance:          { create: false, update: false, delete: false },
   client:           { create: false, update: false, delete: false },
 };
 
-// Fields sales reps and office finalizers cannot touch
+// Fields DJs/finalizers cannot write
 const WRITE_PROTECTED_FIELDS = {
-  office_finalizer: ["package_price", "package_name", "lead_id", "assigned_dj", "assigned_city_manager"],
+  dj:               ["package_price", "contact_email", "contact_phone", "lead_id", "assigned_dj", "assigned_mc"],
+  office_finalizer: ["package_price", "lead_id"],
 };
+
+function stripProtectedFields(data, role) {
+  const blocked = WRITE_PROTECTED_FIELDS[role] || [];
+  const out = { ...data };
+  for (const f of blocked) delete out[f];
+  return out;
+}
 
 async function logDenial(base44, user, action, eventId, reason) {
   await base44.asServiceRole.entities.Activity.create({
     type: "system",
-    subject: `🚫 DENIED: ${user.email} attempted ${action} on event ${eventId || "new"} — ${reason}`,
+    subject: `🚫 DENIED: ${user.email} attempted ${action} on event ${eventId} — ${reason}`,
     related_type: "event",
     related_id: eventId || "unknown",
     is_internal: true,
@@ -61,27 +68,17 @@ Deno.serve(async (req) => {
       }
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
-      // DJ cannot update anything
-      if (role === "dj") {
-        await logDenial(base44, user, action, id, "DJ is read-only on events");
-        return Response.json({ error: "Forbidden: DJs cannot update events" }, { status: 403 });
-      }
-
-      // City manager: city-scoped
+      // City scoping for city_manager
       if (role === "city_manager" && user.city) {
         const rows = await base44.asServiceRole.entities.Event.filter({ id });
-        const ev = rows[0];
-        if (ev && ev.city !== user.city) {
+        const event = rows[0];
+        if (event && event.city !== user.city) {
           await logDenial(base44, user, action, id, "outside city");
           return Response.json({ error: "Forbidden: outside your city" }, { status: 403 });
         }
       }
 
-      // Strip protected fields for role
-      const blocked = WRITE_PROTECTED_FIELDS[role] || [];
-      const cleaned = { ...data };
-      for (const f of blocked) delete cleaned[f];
-
+      const cleaned = stripProtectedFields(data, role);
       const updated = await base44.asServiceRole.entities.Event.update(id, cleaned);
       return Response.json({ event: updated });
     }
@@ -89,7 +86,7 @@ Deno.serve(async (req) => {
     if (action === "delete") {
       if (!rules.delete) {
         await logDenial(base44, user, "delete_event", id, "role denied");
-        return Response.json({ error: "Forbidden" }, { status: 403 });
+        return Response.json({ error: "Forbidden: your role cannot delete events" }, { status: 403 });
       }
       await base44.asServiceRole.entities.Event.update(id, { is_deleted: true });
       return Response.json({ ok: true });
