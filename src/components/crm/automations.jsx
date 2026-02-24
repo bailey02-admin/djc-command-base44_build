@@ -4,6 +4,7 @@
  * Uses taskEngine for task generation, logs to AutomationLog + Activity.
  */
 import { base44 } from "@/api/base44Client";
+import { TaskAPI, ActivityAPI, LeadAPI } from "../api/secureApi";
 import { buildTasks, completeTask } from "./taskEngine";
 import { calculateSLAStatus } from "./pipeline";
 
@@ -12,7 +13,7 @@ export async function onNewLead(lead) {
   const relatedName = `${lead.client_first_name} ${lead.client_last_name}`;
   const tasks = buildTasks("new_inquiry", lead.id, relatedName, "lead");
 
-  if (tasks.length > 0) await base44.entities.Task.bulkCreate(tasks);
+  if (tasks.length > 0) await TaskAPI.bulkCreate(tasks);
 
   await base44.entities.AutomationLog.create({
     trigger: "new_lead",
@@ -23,8 +24,7 @@ export async function onNewLead(lead) {
     notes: `Auto-created ${tasks.length} tasks for new inquiry`,
   });
 
-  // Log a system activity
-  await base44.entities.Activity.create({
+  await ActivityAPI.create({
     type: "system",
     subject: "New lead created — tasks auto-generated",
     related_type: "lead",
@@ -50,7 +50,7 @@ export async function onStageChange(lead, newStage) {
   if (templateKey) {
     const tasks = buildTasks(templateKey, lead.id, relatedName, "lead");
     if (tasks.length > 0) {
-      await base44.entities.Task.bulkCreate(tasks);
+      await TaskAPI.bulkCreate(tasks);
       await base44.entities.AutomationLog.create({
         trigger: `stage_${newStage}`,
         related_type: "lead",
@@ -62,8 +62,7 @@ export async function onStageChange(lead, newStage) {
     }
   }
 
-  // Always log a status_change activity
-  await base44.entities.Activity.create({
+  await ActivityAPI.create({
     type: "status_change",
     subject: `Stage → ${newStage.replace(/_/g, " ")}`,
     related_type: "lead",
@@ -91,7 +90,7 @@ export async function onEventBooked(event) {
   );
 
   if (allTasks.length > 0) {
-    await base44.entities.Task.bulkCreate(allTasks);
+    await TaskAPI.bulkCreate(allTasks);
     await base44.entities.AutomationLog.create({
       trigger: "event_booked",
       related_type: "event",
@@ -102,8 +101,7 @@ export async function onEventBooked(event) {
     });
   }
 
-  // Log booking activity on the event
-  await base44.entities.Activity.create({
+  await ActivityAPI.create({
     type: "status_change",
     subject: "Event booked — planning tasks generated",
     related_type: "event",
@@ -117,7 +115,7 @@ export async function onEventBooked(event) {
 export async function onEventCompleted(event) {
   const tasks = buildTasks("event_completed", event.id, event.event_name, "event");
   if (tasks.length > 0) {
-    await base44.entities.Task.bulkCreate(tasks);
+    await TaskAPI.bulkCreate(tasks);
     await base44.entities.AutomationLog.create({
       trigger: "event_completed",
       related_type: "event",
@@ -133,8 +131,8 @@ export async function onEventCompleted(event) {
 export async function onSurveyLowScore(event) {
   const tasks = buildTasks("survey_low_score", event.id, event.event_name, "event");
   if (tasks.length > 0) {
-    await base44.entities.Task.bulkCreate(tasks);
-    await base44.entities.Activity.create({
+    await TaskAPI.bulkCreate(tasks);
+    await ActivityAPI.create({
       type: "system",
       subject: `⚠️ Low survey score — service recovery initiated`,
       description: `Survey score: ${event.survey_score}`,
@@ -154,14 +152,14 @@ export async function logFirstResponse(lead) {
     ? Math.round((new Date(now) - new Date(lead.inquiry_date)) / 60000)
     : null;
 
-  await base44.entities.Lead.update(lead.id, {
+  await LeadAPI.update(lead.id, {
     first_response_date: now,
     last_contact_date: now,
     sla_status: slaStatus,
     sla_minutes_elapsed: elapsed,
   });
 
-  await base44.entities.Activity.create({
+  await ActivityAPI.create({
     type: "system",
     subject: `First response logged — ${slaStatus.replace(/_/g, " ")} (${elapsed}m)`,
     related_type: "lead",
