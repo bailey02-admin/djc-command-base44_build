@@ -57,6 +57,7 @@ import Events from './pages/Events';
 import LeadDetail from './pages/LeadDetail';
 import LeadForm from './pages/LeadForm';
 import Leads from './pages/Leads';
+import MessageTemplates from './pages/MessageTemplates';
 import MusicPlanner from './pages/MusicPlanner';
 import Payments from './pages/Payments';
 import Reports from './pages/Reports';
@@ -64,7 +65,8 @@ import Settings from './pages/Settings';
 import Tasks from './pages/Tasks';
 import TimelineBuilder from './pages/TimelineBuilder';
 import Venues from './pages/Venues';
-import MessageTemplates from './pages/MessageTemplates';
+import FinalizerQueue from './pages/FinalizerQueue';
+import DJRoster from './pages/DJRoster';
 import __Layout from './Layout.jsx';
 
 
@@ -79,6 +81,7 @@ export const PAGES = {
     "LeadDetail": LeadDetail,
     "LeadForm": LeadForm,
     "Leads": Leads,
+    "MessageTemplates": MessageTemplates,
     "MusicPlanner": MusicPlanner,
     "Payments": Payments,
     "Reports": Reports,
@@ -86,7 +89,8 @@ export const PAGES = {
     "Tasks": Tasks,
     "TimelineBuilder": TimelineBuilder,
     "Venues": Venues,
-    "MessageTemplates": MessageTemplates,
+    "FinalizerQueue": FinalizerQueue,
+    "DJRoster": DJRoster,
 }
 
 export const pagesConfig = {
