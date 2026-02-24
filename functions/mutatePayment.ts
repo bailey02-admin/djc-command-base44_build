@@ -21,8 +21,8 @@ Deno.serve(async (req) => {
     const { action, id, data = {} } = body;
 
     if (action === "create") {
-      if (!data.event_id || !data.amount || !data.payment_type) {
-        return Response.json({ error: "event_id, amount, and payment_type are required" }, { status: 400 });
+      if (!data.amount || !data.payment_type) {
+        return Response.json({ error: "amount and payment_type are required" }, { status: 400 });
       }
       const payment = await base44.asServiceRole.entities.Payment.create({
         ...data,

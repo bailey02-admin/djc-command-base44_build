@@ -105,6 +105,9 @@ export const PaymentAPI = {
 
   update: (id, data) =>
     invoke("mutatePayment", { action: "update", id, data }).then(r => r.payment),
+
+  delete: (id) =>
+    invoke("mutatePayment", { action: "delete", id }),
 };
 
 // ─── REPORTS ──────────────────────────────────────────────────────────────
