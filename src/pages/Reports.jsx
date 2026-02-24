@@ -79,7 +79,7 @@ export default function Reports() {
       </div>
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-        <StatCard title="Total Leads" value={fl.length} icon={Users} color="violet" />
+        <StatCard title="Total Leads" value={summary?.totalLeads || 0} icon={Users} color="violet" />
         <StatCard title="Close Rate" value={`${bookingRate}%`} icon={TrendingUp} color="emerald" subtitle={`Avg value: $${avgBookingValue.toLocaleString()}`} />
         <StatCard title="Revenue" value={`$${totalRevenue.toLocaleString()}`} icon={DollarSign} color="amber" />
         <StatCard title="SLA Breaches" value={slaBreaches} icon={Clock} color="rose" subtitle={avgResponse !== null ? `Avg ${avgResponse}m` : ""} />
