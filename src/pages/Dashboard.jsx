@@ -23,22 +23,22 @@ export default function Dashboard() {
 
   const { data: leads = [] } = useQuery({
     queryKey: ["leads"],
-    queryFn: () => base44.entities.Lead.list("-created_date", 50),
+    queryFn: () => LeadAPI.list({}, "-created_date", 50),
   });
 
   const { data: events = [] } = useQuery({
     queryKey: ["events"],
-    queryFn: () => base44.entities.Event.list("-event_date", 50),
+    queryFn: () => EventAPI.list({}, "-event_date", 50),
   });
 
   const { data: tasks = [] } = useQuery({
     queryKey: ["tasks"],
-    queryFn: () => base44.entities.Task.filter({ status: "pending" }, "-due_date", 20),
+    queryFn: () => TaskAPI.list({ status: "pending" }, "-due_date", 20),
   });
 
   const { data: payments = [] } = useQuery({
     queryKey: ["payments"],
-    queryFn: () => base44.entities.Payment.list("-created_date", 100),
+    queryFn: () => PaymentAPI.list(100),
   });
 
   const [user, setUser] = useState(null);

@@ -31,7 +31,7 @@ export default function Tasks() {
 
   const { data: tasks = [] } = useQuery({
     queryKey: ["all-tasks"],
-    queryFn: () => base44.entities.Task.list("-created_date", 200),
+    queryFn: () => TaskAPI.list({}, "-created_date", 200),
   });
 
   const filtered = tasks.filter(t => {
@@ -42,7 +42,7 @@ export default function Tasks() {
 
   const handleSave = async () => {
     setSaving(true);
-    await base44.entities.Task.create(form);
+    await TaskAPI.create(form);
     setForm({ title: "", description: "", due_date: "", priority: "medium", category: "other", assigned_to: "" });
     setSaving(false);
     setDialogOpen(false);
@@ -51,7 +51,11 @@ export default function Tasks() {
 
   const toggleTask = async (task) => {
     const newStatus = task.status === "completed" ? "pending" : "completed";
-    await base44.entities.Task.update(task.id, { status: newStatus, completed_date: newStatus === "completed" ? new Date().toISOString() : null });
+    if (newStatus === "completed") {
+      await TaskAPI.complete(task.id);
+    } else {
+      await TaskAPI.update(task.id, { status: "pending", completed_date: null });
+    }
     queryClient.invalidateQueries(["all-tasks"]);
   };
 
