@@ -34,7 +34,7 @@ export default function ContactDetail() {
 
   const { data: contact, isLoading: loadingContact } = useQuery({
     queryKey: ["contact", id],
-    queryFn: () => base44.entities.Contact.filter({ id }).then(r => r[0]),
+    queryFn: () => ContactAPI.get(id),
     enabled: !!id,
   });
 
