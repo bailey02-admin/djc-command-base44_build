@@ -69,17 +69,39 @@ Deno.serve(async (req) => {
 
     if (action === "send") {
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
+
+      // Idempotency: fetch current state first
+      const existing = await base44.asServiceRole.entities.Quote.filter({ id });
+      const currentQuote = existing[0];
+      if (!currentQuote) return Response.json({ error: "Quote not found" }, { status: 404 });
+
+      // If already sent (or beyond), just return without re-advancing pipeline or logging again
+      if (currentQuote.status !== "draft") {
+        return Response.json({ quote: currentQuote });
+      }
+
       const now = new Date().toISOString();
       const quote = await base44.asServiceRole.entities.Quote.update(id, {
         status: "sent",
         sent_date: now,
       });
       if (quote.lead_id) {
-        await base44.asServiceRole.entities.Lead.update(quote.lead_id, {
-          quote_sent_date: now,
-          pipeline_stage: "quote_sent",
-          status: "quote_sent",
-        }).catch(() => {});
+        // Only advance pipeline if lead is still in an earlier stage
+        const leads = await base44.asServiceRole.entities.Lead.filter({ id: quote.lead_id });
+        const lead = leads[0];
+        const TERMINAL = new Set(["booked", "lost", "ghosted", "disqualified", "quote_sent", "deposit_requested"]);
+        if (lead && !TERMINAL.has(lead.pipeline_stage)) {
+          await base44.asServiceRole.entities.Lead.update(quote.lead_id, {
+            quote_sent_date: now,
+            pipeline_stage: "quote_sent",
+            status: "quote_sent",
+          }).catch(() => {});
+        } else if (lead && !lead.quote_sent_date) {
+          // Still stamp the timestamp even if not advancing stage
+          await base44.asServiceRole.entities.Lead.update(quote.lead_id, {
+            quote_sent_date: now,
+          }).catch(() => {});
+        }
       }
       await base44.asServiceRole.entities.Activity.create({
         type: "email",
@@ -95,13 +117,36 @@ Deno.serve(async (req) => {
 
     if (action === "accept") {
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
+
+      // Idempotency: fetch first
+      const existing = await base44.asServiceRole.entities.Quote.filter({ id });
+      const currentQuote = existing[0];
+      if (!currentQuote) return Response.json({ error: "Quote not found" }, { status: 404 });
+      if (currentQuote.status === "accepted") return Response.json({ quote: currentQuote });
+
       const quote = await base44.asServiceRole.entities.Quote.update(id, { status: "accepted" });
       if (quote.lead_id) {
-        await base44.asServiceRole.entities.Lead.update(quote.lead_id, {
-          pipeline_stage: "deposit_requested",
-          total_fee: quote.total_amount,
-        }).catch(() => {});
+        // Only advance pipeline if lead is not already booked/lost/past deposit_requested
+        const leads = await base44.asServiceRole.entities.Lead.filter({ id: quote.lead_id });
+        const lead = leads[0];
+        const SAFE_TO_ADVANCE = new Set(["new_inquiry","contacted","qualified","consultation_scheduled","consultation_completed","quote_sent","follow_up"]);
+        if (lead && SAFE_TO_ADVANCE.has(lead.pipeline_stage)) {
+          await base44.asServiceRole.entities.Lead.update(quote.lead_id, {
+            pipeline_stage: "deposit_requested",
+            total_fee: quote.total_amount,
+          }).catch(() => {});
+        }
+        // If already booked/lost, just log and skip — don't overwrite
       }
+      await base44.asServiceRole.entities.Activity.create({
+        type: "note",
+        subject: `Quote accepted — $${quote.total_amount?.toLocaleString()}`,
+        related_type: "lead",
+        related_id: quote.lead_id,
+        outcome: "completed",
+        is_internal: true,
+        performed_by: user.email,
+      }).catch(() => {});
       return Response.json({ quote });
     }
 
