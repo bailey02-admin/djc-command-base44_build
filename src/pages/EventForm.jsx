@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from "react";
-import { base44 } from "@/api/base44Client";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { EventAPI, EventOpsAPI } from "../components/api/secureApi";
+import { onEventBooked } from "../components/crm/automations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,25 +12,34 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
 
+const EVENT_TYPES = ["wedding","corporate","school_dance","private_party","birthday","anniversary","mitzvah","quinceañera","holiday_party","other"];
+const EVENT_STATUSES = ["booked","planning_in_progress","awaiting_planning_form","final_call_scheduled","finalized","dj_assigned","confirmed","event_completed","survey_sent","closed_won","closed_issue"];
+const BOOKED_STATUSES = new Set(["booked","planning_in_progress","awaiting_planning_form","final_call_scheduled","finalized","dj_assigned","confirmed"]);
+
+const EMPTY_FORM = {
+  event_name: "", event_type: "wedding", event_date: "", start_time: "", end_time: "",
+  city: "", venue_name: "", ceremony_venue: "", guest_count: "",
+  contact_name: "", contact_email: "", contact_phone: "",
+  package_name: "", package_price: "", status: "booked",
+  internal_notes: "", client_notes: "", equipment_notes: "", load_in_notes: "", setup_time: "",
+};
+
 export default function EventForm() {
   const navigate = useNavigate();
   const [saving, setSaving] = useState(false);
   const params = new URLSearchParams(window.location.search);
   const editId = params.get("id");
-
-  const [form, setForm] = useState({
-    event_name: "", event_type: "wedding", event_date: "", start_time: "", end_time: "",
-    city: "", venue_name: "", ceremony_venue: "", guest_count: "",
-    contact_name: "", contact_email: "", contact_phone: "",
-    package_name: "", package_price: "", status: "booked",
-    internal_notes: "", client_notes: "", equipment_notes: "", load_in_notes: "", setup_time: "",
-  });
+  const [form, setForm] = useState(EMPTY_FORM);
 
   useEffect(() => {
     if (editId) {
-      base44.entities.Event.list().then(events => {
+      EventAPI.list({}, "-event_date", 200).then(events => {
         const ev = events.find(e => e.id === editId);
-        if (ev) setForm(prev => ({ ...prev, ...ev, guest_count: ev.guest_count?.toString() || "", package_price: ev.package_price?.toString() || "" }));
+        if (ev) setForm(prev => ({
+          ...prev, ...ev,
+          guest_count: ev.guest_count?.toString() || "",
+          package_price: ev.package_price?.toString() || "",
+        }));
       });
     }
   }, [editId]);
@@ -39,16 +49,31 @@ export default function EventForm() {
   const handleSubmit = async (e) => {
     e.preventDefault();
     setSaving(true);
+
     const data = {
       ...form,
       guest_count: form.guest_count ? Number(form.guest_count) : undefined,
       package_price: form.package_price ? Number(form.package_price) : undefined,
     };
+
     if (editId) {
-      await base44.entities.Event.update(editId, data);
+      await EventAPI.update(editId, data);
     } else {
-      await base44.entities.Event.create(data);
+      // Stamp booked_date when creating a booked event
+      if (BOOKED_STATUSES.has(data.status)) {
+        data.booked_date = new Date().toISOString().split("T")[0];
+      }
+      const created = await EventAPI.create(data);
+
+      // Trigger automation + payment schedule for booked events
+      if (created && BOOKED_STATUSES.has(created.status)) {
+        await Promise.all([
+          onEventBooked(created),
+          EventOpsAPI.createPaymentSchedule(created.id),
+        ]);
+      }
     }
+
     navigate(createPageUrl("Events"));
   };
 
@@ -69,9 +94,7 @@ export default function EventForm() {
                   <Select value={form.event_type} onValueChange={v => handleChange("event_type", v)}>
                     <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {["wedding","corporate","school_dance","private_party","birthday","anniversary","mitzvah","quinceañera","holiday_party","other"].map(t => (
-                        <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>
-                      ))}
+                      {EVENT_TYPES.map(t => <SelectItem key={t} value={t}>{t.replace(/_/g, " ")}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -95,9 +118,7 @@ export default function EventForm() {
                   <Select value={form.status} onValueChange={v => handleChange("status", v)}>
                     <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {["booked","planning_in_progress","awaiting_planning_form","final_call_scheduled","finalized","dj_assigned","confirmed","event_completed","survey_sent","closed_won","closed_issue"].map(s => (
-                        <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>
-                      ))}
+                      {EVENT_STATUSES.map(s => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
@@ -112,8 +133,9 @@ export default function EventForm() {
                 <div><Label className="text-xs">Equipment Notes</Label><Input value={form.equipment_notes} onChange={e => handleChange("equipment_notes", e.target.value)} className="mt-1" /></div>
               </div>
               <div className="mt-4"><Label className="text-xs">Internal Notes</Label><Textarea value={form.internal_notes} onChange={e => handleChange("internal_notes", e.target.value)} rows={2} className="mt-1" /></div>
+              <div className="mt-4"><Label className="text-xs">Load-in Notes</Label><Textarea value={form.load_in_notes} onChange={e => handleChange("load_in_notes", e.target.value)} rows={2} className="mt-1" /></div>
             </div>
-            <div className="flex justify-end gap-3 pt-4">
+            <div className="flex justify-end gap-3 pt-4 border-t">
               <Link to={createPageUrl("Events")}><Button type="button" variant="outline">Cancel</Button></Link>
               <Button type="submit" disabled={saving} className="bg-gradient-to-r from-violet-600 to-indigo-600">
                 {saving ? <Loader2 className="w-4 h-4 animate-spin mr-1.5" /> : <Save className="w-4 h-4 mr-1.5" />}
