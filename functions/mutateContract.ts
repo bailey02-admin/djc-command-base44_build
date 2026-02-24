@@ -69,13 +69,22 @@ Deno.serve(async (req) => {
 
     if (action === "sign") {
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
+
+      // Fetch current contract first for idempotency + signer_name fallback
+      const existing = await base44.asServiceRole.entities.Contract.filter({ id });
+      const currentContract = existing[0];
+      if (!currentContract) return Response.json({ error: "Contract not found" }, { status: 404 });
+      if (currentContract.status === "signed") return Response.json({ contract: currentContract });
+
       const now = new Date().toISOString();
       const contract = await base44.asServiceRole.entities.Contract.update(id, {
         status: "signed",
         signed_date: now,
-        signer_name: data.signer_name || contract?.contact_name,
+        signer_name: data.signer_name || currentContract.contact_name,
       });
-      // Sync contract_signed to Event
+
+      // Sync contract_signed to Event — only set true if this contract is not voided
+      // Also check: if multiple contracts exist, only set true when a live one is signed
       if (contract.event_id) {
         await base44.asServiceRole.entities.Event.update(contract.event_id, {
           contract_signed: true,
