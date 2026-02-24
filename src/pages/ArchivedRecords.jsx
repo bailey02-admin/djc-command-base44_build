@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
-import { ArchiveAPI } from "../components/api/secureApi";
+import { ArchiveAPI, SearchAPI } from "../components/api/secureApi";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -18,15 +18,16 @@ export default function ArchivedRecords() {
   const [restoring, setRestoring] = useState(false);
   const queryClient = useQueryClient();
 
-  const { data: archivedLeads = [], isLoading: loadingLeads } = useQuery({
-    queryKey: ["archived-leads"],
-    queryFn: () => base44.entities.Lead.filter({ is_deleted: true }, "-updated_date", 200),
+  const { data: archived = {}, isLoading: loadingLeads, isLoading: loadingEvents } = useQuery({
+    queryKey: ["archived-records"],
+    queryFn: async () => {
+      const r = await base44.functions.invoke("getArchivedRecords", {});
+      return r.data || {};
+    },
   });
 
-  const { data: archivedEvents = [], isLoading: loadingEvents } = useQuery({
-    queryKey: ["archived-events"],
-    queryFn: () => base44.entities.Event.filter({ is_deleted: true }, "-updated_date", 200),
-  });
+  const archivedLeads = archived.leads || [];
+  const archivedEvents = archived.events || [];
 
   const handleRestore = async () => {
     setRestoring(true);
