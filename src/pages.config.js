@@ -48,6 +48,8 @@
  * The mainPage value must match a key in the PAGES object exactly.
  */
 import ClientPortal from './pages/ClientPortal';
+import ContactDetail from './pages/ContactDetail';
+import DJDetail from './pages/DJDetail';
 import DJView from './pages/DJView';
 import Dashboard from './pages/Dashboard';
 import EventDetail from './pages/EventDetail';
@@ -62,14 +64,16 @@ import MusicPlanner from './pages/MusicPlanner';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
 import TimelineBuilder from './pages/TimelineBuilder';
-import ContactDetail from './pages/ContactDetail';
-import DJDetail from './pages/DJDetail';
 import Payments from './pages/Payments';
+import Quotes from './pages/Quotes';
+import Contracts from './pages/Contracts';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
     "ClientPortal": ClientPortal,
+    "ContactDetail": ContactDetail,
+    "DJDetail": DJDetail,
     "DJView": DJView,
     "Dashboard": Dashboard,
     "EventDetail": EventDetail,
@@ -84,9 +88,9 @@ export const PAGES = {
     "Reports": Reports,
     "Settings": Settings,
     "TimelineBuilder": TimelineBuilder,
-    "ContactDetail": ContactDetail,
-    "DJDetail": DJDetail,
     "Payments": Payments,
+    "Quotes": Quotes,
+    "Contracts": Contracts,
 }
 
 export const pagesConfig = {
