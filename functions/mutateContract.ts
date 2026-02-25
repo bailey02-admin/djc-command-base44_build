@@ -95,6 +95,13 @@ Deno.serve(async (req) => {
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
       const payload = { ...data };
       if (payload.contract_amount !== undefined) payload.contract_amount = Number(payload.contract_amount);
+
+      // Enforce status transition if status is being changed
+      if (payload.status !== undefined) {
+        const { error, status: errStatus } = await enforceContractTransition(base44, id, payload.status, role, admin_override, user.email);
+        if (error) return Response.json({ error }, { status: errStatus || 409 });
+      }
+
       const contract = await base44.asServiceRole.entities.Contract.update(id, payload);
       return Response.json({ contract });
     }
