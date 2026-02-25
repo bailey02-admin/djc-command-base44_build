@@ -252,9 +252,19 @@ export default function FinalizerQueue() {
   const [creatingTask, setCreatingTask] = useState(null);
   const queryClient = useQueryClient();
 
+  const todayStr = new Date().toISOString().split("T")[0];
+  const plus180  = new Date(Date.now() + 180 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
   const { data: events = [], isLoading, refetch } = useQuery({
-    queryKey: ["finalizer-events"],
-    queryFn: () => EventAPI.list({}, "event_date", 200),
+    queryKey: ["finalizer-events", cityFilter],
+    queryFn: () => EventAPI.list(
+      cityFilter !== "all" ? { city: cityFilter } : {},
+      "event_date",
+      200,
+      0,
+      todayStr,
+      plus180
+    ),
     staleTime: 60000,
   });
 
