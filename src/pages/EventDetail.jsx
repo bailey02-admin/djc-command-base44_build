@@ -51,6 +51,20 @@ export default function EventDetail() {
     await EventAPI.update(id, { [field]: value });
     queryClient.invalidateQueries(["event-bundle", id]);
     queryClient.invalidateQueries(["change-history", id]);
+
+    // Wire post-event automations on status transitions
+    if (field === "status") {
+      if (value === "event_completed") {
+        base44.functions.invoke("postEventAutomation", { action: "event_completed", event_id: id }).catch(() => {});
+      }
+      if (value === "survey_sent" && event.survey_score) {
+        base44.functions.invoke("postEventAutomation", { action: "survey_received", event_id: id, survey_score: event.survey_score }).catch(() => {});
+      }
+    }
+    // Wire survey automation when survey_score is set
+    if (field === "survey_score" && value) {
+      base44.functions.invoke("postEventAutomation", { action: "survey_received", event_id: id, survey_score: value }).catch(() => {});
+    }
   };
 
   const updateReadinessItem = async (key, value) => {
