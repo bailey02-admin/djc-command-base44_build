@@ -63,16 +63,39 @@ Deno.serve(async (req) => {
         matched = byEmail[0] || null;
         if (matched) contactMatchType = "email_match";
       }
-      // Phone fallback (primary only for exact match)
+      // Phone fallback — normalized digit comparison with paginated scan
       if (!matched && lead.phone) {
-        const allContacts = await base44.asServiceRole.entities.Contact.list("-created_date", 1000);
         const norm = (p) => (p || "").replace(/\D/g, "");
         const leadPhone = norm(lead.phone);
         if (leadPhone.length >= 7) {
-          matched = allContacts.find(c =>
-            (norm(c.phone) === leadPhone || norm(c.secondary_phone) === leadPhone)
-          ) || null;
-          if (matched) contactMatchType = "phone_match";
+          // Paginate in batches of 500 to avoid 1000-row hard cap
+          const BATCH = 500;
+          let offset = 0;
+          let found = null;
+          let scanCount = 0;
+          while (!found) {
+            const batch = await base44.asServiceRole.entities.Contact.list("-created_date", BATCH, offset);
+            scanCount += batch.length;
+            found = batch.find(c =>
+              norm(c.phone) === leadPhone || norm(c.secondary_phone) === leadPhone
+            ) || null;
+            if (found || batch.length < BATCH) break; // exhausted
+            offset += BATCH;
+          }
+          if (found) {
+            matched = found;
+            contactMatchType = "phone_match";
+          } else {
+            // Log that we completed a full scan and found nothing — explicit audit trail
+            await base44.asServiceRole.entities.Activity.create({
+              type: "system",
+              subject: `convertLeadToEvent: phone scan exhausted (${scanCount} contacts checked) — no match for ${leadPhone.slice(-4).padStart(leadPhone.length, "*")}`,
+              related_type: "lead",
+              related_id: lead.id,
+              is_internal: true,
+              performed_by: user.email,
+            }).catch(() => {});
+          }
         }
       }
 
