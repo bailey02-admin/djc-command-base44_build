@@ -140,10 +140,18 @@ export default function Events() {
             </Link>
           );
         })}
-        {filtered.length === 0 && (
+        {filtered.length === 0 && !isFetching && (
           <div className="col-span-full text-center py-16 text-gray-400 text-sm">No events found.</div>
         )}
       </div>
+
+      {hasMore && (
+        <div className="flex justify-center py-4">
+          <Button variant="outline" size="sm" onClick={() => setSkip(s => s + PAGE_SIZE)} disabled={isFetching}>
+            {isFetching ? "Loading…" : "Load more"}
+          </Button>
+        </div>
+      )}
     </div>
   );
 }
