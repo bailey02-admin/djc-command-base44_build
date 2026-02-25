@@ -208,6 +208,13 @@ Deno.serve(async (req) => {
 
     if (action === "decline") {
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
+
+      // Enforce transition: sent → declined
+      const { error: txErr, status: txStatus, current: currentQuote } = await enforceQuoteTransition(base44, id, "declined", role, admin_override, user.email);
+      if (txErr) return Response.json({ error: txErr }, { status: txStatus || 409 });
+      // Idempotent
+      if (currentQuote.status === "declined") return Response.json({ quote: currentQuote });
+
       const quote = await base44.asServiceRole.entities.Quote.update(id, { status: "declined" });
       return Response.json({ quote });
     }
