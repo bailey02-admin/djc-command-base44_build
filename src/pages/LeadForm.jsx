@@ -108,6 +108,21 @@ export default function LeadForm() {
         <CardHeader><CardTitle className="text-lg">{editId ? "Edit Lead" : "New Lead"}</CardTitle></CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
+            {/* Duplicate warning */}
+            {!editId && !dupDismissed && dupRisk !== "none" && (
+              <DuplicateWarning
+                duplicates={duplicates}
+                risk={dupRisk}
+                onDismiss={() => setDupDismissed(true)}
+                onLinkDuplicate={(id) => { setLinkedDuplicateOf(id); setDupDismissed(true); }}
+              />
+            )}
+            {linkedDuplicateOf && (
+              <div className="text-xs text-violet-700 bg-violet-50 border border-violet-200 rounded px-3 py-2 flex items-center justify-between">
+                <span>Will be saved as duplicate of lead <code className="font-mono">{linkedDuplicateOf}</code></span>
+                <button type="button" onClick={() => setLinkedDuplicateOf(null)} className="ml-2 opacity-60 hover:opacity-100">×</button>
+              </div>
+            )}
             <div>
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Client Info</h3>
               <div className="grid grid-cols-2 gap-4">
