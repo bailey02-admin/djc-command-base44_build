@@ -73,13 +73,44 @@ export default function LeadDetail() {
 
   const convertToEvent = async () => {
     setConverting(true);
-    const { EventAPI: EA } = await import("../components/api/secureApi");
+    const { EventAPI: EA, ContactAPI: CA } = await import("../components/api/secureApi");
+
+    // ── Contact auto-link: email first, then phone ──────────────────
+    let contact_id = lead.contact_id || null;
+    if (!contact_id && (lead.email || lead.phone)) {
+      const allContacts = await CA.list({}, "-created_date", 500);
+      const byEmail = lead.email
+        ? allContacts.find(c => c.email?.toLowerCase() === lead.email.toLowerCase())
+        : null;
+      const byPhone = !byEmail && lead.phone
+        ? allContacts.find(c => c.phone === lead.phone || c.secondary_phone === lead.phone)
+        : null;
+      const matched = byEmail || byPhone;
+
+      if (matched) {
+        contact_id = matched.id;
+      } else {
+        // Create a new Contact from lead data
+        const newContact = await CA.create({
+          first_name: lead.client_first_name,
+          last_name: lead.client_last_name,
+          email: lead.email,
+          phone: lead.phone,
+          preferred_contact_method: lead.preferred_contact_method || "any",
+          city: lead.city,
+          notes: lead.notes || "",
+        });
+        contact_id = newContact?.id || null;
+      }
+    }
+
     const event = await EA.create({
       event_name: `${lead.client_first_name} ${lead.client_last_name} - ${lead.event_type?.replace(/_/g, " ")}`,
       event_type: lead.event_type,
       event_date: lead.event_date,
       city: lead.city,
       venue_name: lead.venue_name,
+      contact_id,
       contact_name: `${lead.client_first_name} ${lead.client_last_name}`,
       contact_email: lead.email,
       contact_phone: lead.phone,
@@ -92,6 +123,7 @@ export default function LeadDetail() {
     });
     await LeadAPI.update(id, {
       status: "booked", pipeline_stage: "booked", event_id: event.id,
+      contact_id,
       booked_date: event.booked_date || new Date().toISOString(),
     });
     await onEventBooked(event);
