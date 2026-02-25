@@ -73,60 +73,9 @@ export default function LeadDetail() {
 
   const convertToEvent = async () => {
     setConverting(true);
-    const { EventAPI: EA, ContactAPI: CA } = await import("../components/api/secureApi");
-
-    // ── Contact auto-link: email first, then phone ──────────────────
-    let contact_id = lead.contact_id || null;
-    if (!contact_id && (lead.email || lead.phone)) {
-      const allContacts = await CA.list({}, "-created_date", 500);
-      const byEmail = lead.email
-        ? allContacts.find(c => c.email?.toLowerCase() === lead.email.toLowerCase())
-        : null;
-      const byPhone = !byEmail && lead.phone
-        ? allContacts.find(c => c.phone === lead.phone || c.secondary_phone === lead.phone)
-        : null;
-      const matched = byEmail || byPhone;
-
-      if (matched) {
-        contact_id = matched.id;
-      } else {
-        // Create a new Contact from lead data
-        const newContact = await CA.create({
-          first_name: lead.client_first_name,
-          last_name: lead.client_last_name,
-          email: lead.email,
-          phone: lead.phone,
-          preferred_contact_method: lead.preferred_contact_method || "any",
-          city: lead.city,
-          notes: lead.notes || "",
-        });
-        contact_id = newContact?.id || null;
-      }
-    }
-
-    const event = await EA.create({
-      event_name: `${lead.client_first_name} ${lead.client_last_name} - ${lead.event_type?.replace(/_/g, " ")}`,
-      event_type: lead.event_type,
-      event_date: lead.event_date,
-      city: lead.city,
-      venue_name: lead.venue_name,
-      contact_id,
-      contact_name: `${lead.client_first_name} ${lead.client_last_name}`,
-      contact_email: lead.email,
-      contact_phone: lead.phone,
-      lead_id: lead.id,
-      guest_count: lead.guest_count,
-      package_name: lead.package_name,
-      package_price: lead.total_fee || lead.quote_amount,
-      status: "booked",
-      booked_date: lead.booked_date || new Date().toISOString().split("T")[0],
-    });
-    await LeadAPI.update(id, {
-      status: "booked", pipeline_stage: "booked", event_id: event.id,
-      contact_id,
-      booked_date: event.booked_date || new Date().toISOString(),
-    });
-    await onEventBooked(event);
+    const res = await base44.functions.invoke("convertLeadToEvent", { lead_id: id });
+    const { event } = res.data || {};
+    if (event) await onEventBooked(event);
     queryClient.invalidateQueries(["lead", id]);
     setConverting(false);
   };
