@@ -105,6 +105,13 @@ Deno.serve(async (req) => {
       const payload = { ...data };
       if (payload.total_amount !== undefined) payload.total_amount = Number(payload.total_amount);
       if (payload.base_price !== undefined) payload.base_price = Number(payload.base_price);
+
+      // Enforce status transition if status is being changed
+      if (payload.status !== undefined) {
+        const { error, status: errStatus, current } = await enforceQuoteTransition(base44, id, payload.status, role, admin_override, user.email);
+        if (error) return Response.json({ error }, { status: errStatus || 409 });
+      }
+
       const quote = await base44.asServiceRole.entities.Quote.update(id, payload);
 
       // Sync to lead
