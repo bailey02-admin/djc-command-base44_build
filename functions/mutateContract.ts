@@ -169,6 +169,11 @@ Deno.serve(async (req) => {
     if (action === "void") {
       if (!ALLOWED.has(role)) return Response.json({ error: "Forbidden" }, { status: 403 });
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
+
+      // Enforce transition: sent → voided
+      const { error: txErr, status: txStatus } = await enforceContractTransition(base44, id, "voided", role, admin_override, user.email);
+      if (txErr) return Response.json({ error: txErr }, { status: txStatus || 409 });
+
       const contract = await base44.asServiceRole.entities.Contract.update(id, { status: "voided" });
 
       // Only flip event.contract_signed to false if no OTHER non-voided signed contract exists
