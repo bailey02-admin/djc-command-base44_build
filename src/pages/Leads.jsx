@@ -20,8 +20,16 @@ export default function Leads() {
   const queryClient = useQueryClient();
 
   const { data: leads = [], isLoading } = useQuery({
-    queryKey: ["leads"],
-    queryFn: () => LeadAPI.list({}, "-created_date", 200),
+    queryKey: ["leads", statusFilter, cityFilter],
+    queryFn: () => LeadAPI.list(
+      {
+        ...(statusFilter !== "all" ? { status: statusFilter } : {}),
+        ...(cityFilter !== "all" ? { city: cityFilter } : {}),
+      },
+      "-created_date",
+      200
+    ),
+    keepPreviousData: true,
   });
 
   const cities = [...new Set(leads.map(l => l.city).filter(Boolean))];
