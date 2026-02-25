@@ -10,8 +10,8 @@ const invoke = (fn, payload) => base44.functions.invoke(fn, payload).then(r => r
 
 // ─── LEADS ────────────────────────────────────────────────────────────────
 export const LeadAPI = {
-  list: (filters = {}, sort = "-created_date", limit = 200) =>
-    invoke("getLeads", { filters, sort, limit }).then(r => r.leads || []),
+  list: (filters = {}, sort = "-created_date", limit = 50, skip = 0) =>
+    invoke("getLeads", { filters, sort, limit, skip }).then(r => r.leads || []),
 
   get: (id) =>
     invoke("getLeadById", { id }).then(r => r.lead),
@@ -39,8 +39,8 @@ export const LeadAPI = {
 
 // ─── EVENTS ───────────────────────────────────────────────────────────────
 export const EventAPI = {
-  list: (filters = {}, sort = "-event_date", limit = 100) =>
-    invoke("getEvents", { filters, sort, limit }).then(r => r.events || []),
+  list: (filters = {}, sort = "event_date", limit = 50, skip = 0, date_from, date_to) =>
+    invoke("getEvents", { filters, sort, limit, skip, date_from, date_to }).then(r => r.events || []),
 
   /** Returns { event, activities, tasks, payments, musicSelections, timeline } */
   getDetailBundle: (id) =>
@@ -70,8 +70,8 @@ export const ActivityAPI = {
 
 // ─── TASKS ────────────────────────────────────────────────────────────────
 export const TaskAPI = {
-  list: (filters = {}, sort = "-due_date", limit = 200) =>
-    invoke("getTasks", { filters, sort, limit }).then(r => r.tasks || []),
+  list: (filters = {}, sort = "-due_date", limit = 50, skip = 0) =>
+    invoke("getTasks", { filters, sort, limit, skip }).then(r => r.tasks || []),
 
   forRecord: (related_id, sort = "-created_date", limit = 20) =>
     invoke("getTasks", { related_id, sort, limit }).then(r => r.tasks || []),
@@ -94,8 +94,8 @@ export const TaskAPI = {
 
 // ─── PAYMENTS ─────────────────────────────────────────────────────────────
 export const PaymentAPI = {
-  list: (limit = 100) =>
-    invoke("getPayments", { limit }).then(r => r.payments || []),
+  list: (limit = 50, skip = 0, filters = {}) =>
+    invoke("getPayments", { limit, skip, filters }).then(r => r.payments || []),
 
   forEvent: (event_id) =>
     invoke("getPayments", { event_id }).then(r => r.payments || []),
@@ -112,14 +112,14 @@ export const PaymentAPI = {
 
 // ─── REPORTS ──────────────────────────────────────────────────────────────
 export const ReportAPI = {
-  getSummary: (city_filter = "all") =>
-    invoke("getReportSummary", { city_filter }),
+  getSummary: (city_filter = "all", date_from, date_to) =>
+    invoke("getReportSummary", { city_filter, date_from, date_to }),
 };
 
 // ─── CONTACTS ─────────────────────────────────────────────────────────────
 export const ContactAPI = {
-  list: (filters = {}, sort = "-created_date", limit = 200) =>
-    invoke("getContacts", { filters, sort, limit }).then(r => r.contacts || []),
+  list: (filters = {}, sort = "-created_date", limit = 50, skip = 0) =>
+    invoke("getContacts", { filters, sort, limit, skip }).then(r => r.contacts || []),
 
   get: (id) =>
     invoke("getContacts", { id }).then(r => r.contact),
@@ -136,8 +136,8 @@ export const ContactAPI = {
 
 // ─── QUOTES ───────────────────────────────────────────────────────────────
 export const QuoteAPI = {
-  list: (filters = {}, sort = "-created_date", limit = 200) =>
-    invoke("getQuotes", { filters, sort, limit }).then(r => r.quotes || []),
+  list: (filters = {}, sort = "-created_date", limit = 50, skip = 0) =>
+    invoke("getQuotes", { filters, sort, limit, skip }).then(r => r.quotes || []),
 
   forLead: (lead_id) =>
     invoke("getQuotes", { lead_id, sort: "-created_date", limit: 20 }).then(r => r.quotes || []),
@@ -163,8 +163,8 @@ export const QuoteAPI = {
 
 // ─── CONTRACTS ────────────────────────────────────────────────────────────
 export const ContractAPI = {
-  list: (filters = {}, sort = "-created_date", limit = 200) =>
-    invoke("getContracts", { filters, sort, limit }).then(r => r.contracts || []),
+  list: (filters = {}, sort = "-created_date", limit = 50, skip = 0) =>
+    invoke("getContracts", { filters, sort, limit, skip }).then(r => r.contracts || []),
 
   forEvent: (event_id) =>
     invoke("getContracts", { filters: { event_id }, sort: "-created_date", limit: 10 }).then(r => r.contracts || []),
