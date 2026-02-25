@@ -1,10 +1,60 @@
 /**
  * Secure Quote mutation endpoint.
  * Actions: create | update | delete | send | accept | decline
+ *
+ * SERVER-SIDE STATUS TRANSITION MAP:
+ *   draft   → sent
+ *   sent    → accepted | declined | expired
+ *   accepted → TERMINAL (admin override only)
+ *   declined → TERMINAL (admin override only)
+ *   expired  → TERMINAL (admin override only)
+ *
+ * Admin override: pass { admin_override: true } in body — logged to Activity.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 const ALLOWED = new Set(["admin", "city_manager", "sales_manager", "sales_rep"]);
+
+// Transition map: current_status → Set of allowed next statuses
+const QUOTE_TRANSITIONS = {
+  draft:    new Set(["sent"]),
+  sent:     new Set(["accepted", "declined", "expired"]),
+  accepted: new Set([]),   // terminal
+  declined: new Set([]),   // terminal
+  expired:  new Set([]),   // terminal
+};
+
+// Enforce transition; returns error string or null
+async function enforceQuoteTransition(base44, quoteId, toStatus, role, adminOverride, performedBy) {
+  const rows = await base44.asServiceRole.entities.Quote.filter({ id: quoteId });
+  const current = rows[0];
+  if (!current) return { error: "Quote not found", status: 404, current: null };
+
+  const fromStatus = current.status;
+  const allowed = QUOTE_TRANSITIONS[fromStatus] || new Set();
+
+  if (allowed.has(toStatus)) return { error: null, current };
+
+  // Admin override path
+  if (role === "admin" && adminOverride) {
+    // Log the override
+    await base44.asServiceRole.entities.Activity.create({
+      type: "system",
+      subject: `⚠️ Admin override: Quote status ${fromStatus} → ${toStatus}`,
+      related_type: "lead",
+      related_id: current.lead_id,
+      is_internal: true,
+      performed_by: performedBy,
+    }).catch(() => {});
+    return { error: null, current };
+  }
+
+  return {
+    error: `Invalid transition: quote is ${fromStatus} — cannot move to ${toStatus}. Allowed: [${[...allowed].join(", ") || "none (terminal)"}]`,
+    status: 409,
+    current: null,
+  };
+}
 
 Deno.serve(async (req) => {
   try {
