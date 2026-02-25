@@ -70,10 +70,11 @@ Deno.serve(async (req) => {
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
       // City scoping for city_manager
+      let preUpdateEvent = null;
       if (role === "city_manager" && user.city) {
         const rows = await base44.asServiceRole.entities.Event.filter({ id });
-        const event = rows[0];
-        if (event && event.city !== user.city) {
+        preUpdateEvent = rows[0];
+        if (preUpdateEvent && preUpdateEvent.city !== user.city) {
           await logDenial(base44, user, action, id, "outside city");
           return Response.json({ error: "Forbidden: outside your city" }, { status: 403 });
         }
@@ -81,6 +82,23 @@ Deno.serve(async (req) => {
 
       const cleaned = stripProtectedFields(data, role);
       const updated = await base44.asServiceRole.entities.Event.update(id, cleaned);
+
+      // ── Post-event automation triggers (server-side, idempotent) ─────
+      if (cleaned.status === "event_completed") {
+        // Fire-and-forget; postEventAutomation handles idempotency
+        base44.asServiceRole.functions.invoke("postEventAutomation", {
+          action: "event_completed",
+          event_id: id,
+        }).catch(() => {});
+      }
+      if (cleaned.survey_score !== undefined && cleaned.survey_score !== null) {
+        base44.asServiceRole.functions.invoke("postEventAutomation", {
+          action: "survey_received",
+          event_id: id,
+          survey_score: cleaned.survey_score,
+        }).catch(() => {});
+      }
+
       return Response.json({ event: updated });
     }
 
