@@ -85,18 +85,28 @@ Deno.serve(async (req) => {
 
       // ── Post-event automation triggers (server-side, idempotent) ─────
       if (cleaned.status === "event_completed") {
-        // Fire-and-forget; postEventAutomation handles idempotency
         base44.asServiceRole.functions.invoke("postEventAutomation", {
           action: "event_completed",
           event_id: id,
         }).catch(() => {});
       }
+
+      // survey_received: only fire when score transitions from null/absent → a value.
+      // Fetch pre-update event if we haven't already (city_manager path may have it).
       if (cleaned.survey_score !== undefined && cleaned.survey_score !== null) {
-        base44.asServiceRole.functions.invoke("postEventAutomation", {
-          action: "survey_received",
-          event_id: id,
-          survey_score: cleaned.survey_score,
-        }).catch(() => {});
+        const preEvent = preUpdateEvent ||
+          (await base44.asServiceRole.entities.Event.filter({ id }).catch(() => []))[0];
+        const hadScoreBefore = preEvent && preEvent.survey_score !== undefined && preEvent.survey_score !== null;
+        if (!hadScoreBefore) {
+          // First-time score write — fire trigger
+          base44.asServiceRole.functions.invoke("postEventAutomation", {
+            action: "survey_received",
+            event_id: id,
+            survey_score: cleaned.survey_score,
+          }).catch(() => {});
+        }
+        // If score already existed, postEventAutomation idempotency (AutomationLog) is the secondary guard,
+        // but we avoid the call entirely here for score edits/corrections.
       }
 
       return Response.json({ event: updated });
