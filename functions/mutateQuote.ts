@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     if (!ALLOWED.has(role)) return Response.json({ error: "Forbidden" }, { status: 403 });
 
     const body = await req.json().catch(() => ({}));
-    const { action, id, data = {} } = body;
+    const { action, id, data = {}, admin_override = false } = body;
 
     if (action === "create") {
       if (!data.lead_id || !data.package_name || data.total_amount === undefined) {
