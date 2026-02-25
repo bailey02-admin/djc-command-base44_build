@@ -43,6 +43,17 @@ Deno.serve(async (req) => {
       quotes = quotes.filter(q => !q.lead_id || cityLeadIds.has(q.lead_id));
     }
 
+    // ── Expiration enrichment (read-only, no DB mutation) ────────────
+    const today = new Date().toISOString().split("T")[0]; // YYYY-MM-DD
+    quotes = quotes.map(q => {
+      const isExpired = q.status === "sent" && q.valid_until && q.valid_until < today;
+      return {
+        ...q,
+        is_expired: isExpired,
+        effective_status: isExpired ? "expired" : q.status,
+      };
+    });
+
     return Response.json({ quotes, total: quotes.length });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
