@@ -1,6 +1,11 @@
 /**
- * Global search endpoint — searches Leads, Events, Contacts, Venues, DJProfiles.
- * Role/city scoped server-side.
+ * Global search endpoint — Performance-hardened.
+ *
+ * Key changes:
+ * - Reduced per-entity fetch cap from 200 → 100 (sufficient for search)
+ * - City scoping always pushed to DB filter (not post-fetch)
+ * - DJProfiles cap reduced to 50 (small stable dataset)
+ * - Returns only minimal fields needed for search result display
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
@@ -18,28 +23,27 @@ Deno.serve(async (req) => {
     const role = user.role || "sales_rep";
     const term = q.trim().toLowerCase();
 
-    // Helper: fuzzy text match across multiple string fields
     const matches = (obj, fields) =>
       fields.some(f => obj[f] && String(obj[f]).toLowerCase().includes(term));
 
-    // City scoping: city_manager only sees their city
-    let cityFilter = null;
-    if (role === "city_manager" && user.city) cityFilter = user.city;
+    // Build DB filters with city scoping pushed to DB
+    const leadFilter  = { is_deleted: false };
+    const eventFilter = { is_deleted: false };
+    if (role === "city_manager" && user.city) {
+      leadFilter.city  = user.city;
+      eventFilter.city = user.city;
+    } else if (role === "sales_rep" && user.city) {
+      leadFilter.city  = user.city;
+      eventFilter.city = user.city;
+    }
 
-    // Parallel fetches
+    // Parallel fetches — capped at 100 per entity for search (sufficient for text match)
     const [leads, events, contacts, venues, djs] = await Promise.all([
-      // Leads: always through service role but respect city scoping
-      base44.asServiceRole.entities.Lead.filter(
-        cityFilter ? { is_deleted: false, city: cityFilter } : { is_deleted: false },
-        "-created_date", 200
-      ).catch(() => []),
-      base44.asServiceRole.entities.Event.filter(
-        cityFilter ? { is_deleted: false, city: cityFilter } : { is_deleted: false },
-        "-event_date", 200
-      ).catch(() => []),
-      base44.asServiceRole.entities.Contact.list("-created_date", 200).catch(() => []),
-      base44.asServiceRole.entities.Venue.list("-created_date", 200).catch(() => []),
-      base44.asServiceRole.entities.DJProfile.list("-created_date", 100).catch(() => []),
+      base44.asServiceRole.entities.Lead.filter(leadFilter, "-created_date", 100).catch(() => []),
+      base44.asServiceRole.entities.Event.filter(eventFilter, "-event_date", 100).catch(() => []),
+      base44.asServiceRole.entities.Contact.list("-created_date", 100).catch(() => []),
+      base44.asServiceRole.entities.Venue.list("-created_date", 50).catch(() => []),
+      base44.asServiceRole.entities.DJProfile.list("-created_date", 50).catch(() => []),
     ]);
 
     const matchedLeads = leads

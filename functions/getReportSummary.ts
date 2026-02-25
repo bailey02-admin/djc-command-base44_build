@@ -1,8 +1,11 @@
 /**
- * Secure Report Summary endpoint.
- * Returns role-scoped aggregates only — no raw entity reads from browser.
- * DJs: blocked. Clients: blocked.
- * City managers: city-scoped. Admins/managers: full.
+ * Secure Report Summary endpoint — Performance-hardened.
+ *
+ * Key changes:
+ * - Default time window: last 90 days for leads, upcoming 90 days for events
+ * - All aggregation done server-side (no raw rows sent to browser)
+ * - Hard cap: 1000 leads/events max per report (prevents catastrophic scans)
+ * - city_filter pushed to DB where possible
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
@@ -20,30 +23,57 @@ Deno.serve(async (req) => {
     }
 
     const body = await req.json().catch(() => ({}));
-    const { city_filter = "all" } = body;
+    const { city_filter = "all", date_from, date_to } = body;
 
-    // Parallel fetch
-    const [allLeads, allEvents, allPayments] = await Promise.all([
-      base44.asServiceRole.entities.Lead.list("-created_date", 500),
-      base44.asServiceRole.entities.Event.list("-event_date", 500),
-      base44.asServiceRole.entities.Payment.list("-created_date", 500),
-    ]);
+    // Default time window: last 90 days
+    const now = new Date();
+    const defaultFrom = new Date(now - 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const defaultTo   = new Date(now + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+    const fromDate = date_from || defaultFrom;
+    const toDate   = date_to   || defaultTo;
 
-    // Apply role scoping
-    let leads = allLeads.filter(l => !l.is_deleted);
-    let events = allEvents.filter(e => !e.is_deleted);
+    // Build DB filters — push city to DB where possible
+    const leadDbFilter  = { is_deleted: false };
+    const eventDbFilter = { is_deleted: false };
 
     if (role === "city_manager" && user.city) {
-      leads = leads.filter(l => l.city === user.city);
-      events = events.filter(e => e.city === user.city);
+      leadDbFilter.city  = user.city;
+      eventDbFilter.city = user.city;
     } else if (role === "sales_rep") {
-      leads = leads.filter(l => l.assigned_rep === user.email || (user.city && l.city === user.city));
-      events = events.filter(e => user.city ? e.city === user.city : true);
+      if (user.city) {
+        leadDbFilter.city  = user.city;
+        eventDbFilter.city = user.city;
+      } else {
+        leadDbFilter.assigned_rep = user.email;
+      }
+    } else if (city_filter !== "all") {
+      leadDbFilter.city  = city_filter;
+      eventDbFilter.city = city_filter;
     }
 
-    // Apply optional city filter from UI
-    const fl = city_filter === "all" ? leads : leads.filter(l => l.city === city_filter);
-    const fe = city_filter === "all" ? events : events.filter(e => e.city === city_filter);
+    // Parallel fetch — capped at 1000 rows each
+    const [allLeads, allEvents, allPayments] = await Promise.all([
+      base44.asServiceRole.entities.Lead.filter(leadDbFilter, "-created_date", 1000),
+      base44.asServiceRole.entities.Event.filter(eventDbFilter, "-event_date", 1000),
+      base44.asServiceRole.entities.Payment.filter({ }, "-created_date", 1000),
+    ]);
+
+    // Apply time window (post-fetch, range not supported in DB filter)
+    let leads  = allLeads.filter(l =>
+      l.inquiry_date ? l.inquiry_date.substring(0,10) >= fromDate && l.inquiry_date.substring(0,10) <= toDate : true
+    );
+    let events = allEvents.filter(e =>
+      e.event_date ? e.event_date >= fromDate && e.event_date <= toDate : true
+    );
+
+    // Apply additional city filter from UI (for admin/manager viewing specific city)
+    if (city_filter !== "all" && !["city_manager", "sales_rep"].includes(role)) {
+      leads  = leads.filter(l => l.city === city_filter);
+      events = events.filter(e => e.city === city_filter);
+    }
+
+    const fl = leads;
+    const fe = events;
 
     // Aggregate: pipeline stages
     const pipelineStages = fl.reduce((acc, l) => {
@@ -76,6 +106,8 @@ Deno.serve(async (req) => {
 
     // City comparison (admin/manager only)
     const cities = [...new Set([...leads.map(l => l.city), ...events.map(e => e.city)].filter(Boolean))];
+    const realPayments = allPayments.filter(p => (p.amount || 0) > 0);
+
     const cityComparison = ["admin", "sales_manager"].includes(role)
       ? cities.map(city => ({
           name: city,
@@ -88,13 +120,11 @@ Deno.serve(async (req) => {
         }))
       : [];
 
-    // Events at risk
-    const now = new Date();
+    // Events at risk (next 30 days)
     const atRiskEvents = fe
       .filter(e => e.event_date)
       .map(e => {
         const days = Math.floor((new Date(e.event_date) - now) / (1000 * 60 * 60 * 24));
-        // readiness: count bool flags
         const flags = [e.planning_complete, e.timeline_complete, e.music_complete, e.contract_signed, e.deposit_paid, e.final_call_completed, e.dj_briefed];
         const score = Math.round((flags.filter(Boolean).length / flags.length) * 100);
         return { id: e.id, event_name: e.event_name, event_date: e.event_date, city: e.city, days, score };
@@ -102,8 +132,7 @@ Deno.serve(async (req) => {
       .filter(e => e.days >= 0 && e.days <= 30 && e.score < 80)
       .sort((a, b) => a.days - b.days);
 
-    // Key metrics — exclude $0 placeholder records from all financial calcs
-    const realPayments = allPayments.filter(p => (p.amount || 0) > 0);
+    // Key metrics
     const totalRevenue = realPayments.filter(p => p.status === "paid").reduce((s, p) => s + (p.amount || 0), 0);
     const bookingRate = fl.length > 0 ? Math.round((fl.filter(l => l.status === "booked").length / fl.length) * 100) : 0;
     const avgBookingValue = fe.filter(e => e.package_price).length > 0
@@ -127,6 +156,7 @@ Deno.serve(async (req) => {
       cities,
       totalLeads: fl.length,
       totalEvents: fe.length,
+      dateWindow: { from: fromDate, to: toDate },
     });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });

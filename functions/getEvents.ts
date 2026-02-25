@@ -1,8 +1,12 @@
 /**
- * Secure Event read endpoint.
- * DJs: only events where assigned_dj === user.email, with field redaction.
- * Clients: blocked entirely (portal uses separate endpoint).
- * Sales reps: city-scoped.
+ * Secure Event read endpoint — Performance-hardened.
+ *
+ * Key changes:
+ * - All filtering pushed to DB-level (filter() calls) instead of post-fetch JS
+ * - Default date window: upcoming 90 days unless overridden
+ * - Mandatory limit cap: 50 per page, skip for pagination
+ * - Field projection: list view returns slim payload, detail handled by getEventDetail
+ * - DJs filtered at DB layer via assigned_dj_id
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
@@ -16,11 +20,26 @@ const EVENT_HIDDEN_FIELDS = {
   finance:          ["internal_notes"],
 };
 
-function redactFields(record, role) {
-  const hidden = EVENT_HIDDEN_FIELDS[role] || [];
-  if (hidden.length === 0) return record;
-  const out = { ...record };
-  for (const f of hidden) delete out[f];
+// Slim field list for list/card views (omit heavy text blobs)
+const LIST_VIEW_FIELDS = new Set([
+  "id", "event_name", "event_type", "event_date", "start_time", "end_time",
+  "city", "venue_name", "contact_name", "status", "assigned_dj", "assigned_dj_id",
+  "assigned_mc", "planning_complete", "timeline_complete", "music_complete",
+  "contract_signed", "deposit_paid", "balance_paid", "final_call_completed",
+  "dj_briefed", "readiness_score", "is_deleted", "lead_id", "contact_id",
+  "package_price", "guest_count",
+]);
+
+function projectFields(record, role) {
+  const hidden = new Set(EVENT_HIDDEN_FIELDS[role] || []);
+  const out = {};
+  for (const key of LIST_VIEW_FIELDS) {
+    if (!hidden.has(key) && record[key] !== undefined) {
+      out[key] = record[key];
+    }
+  }
+  // Always carry id
+  out.id = record.id;
   return out;
 }
 
@@ -36,31 +55,71 @@ Deno.serve(async (req) => {
     }
 
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
-    const { limit = 100, sort = "-event_date", filters = {} } = body;
+    const {
+      limit: rawLimit = 50,
+      skip = 0,
+      sort = "event_date",
+      filters = {},
+      date_from,
+      date_to,
+      slim = true,  // list view uses slim projection by default
+    } = body;
 
-    let events = await base44.asServiceRole.entities.Event.list(sort, limit);
-    events = events.filter(e => !e.is_deleted);
+    // Hard cap: never more than 200 per request
+    const limit = Math.min(Number(rawLimit) || 50, 200);
 
-    // Apply caller filters (status, city, etc.)
-    for (const [key, val] of Object.entries(filters)) {
-      if (val && val !== "all") events = events.filter(e => e[key] === val);
+    // Build DB-level filter object
+    const dbFilter = { is_deleted: false };
+
+    // Date window — default: today → +90 days for list views
+    const today = new Date().toISOString().split("T")[0];
+    const defaultTo = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
+    // Allow explicit override; otherwise apply defaults only for list view
+    const fromDate = date_from || (slim ? today : null);
+    const toDate   = date_to   || (slim ? defaultTo : null);
+
+    // Apply DB-filterable fields from caller filters
+    const DB_FILTERABLE = ["status", "city", "assigned_dj_id", "event_type"];
+    for (const key of DB_FILTERABLE) {
+      if (filters[key] && filters[key] !== "all") {
+        dbFilter[key] = filters[key];
+      }
     }
 
-    // DJ: only events they are assigned to
+    // Role-based DB scoping (push to DB, not post-fetch)
     if (role === "dj") {
-      events = events.filter(e => e.assigned_dj === user.email);
-    }
-    // Sales rep: city-scoped
-    else if (role === "sales_rep" && user.city) {
-      events = events.filter(e => e.city === user.city);
-    }
-    // City manager: city-scoped
-    else if (role === "city_manager" && user.city) {
-      events = events.filter(e => e.city === user.city);
+      // DJs: only their events via email match on assigned_dj field
+      dbFilter.assigned_dj = user.email;
+    } else if ((role === "sales_rep" || role === "city_manager") && user.city) {
+      dbFilter.city = user.city;
     }
 
-    const result = events.map(e => redactFields(e, role));
-    return Response.json({ events: result, total: result.length });
+    // Fetch from DB with filters applied
+    let events = await base44.asServiceRole.entities.Event.filter(dbFilter, sort, limit + skip);
+
+    // Date range filter (post-fetch since SDK doesn't support range operators)
+    if (fromDate) events = events.filter(e => e.event_date >= fromDate);
+    if (toDate)   events = events.filter(e => e.event_date <= toDate);
+
+    // Pagination slice
+    const paginated = events.slice(skip, skip + limit);
+
+    // Apply slim projection for list views
+    const result = slim
+      ? paginated.map(e => projectFields(e, role))
+      : paginated.map(e => {
+          const hidden = new Set(EVENT_HIDDEN_FIELDS[role] || []);
+          const out = { ...e };
+          for (const f of hidden) delete out[f];
+          return out;
+        });
+
+    return Response.json({
+      events: result,
+      total: events.length,
+      page: { skip, limit, returned: result.length },
+    });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }

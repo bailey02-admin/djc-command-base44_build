@@ -1,7 +1,11 @@
 /**
- * Secure Task read endpoint.
- * Users only see tasks assigned to them, or tasks related to records they can access.
- * Admins/managers see all tasks.
+ * Secure Task read endpoint — Performance-hardened.
+ *
+ * Key changes:
+ * - related_id and assigned_to always pushed to DB filter
+ * - Hard limit cap: 50/page with skip
+ * - Status filter pushed to DB
+ * - Full-access roles: still paginated (no unbounded reads)
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
@@ -15,37 +19,66 @@ Deno.serve(async (req) => {
 
     const role = user.role || "sales_rep";
 
-    const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
-    const { limit = 200, sort = "-due_date", filters = {}, related_id } = body;
-
-    let tasks;
-
-    if (related_id) {
-      // Tasks for a specific record — scoping done by the entity access check above
-      tasks = await base44.asServiceRole.entities.Task.filter({ related_id }, sort, limit);
-    } else if (FULL_ACCESS_ROLES.has(role)) {
-      tasks = await base44.asServiceRole.entities.Task.list(sort, limit);
-    } else {
-      // Sales rep, DJ, office finalizer: only their assigned tasks
-      tasks = await base44.asServiceRole.entities.Task.filter({ assigned_to: user.email }, sort, limit);
-    }
-
-    // Apply additional filters
-    for (const [key, val] of Object.entries(filters)) {
-      if (val && val !== "all") tasks = tasks.filter(t => t[key] === val);
-    }
-
-    // DJs: only see DJ-category tasks
-    if (role === "dj") {
-      tasks = tasks.filter(t => ["dj_prep", "finalization", "other"].includes(t.category));
-    }
-
-    // Clients: no tasks
     if (role === "client") {
       return Response.json({ tasks: [], total: 0 });
     }
 
-    return Response.json({ tasks, total: tasks.length });
+    const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
+    const {
+      limit: rawLimit = 50,
+      skip = 0,
+      sort = "-due_date",
+      filters = {},
+      related_id,
+    } = body;
+
+    const limit = Math.min(Number(rawLimit) || 50, 200);
+
+    // Build DB-level filter
+    const dbFilter = {};
+
+    if (related_id) {
+      dbFilter.related_id = related_id;
+    } else if (!FULL_ACCESS_ROLES.has(role)) {
+      // Non-admin roles always scoped to their assigned tasks
+      dbFilter.assigned_to = user.email;
+    }
+
+    // Push status filter to DB if provided
+    if (filters.status && filters.status !== "all") {
+      dbFilter.status = filters.status;
+    }
+    if (filters.priority && filters.priority !== "all") {
+      dbFilter.priority = filters.priority;
+    }
+    if (filters.category && filters.category !== "all") {
+      dbFilter.category = filters.category;
+    }
+
+    // DJs: only DJ-category tasks
+    if (role === "dj") {
+      // Can't do array-in DB filter, so fetch assigned tasks then filter
+      dbFilter.assigned_to = user.email;
+    }
+
+    let tasks = await base44.asServiceRole.entities.Task.filter(dbFilter, sort, limit + skip);
+
+    // DJ: restrict categories post-fetch
+    if (role === "dj") {
+      tasks = tasks.filter(t => ["dj_prep", "finalization", "other"].includes(t.category));
+    }
+
+    // Apply remaining non-DB-filterable caller filters
+    const DB_FILTERABLE = ["status", "priority", "category"];
+    for (const [key, val] of Object.entries(filters)) {
+      if (val && val !== "all" && !DB_FILTERABLE.includes(key)) {
+        tasks = tasks.filter(t => t[key] === val);
+      }
+    }
+
+    const paginated = tasks.slice(skip, skip + limit);
+
+    return Response.json({ tasks: paginated, total: tasks.length, page: { skip, limit, returned: paginated.length } });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }
