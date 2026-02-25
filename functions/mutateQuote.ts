@@ -127,12 +127,11 @@ Deno.serve(async (req) => {
     if (action === "send") {
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
-      // Idempotency: fetch current state first
-      const existing = await base44.asServiceRole.entities.Quote.filter({ id });
-      const currentQuote = existing[0];
-      if (!currentQuote) return Response.json({ error: "Quote not found" }, { status: 404 });
+      // Enforce transition: draft → sent (idempotent if already sent)
+      const { error: txErr, status: txStatus, current: currentQuote } = await enforceQuoteTransition(base44, id, "sent", role, admin_override, user.email);
+      if (txErr) return Response.json({ error: txErr }, { status: txStatus || 409 });
 
-      // If already sent (or beyond), just return without re-advancing pipeline or logging again
+      // Idempotent: already sent or beyond, return as-is
       if (currentQuote.status !== "draft") {
         return Response.json({ quote: currentQuote });
       }
