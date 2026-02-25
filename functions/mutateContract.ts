@@ -136,9 +136,10 @@ Deno.serve(async (req) => {
 
     if (action === "sign") {
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
-      const existing = await base44.asServiceRole.entities.Contract.filter({ id });
-      const current = existing[0];
-      if (!current) return Response.json({ error: "Contract not found" }, { status: 404 });
+
+      // Enforce transition: sent → signed
+      const { error: txErr, status: txStatus, current } = await enforceContractTransition(base44, id, "signed", role, admin_override, user.email);
+      if (txErr) return Response.json({ error: txErr }, { status: txStatus || 409 });
       // Idempotent: already signed, return as-is
       if (current.status === "signed") return Response.json({ contract: current });
 
