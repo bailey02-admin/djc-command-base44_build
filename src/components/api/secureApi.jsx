@@ -79,8 +79,8 @@ export const TaskAPI = {
   create: (data) =>
     invoke("mutateTasks", { action: "create", data }).then(r => r.task),
 
-  bulkCreate: (tasks) =>
-    Promise.all(tasks.map(t => invoke("mutateTasks", { action: "create", data: t }).then(r => r.task))),
+  bulkCreate: (tasks, batch_id) =>
+    invoke("bulkCreateTasks", { tasks, ...(batch_id ? { batch_id } : {}) }).then(r => r.tasks || []),
 
   complete: (id) =>
     invoke("mutateTasks", { action: "complete", id }).then(r => r.task),

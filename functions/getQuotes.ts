@@ -72,21 +72,12 @@ Deno.serve(async (req) => {
       }
     }
 
-    // City-scoped roles: resolve allowed lead IDs at DB level (small targeted query)
-    let cityLeadIds = null;
+    // City-scoped roles: filter directly on quote.city (stamped at create time — no lead join needed)
     if (["sales_rep", "city_manager"].includes(role) && user.city && !lead_id) {
-      const cityLeads = await base44.asServiceRole.entities.Lead.filter(
-        { city: user.city, is_deleted: false }, "-created_date", 500
-      );
-      cityLeadIds = new Set(cityLeads.map(l => l.id));
+      dbFilter.city = user.city;
     }
 
     let quotes = await base44.asServiceRole.entities.Quote.filter(dbFilter, sort, limit + skip);
-
-    // Apply city scope post-fetch (can't do OR in DB filter)
-    if (cityLeadIds !== null) {
-      quotes = quotes.filter(q => !q.lead_id || cityLeadIds.has(q.lead_id));
-    }
 
     // Apply non-DB-filterable caller filters
     for (const [key, val] of Object.entries(filters)) {
