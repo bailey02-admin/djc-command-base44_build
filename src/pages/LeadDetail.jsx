@@ -175,6 +175,13 @@ export default function LeadDetail() {
             <Badge className={`text-xs ${stage.color}`}>{stage.label}</Badge>
             <SLABadge lead={lead} />
             {lead.priority === "urgent" && <Badge className="bg-red-100 text-red-700 text-xs">🔥 Urgent</Badge>}
+            {lead.duplicate_of && (
+              <Link to={createPageUrl("LeadDetail") + `?id=${lead.duplicate_of}`}>
+                <Badge className="bg-amber-100 text-amber-700 text-xs cursor-pointer hover:bg-amber-200">
+                  ⚠ Duplicate — view original
+                </Badge>
+              </Link>
+            )}
           </div>
         </div>
         <div className="flex gap-2 flex-wrap">
