@@ -174,10 +174,10 @@ Deno.serve(async (req) => {
     if (action === "accept") {
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
-      // Idempotency: fetch first
-      const existing = await base44.asServiceRole.entities.Quote.filter({ id });
-      const currentQuote = existing[0];
-      if (!currentQuote) return Response.json({ error: "Quote not found" }, { status: 404 });
+      // Enforce transition: sent → accepted
+      const { error: txErr, status: txStatus, current: currentQuote } = await enforceQuoteTransition(base44, id, "accepted", role, admin_override, user.email);
+      if (txErr) return Response.json({ error: txErr }, { status: txStatus || 409 });
+      // Idempotent
       if (currentQuote.status === "accepted") return Response.json({ quote: currentQuote });
 
       const quote = await base44.asServiceRole.entities.Quote.update(id, { status: "accepted" });
