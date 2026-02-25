@@ -137,10 +137,10 @@ export const ContactAPI = {
 // ─── QUOTES ───────────────────────────────────────────────────────────────
 export const QuoteAPI = {
   list: (filters = {}, sort = "-created_date", limit = 200) =>
-    base44.entities.Quote.filter(filters, sort, limit),
+    invoke("getQuotes", { filters, sort, limit }).then(r => r.quotes || []),
 
   forLead: (lead_id) =>
-    base44.entities.Quote.filter({ lead_id }, "-created_date", 20),
+    invoke("getQuotes", { lead_id, sort: "-created_date", limit: 20 }).then(r => r.quotes || []),
 
   create: (data) =>
     invoke("mutateQuote", { action: "create", data }).then(r => r.quote),
