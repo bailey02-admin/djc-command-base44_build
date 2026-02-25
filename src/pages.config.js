@@ -50,8 +50,10 @@
 import ArchivedRecords from './pages/ArchivedRecords';
 import ClientPortal from './pages/ClientPortal';
 import ContactDetail from './pages/ContactDetail';
+import Contacts from './pages/Contacts';
 import Contracts from './pages/Contracts';
 import DJDetail from './pages/DJDetail';
+import DJRoster from './pages/DJRoster';
 import DJView from './pages/DJView';
 import Dashboard from './pages/Dashboard';
 import EventDetail from './pages/EventDetail';
@@ -67,11 +69,9 @@ import Payments from './pages/Payments';
 import Quotes from './pages/Quotes';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
-import TimelineBuilder from './pages/TimelineBuilder';
-import Contacts from './pages/Contacts';
-import Venues from './pages/Venues';
-import DJRoster from './pages/DJRoster';
 import Tasks from './pages/Tasks';
+import TimelineBuilder from './pages/TimelineBuilder';
+import Venues from './pages/Venues';
 import __Layout from './Layout.jsx';
 
 
@@ -79,8 +79,10 @@ export const PAGES = {
     "ArchivedRecords": ArchivedRecords,
     "ClientPortal": ClientPortal,
     "ContactDetail": ContactDetail,
+    "Contacts": Contacts,
     "Contracts": Contracts,
     "DJDetail": DJDetail,
+    "DJRoster": DJRoster,
     "DJView": DJView,
     "Dashboard": Dashboard,
     "EventDetail": EventDetail,
@@ -96,11 +98,9 @@ export const PAGES = {
     "Quotes": Quotes,
     "Reports": Reports,
     "Settings": Settings,
-    "TimelineBuilder": TimelineBuilder,
-    "Contacts": Contacts,
-    "Venues": Venues,
-    "DJRoster": DJRoster,
     "Tasks": Tasks,
+    "TimelineBuilder": TimelineBuilder,
+    "Venues": Venues,
 }
 
 export const pagesConfig = {

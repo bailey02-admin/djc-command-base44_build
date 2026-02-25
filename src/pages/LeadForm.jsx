@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback, useRef } from "react";
 import { base44 } from "@/api/base44Client";
 import { LeadAPI } from "../components/api/secureApi";
 import { useNavigate, Link } from "react-router-dom";
@@ -11,6 +11,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { onNewLead } from "../components/crm/automations";
+import DuplicateWarning from "../components/leads/DuplicateWarning";
 
 const EVENT_TYPES = ["wedding","corporate","school_dance","private_party","birthday","anniversary","mitzvah","quinceañera","holiday_party","other"];
 const LEAD_SOURCES = ["website","google_ads","meta_ads","referral","bridal_show","the_knot","weddingwire","yelp","phone_call","walk_in","vendor_referral","repeat_client","other"];
@@ -34,6 +35,11 @@ export default function LeadForm() {
   const params = new URLSearchParams(window.location.search);
   const editId = params.get("id");
   const [form, setForm] = useState(EMPTY);
+  const [duplicates, setDuplicates] = useState([]);
+  const [dupRisk, setDupRisk] = useState("none");
+  const [dupDismissed, setDupDismissed] = useState(false);
+  const [linkedDuplicateOf, setLinkedDuplicateOf] = useState(null);
+  const dupCheckTimer = useRef(null);
 
   useEffect(() => {
     if (editId) {
@@ -45,7 +51,33 @@ export default function LeadForm() {
     }
   }, [editId]);
 
-  const set = (field, value) => setForm(prev => ({ ...prev, [field]: value }));
+  // Debounced duplicate check — only on new leads, only when email or phone changes
+  const checkDuplicates = useCallback((nextForm) => {
+    if (editId) return; // skip on edit
+    if (!nextForm.email && !nextForm.phone) return;
+    clearTimeout(dupCheckTimer.current);
+    dupCheckTimer.current = setTimeout(async () => {
+      const r = await base44.functions.invoke("checkDuplicateLeads", {
+        email: nextForm.email,
+        phone: nextForm.phone,
+        event_date: nextForm.event_date,
+        client_first_name: nextForm.client_first_name,
+        client_last_name: nextForm.client_last_name,
+      });
+      const data = r.data || {};
+      setDuplicates(data.duplicates || []);
+      setDupRisk(data.risk || "none");
+      setDupDismissed(false);
+    }, 600);
+  }, [editId]);
+
+  const set = (field, value) => {
+    const next = { ...form, [field]: value };
+    setForm(next);
+    if (["email", "phone", "event_date", "client_first_name", "client_last_name"].includes(field)) {
+      checkDuplicates(next);
+    }
+  };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
@@ -59,7 +91,9 @@ export default function LeadForm() {
     if (editId) {
       await LeadAPI.update(editId, data);
     } else {
-      const lead = await LeadAPI.create(data);
+      const payload = { ...data };
+      if (linkedDuplicateOf) payload.duplicate_of = linkedDuplicateOf;
+      const lead = await LeadAPI.create(payload);
       await onNewLead(lead);
     }
     navigate(createPageUrl("Leads"));
