@@ -4,7 +4,7 @@
  * Uses taskEngine for task generation, logs to AutomationLog + Activity.
  */
 import { base44 } from "@/api/base44Client";
-import { TaskAPI, ActivityAPI, LeadAPI } from "../api/secureApi";
+import { TaskAPI, ActivityAPI, LeadAPI, EventOpsAPI } from "../api/secureApi";
 import { buildTasks, completeTask } from "./taskEngine";
 import { calculateSLAStatus } from "./pipeline";
 
@@ -15,7 +15,8 @@ export async function onNewLead(lead) {
 
   if (tasks.length > 0) await TaskAPI.bulkCreate(tasks);
 
-  await base44.entities.AutomationLog.create({
+  await base44.functions.invoke("postEventAutomation", {}).catch(() => {}); // no-op, just warming
+  await base44.asServiceRole?.entities?.AutomationLog?.create?.({
     trigger: "new_lead",
     related_type: "lead",
     related_id: lead.id,
