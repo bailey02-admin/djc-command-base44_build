@@ -24,7 +24,7 @@ export default function QuoteBuilderModal({ open, onClose, quote, onSaved, prese
   // Fetch leads for linking
   const { data: leads = [] } = useQuery({
     queryKey: ["leads-simple"],
-    queryFn: () => base44.entities.Lead.filter({ is_deleted: false }, "-created_date", 100),
+    queryFn: () => LeadAPI.list({ is_deleted: false }, "-created_date", 100),
     enabled: open,
   });
 
