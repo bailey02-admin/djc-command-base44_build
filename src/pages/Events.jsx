@@ -26,19 +26,48 @@ const statusColors = {
   closed_issue: "bg-red-50 text-red-700",
 };
 
+const PAGE_SIZE = 50;
+
+// Default: upcoming 90 days
+const todayStr = () => new Date().toISOString().split("T")[0];
+const plus90 = () => new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
+
 export default function Events() {
   const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [skip, setSkip] = useState(0);
+  const [allEvents, setAllEvents] = useState([]);
+  const [hasMore, setHasMore] = useState(true);
 
-  const { data: events = [] } = useQuery({
-    queryKey: ["events"],
-    queryFn: () => EventAPI.list({}, "-event_date", 200),
+  const { data, isFetching } = useQuery({
+    queryKey: ["events", statusFilter, skip],
+    queryFn: () => EventAPI.list(
+      statusFilter !== "all" ? { status: statusFilter } : {},
+      "event_date",
+      PAGE_SIZE,
+      skip,
+      todayStr(),
+      plus90()
+    ),
+    keepPreviousData: true,
   });
 
-  const filtered = events.filter(e => {
-    const matchSearch = !search || e.event_name?.toLowerCase().includes(search.toLowerCase()) || e.contact_name?.toLowerCase().includes(search.toLowerCase());
-    const matchStatus = statusFilter === "all" || e.status === statusFilter;
-    return matchSearch && matchStatus;
+  React.useEffect(() => {
+    if (data) {
+      if (skip === 0) {
+        setAllEvents(data);
+      } else {
+        setAllEvents(prev => [...prev, ...data]);
+      }
+      setHasMore(data.length === PAGE_SIZE);
+    }
+  }, [data, skip]);
+
+  // Reset pagination when filters change
+  React.useEffect(() => { setSkip(0); setAllEvents([]); }, [statusFilter]);
+
+  const filtered = allEvents.filter(e => {
+    return !search || e.event_name?.toLowerCase().includes(search.toLowerCase()) || e.contact_name?.toLowerCase().includes(search.toLowerCase());
   });
 
   return (
