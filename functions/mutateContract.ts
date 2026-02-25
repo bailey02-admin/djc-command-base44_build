@@ -2,12 +2,57 @@
  * Secure Contract mutation endpoint.
  * Actions: create | update | delete | send | sign | void
  *
+ * SERVER-SIDE STATUS TRANSITION MAP:
+ *   draft   → sent
+ *   sent    → signed | voided
+ *   signed  → TERMINAL (admin override only)
+ *   voided  → TERMINAL (admin override only)
+ *
+ * Admin override: pass { admin_override: true } in body — logged to Activity.
+ *
  * Idempotency guarantees:
  *   send: only logs activity on first send (draft→sent); preserves sent_date on re-send
  *   sign: no-op if already signed; event.contract_signed = true
  *   void: only flips event.contract_signed = false if no OTHER signed contract exists for the event
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+
+// Transition map: current_status → Set of allowed next statuses
+const CONTRACT_TRANSITIONS = {
+  draft:  new Set(["sent"]),
+  sent:   new Set(["signed", "voided"]),
+  signed: new Set([]),   // terminal
+  voided: new Set([]),   // terminal
+};
+
+async function enforceContractTransition(base44, contractId, toStatus, role, adminOverride, performedBy) {
+  const rows = await base44.asServiceRole.entities.Contract.filter({ id: contractId });
+  const current = rows[0];
+  if (!current) return { error: "Contract not found", status: 404, current: null };
+
+  const fromStatus = current.status;
+  const allowed = CONTRACT_TRANSITIONS[fromStatus] || new Set();
+
+  if (allowed.has(toStatus)) return { error: null, current };
+
+  if (role === "admin" && adminOverride) {
+    await base44.asServiceRole.entities.Activity.create({
+      type: "system",
+      subject: `⚠️ Admin override: Contract status ${fromStatus} → ${toStatus}`,
+      related_type: "event",
+      related_id: current.event_id,
+      is_internal: true,
+      performed_by: performedBy,
+    }).catch(() => {});
+    return { error: null, current };
+  }
+
+  return {
+    error: `Invalid transition: contract is ${fromStatus} — cannot move to ${toStatus}. Allowed: [${[...allowed].join(", ") || "none (terminal)"}]`,
+    status: 409,
+    current: null,
+  };
+}
 
 const ALLOWED = new Set(["admin", "city_manager", "sales_manager"]);
 const ANY_ROLE = new Set(["admin", "city_manager", "sales_manager", "sales_rep", "finalizer"]);
