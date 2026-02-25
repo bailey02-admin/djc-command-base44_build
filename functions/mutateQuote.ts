@@ -72,8 +72,17 @@ Deno.serve(async (req) => {
       if (!data.lead_id || !data.package_name || data.total_amount === undefined) {
         return Response.json({ error: "lead_id, package_name, and total_amount are required" }, { status: 400 });
       }
+
+      // Fetch lead to stamp city on quote (eliminates join in getQuotes)
+      let leadCity = data.city || null;
+      if (!leadCity && data.lead_id) {
+        const leadRows = await base44.asServiceRole.entities.Lead.filter({ id: data.lead_id });
+        leadCity = leadRows[0]?.city || null;
+      }
+
       const quote = await base44.asServiceRole.entities.Quote.create({
         ...data,
+        city: leadCity,
         total_amount: Number(data.total_amount),
         base_price: Number(data.base_price || 0),
         status: data.status || "draft",
@@ -105,6 +114,12 @@ Deno.serve(async (req) => {
       const payload = { ...data };
       if (payload.total_amount !== undefined) payload.total_amount = Number(payload.total_amount);
       if (payload.base_price !== undefined) payload.base_price = Number(payload.base_price);
+
+      // If lead_id is being updated or city not yet stamped, re-stamp city
+      if (payload.lead_id && !payload.city) {
+        const leadRows = await base44.asServiceRole.entities.Lead.filter({ id: payload.lead_id });
+        payload.city = leadRows[0]?.city || null;
+      }
 
       // Enforce status transition if status is being changed
       if (payload.status !== undefined) {
