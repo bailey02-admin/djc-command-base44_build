@@ -96,6 +96,7 @@ export default function Events() {
             {Object.keys(statusColors).map(s => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
           </SelectContent>
         </Select>
+        <span className="text-xs text-gray-400">Upcoming 90 days</span>
       </div>
 
       <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
