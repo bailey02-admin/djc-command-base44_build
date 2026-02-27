@@ -12,7 +12,7 @@ import { Button } from "@/components/ui/button";
 import GlobalSearch from "./components/layout/GlobalSearch";
 import RouteGuard from "./components/layout/RouteGuard";
 
-const NAV_ITEMS = [
+const ALL_NAV_ITEMS = [
   { name: "Dashboard",       icon: LayoutDashboard, page: "Dashboard" },
   { name: "Leads",           icon: Users,           page: "Leads" },
   { name: "Events",          icon: CalendarDays,    page: "Events" },
@@ -29,6 +29,18 @@ const NAV_ITEMS = [
   { name: "Archive",         icon: Archive,         page: "ArchivedRecords" },
   { name: "Settings",        icon: Settings,        page: "Settings" },
 ];
+
+// Role-scoped nav — only show items the role can reach
+const NAV_BY_ROLE = {
+  admin:            ALL_NAV_ITEMS.map(i => i.page),
+  city_manager:     ["Dashboard","Leads","Events","FinalizerQueue","Contacts","Tasks","Quotes","Contracts","DJRoster","Venues","Payments","MessageTemplates","Reports","ArchivedRecords"],
+  sales_manager:    ["Dashboard","Leads","Events","Contacts","Tasks","Quotes","Contracts","Venues","Reports"],
+  sales_rep:        ["Dashboard","Leads","Events","Contacts","Tasks"],
+  office_finalizer: ["Dashboard","Events","FinalizerQueue","Contacts","Tasks","Venues"],
+  finance:          ["Dashboard","Payments","Quotes","Reports"],
+  dj:               ["Dashboard","Events"],
+  client:           [],
+};
 
 export default function Layout({ children, currentPageName }) {
   const [collapsed, setCollapsed] = useState(false);
