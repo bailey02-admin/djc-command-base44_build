@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Switch } from "@/components/ui/switch";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Save, Plus, Loader2, Pencil, Check, X } from "lucide-react";
+import { Save, Plus, Loader2, Pencil, Check, X, Trash2, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
 
 const CATEGORIES = [
   { key: "lead_status", label: "Lead Status" },
