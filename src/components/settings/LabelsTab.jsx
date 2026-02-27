@@ -246,47 +246,140 @@ export default function LabelsTab() {
             <AlertTriangle className="w-4 h-4" /> Danger Zone
           </CardTitle>
         </CardHeader>
-        <CardContent>
-          {!showResetConfirm ? (
-            <div className="flex items-center justify-between">
-              <div>
-                <p className="text-sm font-medium text-gray-700">Reset Test Data</p>
-                <p className="text-xs text-gray-400 mt-0.5">Deletes ALL leads, events, tasks, payments, activities, and re-seeds demo data. LabelMap is preserved.</p>
-              </div>
-              <Button
-                variant="outline"
-                size="sm"
-                className="border-red-300 text-red-600 hover:bg-red-50 gap-1.5"
-                onClick={() => setShowResetConfirm(true)}
-                disabled={resetting}
-              >
-                <Trash2 className="w-3.5 h-3.5" /> Reset Test Data
-              </Button>
-            </div>
-          ) : (
-            <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
-              <p className="text-sm font-semibold text-red-700">⚠️ Are you sure?</p>
-              <p className="text-xs text-red-600">
-                This will permanently delete <strong>ALL</strong> test leads, events, tasks, payments, activities, and automation logs, then re-seed fresh demo data. This cannot be undone.
-              </p>
-              <div className="flex gap-2">
-                <Button
-                  size="sm"
-                  className="bg-red-600 hover:bg-red-700 gap-1"
-                  onClick={handleResetAndSeed}
-                  disabled={resetting}
-                >
-                  {resetting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
-                  {resetting ? "Running..." : "Yes, Reset & Seed Demo Data"}
-                </Button>
-                <Button size="sm" variant="outline" onClick={() => setShowResetConfirm(false)} disabled={resetting}>
-                  Cancel
+        <CardContent className="space-y-4">
+
+          {/* ── Reset Demo Data ── */}
+          <div className="space-y-2">
+            {!showResetConfirm ? (
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Reset Demo Data</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Deletes demo-tagged test data (leads/events) plus all Activities/Tasks/Payments/AutomationLogs. Preserves LabelMap.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" className="border-red-300 text-red-600 hover:bg-red-50 gap-1.5 flex-shrink-0"
+                  onClick={() => setShowResetConfirm(true)} disabled={resetting || seeding || wiping}>
+                  {resetting ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Trash2 className="w-3.5 h-3.5" />}
+                  Reset Demo Data
                 </Button>
               </div>
-            </div>
-          )}
+            ) : (
+              <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+                <p className="text-sm font-semibold text-red-700">⚠️ Confirm Reset</p>
+                <p className="text-xs text-red-600">
+                  Deletes all demo-tagged leads/events + all Activities, Tasks, Payments, AutomationLogs. <strong>Cannot be undone.</strong> LabelMap is safe.
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" className="bg-red-600 hover:bg-red-700 gap-1" onClick={handleReset} disabled={resetting}>
+                    {resetting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                    {resetting ? "Deleting..." : "Yes, Delete Demo Data"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowResetConfirm(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-red-100" />
+
+          {/* ── Seed Demo Data ── */}
+          <div className="space-y-2">
+            {!showSeedConfirm ? (
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Seed Demo Data</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Creates 250 demo leads + 250 demo events with ~150 bidirectional links. Tagged so Reset can delete them.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" className="border-green-300 text-green-700 hover:bg-green-50 gap-1.5 flex-shrink-0"
+                  onClick={() => setShowSeedConfirm(true)} disabled={resetting || seeding || wiping}>
+                  {seeding ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Sprout className="w-3.5 h-3.5" />}
+                  Seed Demo Data
+                </Button>
+              </div>
+            ) : (
+              <div className="bg-green-50 border border-green-200 rounded-lg p-4 space-y-3">
+                <p className="text-sm font-semibold text-green-700">🌱 Confirm Seed</p>
+                <p className="text-xs text-green-700">
+                  This will create 250 leads + 250 events. Run Reset first if you want a clean slate.
+                </p>
+                <div className="flex gap-2">
+                  <Button size="sm" className="bg-green-600 hover:bg-green-700 gap-1" onClick={handleSeed} disabled={seeding}>
+                    {seeding ? <Loader2 className="w-3 h-3 animate-spin" /> : <Sprout className="w-3 h-3" />}
+                    {seeding ? "Seeding... (takes ~30s)" : "Yes, Seed Demo Data"}
+                  </Button>
+                  <Button size="sm" variant="outline" onClick={() => setShowSeedConfirm(false)}>Cancel</Button>
+                </div>
+              </div>
+            )}
+            {seedResult && (
+              <div className="bg-green-50 border border-green-100 rounded-lg p-3 text-xs text-green-800 space-y-1 mt-1">
+                <p className="font-semibold">Seed Results</p>
+                <p>Leads created: <strong>{seedResult.leadsCreated}</strong></p>
+                <p>Events created: <strong>{seedResult.eventsCreated}</strong></p>
+                <p>Linked pairs: <strong>{seedResult.linkedPairsCreated}</strong> / {seedResult.intendedLinks} intended</p>
+                {seedResult.missingLeadForLinkedEmail?.length > 0 && (
+                  <p className="text-amber-700">⚠️ {seedResult.missingLeadForLinkedEmail.length} unmatched emails</p>
+                )}
+                {seedResult.mismatchedLinks?.length > 0 && (
+                  <p className="text-red-700">⚠️ {seedResult.mismatchedLinks.length} mismatched links</p>
+                )}
+              </div>
+            )}
+          </div>
+
+          <div className="border-t border-red-100" />
+
+          {/* ── Wipe ALL ── */}
+          <div className="space-y-2">
+            {!showWipeConfirm ? (
+              <div className="flex items-center justify-between gap-4">
+                <div>
+                  <p className="text-sm font-medium text-gray-700">Wipe ALL Leads &amp; Events</p>
+                  <p className="text-xs text-gray-400 mt-0.5">
+                    Permanently deletes <strong>every</strong> Lead and Event record (demo and real), plus all Activities/Tasks/Payments. Irreversible.
+                  </p>
+                </div>
+                <Button variant="outline" size="sm" className="border-red-500 text-red-700 hover:bg-red-100 gap-1.5 flex-shrink-0"
+                  onClick={() => setShowWipeConfirm(true)} disabled={resetting || seeding || wiping}>
+                  {wiping ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Flame className="w-3.5 h-3.5" />}
+                  Wipe ALL
+                </Button>
+              </div>
+            ) : (
+              <div className="bg-red-100 border border-red-400 rounded-lg p-4 space-y-3">
+                <p className="text-sm font-bold text-red-800">☠️ NUCLEAR OPTION — Are you absolutely sure?</p>
+                <p className="text-xs text-red-700">
+                  This will permanently delete <strong>ALL</strong> leads and events — including any real data. There is no undo. Type "WIPE" to confirm.
+                </p>
+                <WipeConfirmInput onConfirm={handleWipeAll} onCancel={() => setShowWipeConfirm(false)} loading={wiping} />
+              </div>
+            )}
+          </div>
+
         </CardContent>
       </Card>
+    </div>
+  );
+}
+
+function WipeConfirmInput({ onConfirm, onCancel, loading }) {
+  const [val, setVal] = useState("");
+  return (
+    <div className="flex gap-2 items-center">
+      <input
+        className="border border-red-400 rounded px-2 py-1 text-xs font-mono w-24 bg-white"
+        placeholder='type "WIPE"'
+        value={val}
+        onChange={e => setVal(e.target.value)}
+      />
+      <Button size="sm" className="bg-red-700 hover:bg-red-800 gap-1" onClick={onConfirm} disabled={val !== "WIPE" || loading}>
+        {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Flame className="w-3 h-3" />}
+        {loading ? "Wiping..." : "Wipe Everything"}
+      </Button>
+      <Button size="sm" variant="outline" onClick={onCancel} disabled={loading}>Cancel</Button>
     </div>
   );
 }
