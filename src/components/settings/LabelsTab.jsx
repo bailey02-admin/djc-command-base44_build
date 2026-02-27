@@ -66,6 +66,8 @@ export default function LabelsTab() {
   const [newKey, setNewKey] = useState("");
   const [newLabel, setNewLabel] = useState("");
   const [saving, setSaving] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   const { data: records = [], isLoading } = useQuery({
     queryKey: ["label_map"],
