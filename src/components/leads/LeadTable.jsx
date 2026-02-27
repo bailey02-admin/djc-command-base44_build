@@ -29,6 +29,9 @@ export default function LeadTable({ leads }) {
         <TableBody>
           {leads.map(lead => (
             <TableRow key={lead.id} className="hover:bg-gray-50/50 cursor-pointer">
+              <TableCell className="font-mono text-[10px] text-gray-400 select-all" title={lead.lead_id || lead.id}>
+                {(lead.lead_id || lead.id || "").slice(-8)}
+              </TableCell>
               <TableCell>
                 <Link to={createPageUrl("LeadDetail") + `?id=${lead.id}`} className="text-sm font-medium text-gray-900 hover:text-violet-700">
                   {lead.client_first_name} {lead.client_last_name}
