@@ -52,7 +52,7 @@ export default function LeadTable({ leads }) {
           ))}
           {leads.length === 0 && (
             <TableRow>
-              <TableCell colSpan={8} className="text-center py-10 text-gray-400 text-sm">
+              <TableCell colSpan={9} className="text-center py-10 text-gray-400 text-sm">
                 No leads match your filters.
               </TableCell>
             </TableRow>
