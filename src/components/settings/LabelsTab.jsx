@@ -90,23 +90,17 @@ export default function LabelsTab() {
     qc.invalidateQueries(["label_map"]);
   };
 
-  const handleResetAndSeed = async () => {
+  const handleReset = async () => {
     setResetting(true);
     setShowResetConfirm(false);
     try {
-      const resetRes = await base44.functions.invoke("adminResetTestData", {});
-      const resetData = resetRes.data || {};
+      const resetData = await AdminAPI.resetDemoData();
       if (!resetData.ok) throw new Error(resetData.error || "Reset failed");
-
-      const seedRes = await base44.functions.invoke("adminSeedDemoData", {});
-      const seedData = seedRes.data || {};
-      if (!seedData.ok) throw new Error(seedData.error || "Seed failed");
-
       const del = resetData.deleted || {};
       const lm = resetData.labelMap || {};
       toast.success(
-        `Reset: deleted ${del.leads ?? 0} leads, ${del.events ?? 0} events, ${del.tasks ?? 0} tasks, ${del.activities ?? 0} activities. ` +
-        `Seeded: ${seedData.leadsCreated} leads, ${seedData.eventsCreated} events (${seedData.linkedPairsCreated} linked pairs). ` +
+        `Deleted demo data: ${del.leads ?? 0} leads, ${del.events ?? 0} events, ` +
+        `${del.tasks ?? 0} tasks, ${del.activities ?? 0} activities, ${del.payments ?? 0} payments. ` +
         `LabelMap: ${lm.finalCount} records${lm.insertedCount > 0 ? ` (+${lm.insertedCount} added)` : " (complete)"}.`
       );
       qc.invalidateQueries(["label_map"]);
@@ -114,6 +108,38 @@ export default function LabelsTab() {
       toast.error(`Reset failed: ${err.message}`);
     }
     setResetting(false);
+  };
+
+  const handleSeed = async () => {
+    setSeeding(true);
+    setShowSeedConfirm(false);
+    setSeedResult(null);
+    try {
+      const data = await AdminAPI.seedDemoData();
+      if (!data.ok) throw new Error(data.error || "Seed failed");
+      setSeedResult(data);
+      toast.success(
+        `Seeded: ${data.leadsCreated} leads, ${data.eventsCreated} events, ${data.linkedPairsCreated} linked pairs.` +
+        (data.missingLeadForLinkedEmail?.length ? ` ⚠️ ${data.missingLeadForLinkedEmail.length} unmatched emails.` : "")
+      );
+    } catch (err) {
+      toast.error(`Seed failed: ${err.message}`);
+    }
+    setSeeding(false);
+  };
+
+  const handleWipeAll = async () => {
+    setWiping(true);
+    setShowWipeConfirm(false);
+    try {
+      const data = await AdminAPI.wipeAllLeadsEvents();
+      if (!data.ok) throw new Error(data.error || "Wipe failed");
+      const del = data.deleted || {};
+      toast.success(`Wiped ALL: ${del.leads ?? 0} leads, ${del.events ?? 0} events, ${del.activities ?? 0} activities, ${del.tasks ?? 0} tasks, ${del.payments ?? 0} payments deleted.`);
+    } catch (err) {
+      toast.error(`Wipe failed: ${err.message}`);
+    }
+    setWiping(false);
   };
 
   const handleAdd = async () => {
