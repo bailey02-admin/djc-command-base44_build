@@ -136,6 +136,8 @@ export default function EventDetail() {
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Event Details</CardTitle></CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
+                    <div><span className="text-gray-400 text-xs">Event ID</span><p className="font-mono text-[10px] text-gray-500 mt-0.5 select-all">{event.event_id || event.id}</p></div>
+                    <div><span className="text-gray-400 text-xs">Lead ID</span><p className="font-mono text-[10px] text-gray-500 mt-0.5 select-all">{event.lead_id || "—"}</p></div>
                     <div><span className="text-gray-400 text-xs">Type</span><p className="font-medium capitalize mt-0.5">{event.event_type?.replace(/_/g, " ")}</p></div>
                     <div><span className="text-gray-400 text-xs">Time</span><p className="font-medium mt-0.5">{event.start_time || "TBD"} – {event.end_time || "TBD"}</p></div>
                     <div><span className="text-gray-400 text-xs">Guests</span><p className="font-medium mt-0.5">{event.guest_count || "TBD"}</p></div>
