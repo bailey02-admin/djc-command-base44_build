@@ -72,18 +72,20 @@ async function deleteAllRows(svc, entityName) {
 }
 
 // Delete only demo-tagged rows (source_detail = "DEMO_SEED_v1")
+// Uses pageSize=500 + chunked deletes to handle 250+ demo rows reliably
 async function deleteDemoLeads(svc) {
   let deleted = 0;
   let page = 0;
-  const pageSize = 200;
+  const pageSize = 500;
   while (true) {
     const rows = await svc.entities.Lead.list("-created_date", pageSize, page * pageSize);
     if (!rows || rows.length === 0) break;
     const demoRows = rows.filter(r => r.source_detail === "DEMO_SEED_v1");
-    if (demoRows.length > 0) {
-      await Promise.all(demoRows.map(r => svc.entities.Lead.delete(r.id)));
-      deleted += demoRows.length;
+    // Chunked delete to avoid overwhelming the API
+    for (let i = 0; i < demoRows.length; i += 50) {
+      await Promise.all(demoRows.slice(i, i + 50).map(r => svc.entities.Lead.delete(r.id)));
     }
+    deleted += demoRows.length;
     if (rows.length < pageSize) break;
     page++;
   }
@@ -93,15 +95,16 @@ async function deleteDemoLeads(svc) {
 async function deleteDemoEvents(svc) {
   let deleted = 0;
   let page = 0;
-  const pageSize = 200;
+  const pageSize = 500;
   while (true) {
     const rows = await svc.entities.Event.list("-created_date", pageSize, page * pageSize);
     if (!rows || rows.length === 0) break;
     const demoRows = rows.filter(r => r.internal_notes && r.internal_notes.includes("DEMO_SEED_v1"));
-    if (demoRows.length > 0) {
-      await Promise.all(demoRows.map(r => svc.entities.Event.delete(r.id)));
-      deleted += demoRows.length;
+    // Chunked delete
+    for (let i = 0; i < demoRows.length; i += 50) {
+      await Promise.all(demoRows.slice(i, i + 50).map(r => svc.entities.Event.delete(r.id)));
     }
+    deleted += demoRows.length;
     if (rows.length < pageSize) break;
     page++;
   }
