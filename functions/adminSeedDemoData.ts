@@ -218,13 +218,37 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Verify actual link state on created records
+    const leadsWithEventId = leadResults.filter(l => l.event_id).length;
+    const eventsWithLeadId = eventResults.filter(e => e.event.lead_id).length;
+
+    // Audit: intended links vs missing/mismatched
+    const intendedLinks = DEMO_EVENTS.filter(e => e.linkedEmail).length;
+    const missingLeadForLinkedEmail = [];
+    const mismatchedLinks = [];
+    for (const rawEvent of DEMO_EVENTS) {
+      if (!rawEvent.linkedEmail) continue;
+      if (!leadByEmail[rawEvent.linkedEmail]) {
+        missingLeadForLinkedEmail.push(rawEvent.linkedEmail);
+      }
+    }
+    // Any event that had a linkedEmail but event.lead_id is not set = mismatch
+    for (const { event, linkedEmail } of eventResults) {
+      if (linkedEmail && leadByEmail[linkedEmail] && !event.lead_id) {
+        mismatchedLinks.push({ eventId: event.id, linkedEmail, reason: "lead_id not set on event after create" });
+      }
+    }
+
     return Response.json({
       ok: true,
       leadsCreated: leadResults.length,
       eventsCreated: eventResults.length,
       linkedPairsCreated: linkedPairs.length,
-      leadsWithEventId: linkedPairs.length,
-      eventsWithLeadId: linkedPairs.length,
+      leadsWithEventId,
+      eventsWithLeadId,
+      intendedLinks,
+      missingLeadForLinkedEmail,
+      mismatchedLinks,
       eventStatusBreakdown: DEMO_EVENTS.reduce((acc, e) => {
         acc[e.status] = (acc[e.status] || 0) + 1;
         return acc;
