@@ -83,9 +83,14 @@ export default function Layout({ children, currentPageName }) {
           )}
         </div>
 
-        {/* Nav */}
+        {/* Nav — filtered by role */}
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
-          {NAV_ITEMS.map(item => {
+          {ALL_NAV_ITEMS.filter(item => {
+            if (!user) return true; // still loading, show all temporarily
+            const role = user.role || "sales_rep";
+            const allowed = NAV_BY_ROLE[role] || ALL_NAV_ITEMS.map(i => i.page);
+            return allowed.includes(item.page);
+          }).map(item => {
             const isActive = currentPageName === item.page;
             return (
               <Link
