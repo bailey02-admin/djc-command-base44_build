@@ -12,18 +12,15 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { format, differenceInDays } from "date-fns";
 import { Plus, Search, CalendarDays, MapPin, User, Music, CheckCircle2 } from "lucide-react";
 
+// Canonical event statuses matching entities/Event.json
 const statusColors = {
-  booked: "bg-blue-50 text-blue-700",
+  booked_pending:       "bg-sky-50 text-sky-700",
+  booked:               "bg-blue-50 text-blue-700",
   planning_in_progress: "bg-violet-50 text-violet-700",
-  awaiting_planning_form: "bg-yellow-50 text-yellow-700",
-  final_call_scheduled: "bg-indigo-50 text-indigo-700",
-  finalized: "bg-purple-50 text-purple-700",
-  dj_assigned: "bg-cyan-50 text-cyan-700",
-  confirmed: "bg-emerald-50 text-emerald-700",
-  event_completed: "bg-green-50 text-green-700",
-  survey_sent: "bg-amber-50 text-amber-700",
-  closed_won: "bg-gray-100 text-gray-600",
-  closed_issue: "bg-red-50 text-red-700",
+  finalized:            "bg-purple-50 text-purple-700",
+  completed:            "bg-green-50 text-green-700",
+  cancelled:            "bg-red-50 text-red-700",
+  postponed:            "bg-amber-50 text-amber-700",
 };
 
 const PAGE_SIZE = 50;
