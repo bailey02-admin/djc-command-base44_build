@@ -23,7 +23,7 @@ import SendMessageModal from "../components/communication/SendMessageModal";
 import { calculateReadinessScore } from "../components/crm/pipeline";
 import { trackEventChanges } from "../components/crm/changeTracker";
 
-const STATUS_OPTIONS = ["booked","planning_in_progress","awaiting_planning_form","final_call_scheduled","finalized","dj_assigned","confirmed","event_completed","survey_sent","review_requested","closed_won","closed_issue"];
+const STATUS_OPTIONS = ["booked_pending","booked","planning_in_progress","finalized","completed","cancelled","postponed"];
 
 export default function EventDetail() {
   const params = new URLSearchParams(window.location.search);
