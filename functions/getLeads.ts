@@ -112,13 +112,16 @@ Deno.serve(async (req) => {
 
     const paginated = leads.slice(skip, skip + limit);
 
+    // Add computed alias: lead_id = record.id (display only, never persisted)
+    const withAlias = (l) => ({ ...l, lead_id: l.id });
+
     const result = slim
-      ? paginated.map(l => projectFields(l, role))
+      ? paginated.map(l => withAlias(projectFields(l, role)))
       : paginated.map(l => {
           const hidden = new Set(LEAD_HIDDEN_FIELDS[role] || []);
           const out = { ...l };
           for (const f of hidden) delete out[f];
-          return out;
+          return withAlias(out);
         });
 
     return Response.json({ leads: result, total: leads.length, page: { skip, limit, returned: result.length } });
