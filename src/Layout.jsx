@@ -140,9 +140,11 @@ export default function Layout({ children, currentPageName }) {
           <GlobalSearch />
         </header>
 
-        {/* Page content */}
+        {/* Page content — wrapped in RouteGuard for role enforcement */}
         <div className="flex-1 overflow-y-auto">
-          {children}
+          <RouteGuard pageName={currentPageName} userRole={user ? (user.role || "sales_rep") : null}>
+            {children}
+          </RouteGuard>
         </div>
       </main>
     </div>
