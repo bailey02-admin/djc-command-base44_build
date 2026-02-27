@@ -1,19 +1,13 @@
 /**
- * Admin-only: Delete all transactional demo/test data, then ensure LabelMap is complete
+ * Admin-only: Delete demo/test data, then ensure LabelMap is complete
  * WITHOUT clobbering user-edited labels.
  *
  * LabelMap identity: (category, key) — NOT global key uniqueness.
- * "booked_pending" exists in both lead_status and event_status; that is intentional.
- *
- * CalendarItem deletion: SKIPPED (Option B) — CalendarItems are not tagged as
- * demo/transactional yet; wiping them risks deleting real config rows.
- * The seed function does not create CalendarItems either.
+ * "booked_pending" appears in both lead_status and event_status — intentional.
+ * CalendarItem deletion: SKIPPED — not demo-tagged, risk of deleting real config rows.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-// Canonical label map — identity is (category, key).
-// "booked_pending" appears twice (lead_status + event_status) — this is correct.
-// Labels here are DEFAULTS ONLY — never overwrite user edits.
 const CANONICAL_LABEL_MAP = [
   { key: "web_lead",             label: "Web Lead",             category: "lead_status",   sort_order: 1 },
   { key: "email_only",           label: "Email Only Lead",      category: "lead_status",   sort_order: 2 },
@@ -52,10 +46,54 @@ const CANONICAL_LABEL_MAP = [
   { key: "office_shift",    label: "Office Shift",    category: "shift_type",    sort_order: 3 },
 ];
 
-// Paginate through ALL rows of an entity and delete them.
-// Identifies demo rows by source_detail = "DEMO_SEED_v1" for Lead,
-// or internal_notes containing "DEMO_SEED_v1" for Event.
-// For Activity/Task/Payment/AutomationLog — delete ALL rows (they are always transactional).
+// ─── Helpers ──────────────────────────────────────────────────────────────────
+
+const sleep = (ms) => new Promise(r => setTimeout(r, ms));
+
+// Track total retries for the response summary
+let totalRetries = 0;
+let maxBackoffUsed = 0;
+
+async function withRetry(fn, maxAttempts = 6, baseDelayMs = 300) {
+  for (let attempt = 1; attempt <= maxAttempts; attempt++) {
+    try {
+      return await fn();
+    } catch (err) {
+      const is429 =
+        err?.status === 429 ||
+        err?.statusCode === 429 ||
+        (err?.message && (err.message.includes('429') || err.message.toLowerCase().includes('rate limit')));
+      if (is429 && attempt < maxAttempts) {
+        const delay = baseDelayMs * Math.pow(2, attempt - 1);
+        totalRetries++;
+        if (delay > maxBackoffUsed) maxBackoffUsed = delay;
+        console.log(`Rate limited. Retry ${attempt}/${maxAttempts} after ${delay}ms`);
+        await sleep(delay);
+      } else {
+        throw err;
+      }
+    }
+  }
+}
+
+// Delete an array of IDs in batches of 5, 200ms between batches
+async function deleteBatched(svc, entityName, ids) {
+  const BATCH_SIZE = 5;
+  const BATCH_DELAY = 200;
+  let deleted = 0;
+  for (let i = 0; i < ids.length; i += BATCH_SIZE) {
+    const batch = ids.slice(i, i + BATCH_SIZE);
+    // Sequential within batch (not Promise.all) to keep concurrency low
+    for (const id of batch) {
+      await withRetry(() => svc.entities[entityName].delete(id));
+      deleted++;
+    }
+    if (i + BATCH_SIZE < ids.length) await sleep(BATCH_DELAY);
+  }
+  return deleted;
+}
+
+// Paginate + delete all rows of any entity (for transactional tables)
 async function deleteAllRows(svc, entityName) {
   let deleted = 0;
   let page = 0;
@@ -63,55 +101,54 @@ async function deleteAllRows(svc, entityName) {
   while (true) {
     const rows = await svc.entities[entityName].list("-created_date", pageSize, page * pageSize);
     if (!rows || rows.length === 0) break;
-    await Promise.all(rows.map(r => svc.entities[entityName].delete(r.id)));
-    deleted += rows.length;
+    deleted += await deleteBatched(svc, entityName, rows.map(r => r.id));
     if (rows.length < pageSize) break;
     page++;
   }
   return deleted;
 }
 
-// Delete only demo-tagged rows (source_detail = "DEMO_SEED_v1")
-// Uses pageSize=500 + chunked deletes to handle 250+ demo rows reliably
+// Delete only DEMO_SEED_v1-tagged Leads
 async function deleteDemoLeads(svc) {
   let deleted = 0;
   let page = 0;
-  const pageSize = 500;
+  const pageSize = 200;
   while (true) {
     const rows = await svc.entities.Lead.list("-created_date", pageSize, page * pageSize);
     if (!rows || rows.length === 0) break;
-    const demoRows = rows.filter(r => r.source_detail === "DEMO_SEED_v1");
-    // Chunked delete to avoid overwhelming the API
-    for (let i = 0; i < demoRows.length; i += 50) {
-      await Promise.all(demoRows.slice(i, i + 50).map(r => svc.entities.Lead.delete(r.id)));
+    const demoIds = rows
+      .filter(r => r.source_detail === "DEMO_SEED_v1" || (r.notes && r.notes.includes("DEMO_SEED_v1")))
+      .map(r => r.id);
+    if (demoIds.length > 0) {
+      deleted += await deleteBatched(svc, "Lead", demoIds);
     }
-    deleted += demoRows.length;
     if (rows.length < pageSize) break;
     page++;
   }
   return deleted;
 }
 
+// Delete only DEMO_SEED_v1-tagged Events
 async function deleteDemoEvents(svc) {
   let deleted = 0;
   let page = 0;
-  const pageSize = 500;
+  const pageSize = 200;
   while (true) {
     const rows = await svc.entities.Event.list("-created_date", pageSize, page * pageSize);
     if (!rows || rows.length === 0) break;
-    const demoRows = rows.filter(r => r.internal_notes && r.internal_notes.includes("DEMO_SEED_v1"));
-    // Chunked delete
-    for (let i = 0; i < demoRows.length; i += 50) {
-      await Promise.all(demoRows.slice(i, i + 50).map(r => svc.entities.Event.delete(r.id)));
+    const demoIds = rows
+      .filter(r => r.internal_notes && r.internal_notes.includes("DEMO_SEED_v1"))
+      .map(r => r.id);
+    if (demoIds.length > 0) {
+      deleted += await deleteBatched(svc, "Event", demoIds);
     }
-    deleted += demoRows.length;
     if (rows.length < pageSize) break;
     page++;
   }
   return deleted;
 }
 
-// Fetch ALL LabelMap rows with pagination
+// Fetch all LabelMap rows with pagination
 async function getAllLabelMapRows(svc) {
   const all = [];
   let page = 0;
@@ -126,6 +163,8 @@ async function getAllLabelMapRows(svc) {
   return all;
 }
 
+// ─── Main handler ─────────────────────────────────────────────────────────────
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -133,21 +172,22 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
     if (user.role !== "admin") return Response.json({ error: "Forbidden: admin only" }, { status: 403 });
 
+    // Reset counters per request
+    totalRetries = 0;
+    maxBackoffUsed = 0;
+
     const svc = base44.asServiceRole;
 
-    // Delete demo-tagged transactional data (Lead/Event filtered; others all-rows)
-    const [leads, events, activities, tasks, payments, automationLogs] = await Promise.all([
-      deleteDemoLeads(svc),
-      deleteDemoEvents(svc),
-      deleteAllRows(svc, "Activity"),
-      deleteAllRows(svc, "Task"),
-      deleteAllRows(svc, "Payment"),
-      deleteAllRows(svc, "AutomationLog"),
-      // CalendarItem intentionally excluded — not transactional/tagged yet
-    ]);
+    // Delete in sequence (NOT Promise.all) to stay within rate limits
+    const leads = await deleteDemoLeads(svc);
+    const events = await deleteDemoEvents(svc);
+    const activities = await deleteAllRows(svc, "Activity");
+    const tasks = await deleteAllRows(svc, "Task");
+    const payments = await deleteAllRows(svc, "Payment");
+    const automationLogs = await deleteAllRows(svc, "AutomationLog");
+    // CalendarItem intentionally excluded
 
-    // --- NON-DESTRUCTIVE LabelMap patch ---
-    // Build existing set by compound identity: "category::key"
+    // ── Non-destructive LabelMap patch ──────────────────────────────────────
     const existingRows = await getAllLabelMapRows(svc);
     const existingSet = new Set(existingRows.map(r => `${r.category}::${r.key}`));
 
@@ -161,23 +201,32 @@ Deno.serve(async (req) => {
       return false;
     });
 
-    if (toInsert.length > 0) {
-      await Promise.all(toInsert.map(r => svc.entities.LabelMap.create({ ...r, is_active: true })));
+    // Insert missing labels sequentially with retry
+    for (const row of toInsert) {
+      await withRetry(() => svc.entities.LabelMap.create({ ...row, is_active: true }));
+      await sleep(50);
     }
 
     const finalRows = await getAllLabelMapRows(svc);
 
     return Response.json({
       ok: true,
-      deleted: { leads, events, activities, tasks, payments, automationLogs, calendarItems: 0 },
+      deleted: { leads, events, activities, tasks, payments, automationLogs },
       labelMap: {
         existingCount: existingRows.length,
         insertedCount: toInsert.length,
         finalCount: finalRows.length,
         missingKeys,
       },
+      rateLimitRetries: {
+        totalRetries,
+        maxBackoffMs: maxBackoffUsed,
+      },
     });
   } catch (err) {
-    return Response.json({ error: err.message }, { status: 500 });
+    return Response.json({
+      error: err.message,
+      rateLimitRetries: { totalRetries, maxBackoffMs: maxBackoffUsed },
+    }, { status: 500 });
   }
 });
