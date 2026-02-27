@@ -295,6 +295,7 @@ export default function LeadDetail() {
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Quick Info</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
+              <div className="flex justify-between items-center"><span className="text-gray-400">Lead ID</span><span className="font-mono text-[10px] text-gray-500 select-all">{lead.lead_id || lead.id}</span></div>
               <div className="flex justify-between"><span className="text-gray-400">Priority</span><Badge variant="secondary" className="capitalize">{lead.priority}</Badge></div>
               <div className="flex justify-between"><span className="text-gray-400">Preferred Contact</span><span className="capitalize">{lead.preferred_contact_method || "any"}</span></div>
               <div className="flex justify-between"><span className="text-gray-400">Created</span><span>{format(new Date(lead.created_date), "MMM d, yyyy")}</span></div>
