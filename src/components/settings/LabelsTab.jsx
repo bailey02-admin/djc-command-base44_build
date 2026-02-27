@@ -207,6 +207,55 @@ export default function LabelsTab() {
           </p>
         </CardContent>
       </Card>
+
+      {/* Danger Zone */}
+      <Card className="border border-red-200 shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold text-red-700 flex items-center gap-2">
+            <AlertTriangle className="w-4 h-4" /> Danger Zone
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {!showResetConfirm ? (
+            <div className="flex items-center justify-between">
+              <div>
+                <p className="text-sm font-medium text-gray-700">Reset Test Data</p>
+                <p className="text-xs text-gray-400 mt-0.5">Deletes ALL leads, events, tasks, payments, activities, and re-seeds demo data. LabelMap is preserved.</p>
+              </div>
+              <Button
+                variant="outline"
+                size="sm"
+                className="border-red-300 text-red-600 hover:bg-red-50 gap-1.5"
+                onClick={() => setShowResetConfirm(true)}
+                disabled={resetting}
+              >
+                <Trash2 className="w-3.5 h-3.5" /> Reset Test Data
+              </Button>
+            </div>
+          ) : (
+            <div className="bg-red-50 border border-red-200 rounded-lg p-4 space-y-3">
+              <p className="text-sm font-semibold text-red-700">⚠️ Are you sure?</p>
+              <p className="text-xs text-red-600">
+                This will permanently delete <strong>ALL</strong> test leads, events, tasks, payments, activities, and automation logs, then re-seed fresh demo data. This cannot be undone.
+              </p>
+              <div className="flex gap-2">
+                <Button
+                  size="sm"
+                  className="bg-red-600 hover:bg-red-700 gap-1"
+                  onClick={handleResetAndSeed}
+                  disabled={resetting}
+                >
+                  {resetting ? <Loader2 className="w-3 h-3 animate-spin" /> : <Trash2 className="w-3 h-3" />}
+                  {resetting ? "Running..." : "Yes, Reset & Seed Demo Data"}
+                </Button>
+                <Button size="sm" variant="outline" onClick={() => setShowResetConfirm(false)} disabled={resetting}>
+                  Cancel
+                </Button>
+              </div>
+            </div>
+          )}
+        </CardContent>
+      </Card>
     </div>
   );
 }
