@@ -9,9 +9,12 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { ArrowLeft, Save, Loader2 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { ArrowLeft, Save, Loader2, Phone } from "lucide-react";
 import { onNewLead } from "../components/crm/automations";
 import DuplicateWarning from "../components/leads/DuplicateWarning";
+import { useLabels, LEAD_STATUSES } from "../components/crm/labelMap";
 
 const EVENT_TYPES = ["wedding","corporate","school_dance","private_party","birthday","anniversary","mitzvah","quinceañera","holiday_party","other"];
 const LEAD_SOURCES = ["website","google_ads","meta_ads","referral","bridal_show","the_knot","weddingwire","yelp","phone_call","walk_in","vendor_referral","repeat_client","other"];
@@ -26,6 +29,7 @@ const EMPTY = {
   gclid: "", fbclid: "", landing_page_url: "",
   priority: "medium", assigned_rep: "", notes: "",
   preferred_contact_method: "any", inquiry_date: "",
+  lead_status: "web_lead", do_not_call: false, x_date_followup_at: "",
 };
 
 export default function LeadForm() {
@@ -40,6 +44,7 @@ export default function LeadForm() {
   const [dupDismissed, setDupDismissed] = useState(false);
   const [linkedDuplicateOf, setLinkedDuplicateOf] = useState(null);
   const dupCheckTimer = useRef(null);
+  const { label, optionsFor } = useLabels();
 
   useEffect(() => {
     if (editId) {
@@ -51,15 +56,13 @@ export default function LeadForm() {
     }
   }, [editId]);
 
-  // Debounced duplicate check — only on new leads, only when email or phone changes
   const checkDuplicates = useCallback((nextForm) => {
-    if (editId) return; // skip on edit
+    if (editId) return;
     if (!nextForm.email && !nextForm.phone) return;
     clearTimeout(dupCheckTimer.current);
     dupCheckTimer.current = setTimeout(async () => {
       const r = await base44.functions.invoke("checkDuplicateLeads", {
-        email: nextForm.email,
-        phone: nextForm.phone,
+        email: nextForm.email, phone: nextForm.phone,
         event_date: nextForm.event_date,
         client_first_name: nextForm.client_first_name,
         client_last_name: nextForm.client_last_name,
@@ -74,13 +77,17 @@ export default function LeadForm() {
   const set = (field, value) => {
     const next = { ...form, [field]: value };
     setForm(next);
-    if (["email", "phone", "event_date", "client_first_name", "client_last_name"].includes(field)) {
+    if (["email","phone","event_date","client_first_name","client_last_name"].includes(field)) {
       checkDuplicates(next);
     }
   };
 
   const handleSubmit = async (e) => {
     e.preventDefault();
+    if (form.lead_status === "x_dated" && !form.x_date_followup_at) {
+      alert("X Dated leads require a follow-up date.");
+      return;
+    }
     setSaving(true);
     const data = {
       ...form,
@@ -99,20 +106,29 @@ export default function LeadForm() {
     navigate(createPageUrl("Leads"));
   };
 
+  const leadStatusOptions = optionsFor("lead_status");
+
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <Link to={createPageUrl("Leads")} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to Leads
       </Link>
       <Card className="border-0 shadow-sm">
-        <CardHeader><CardTitle className="text-lg">{editId ? "Edit Lead" : "New Lead"}</CardTitle></CardHeader>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">{editId ? "Edit Lead" : "New Lead"}</CardTitle>
+            {form.do_not_call && (
+              <Badge className="bg-red-100 text-red-700 border-red-200 gap-1">
+                <Phone className="w-3 h-3" /> DO NOT CALL
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
-            {/* Duplicate warning */}
             {!editId && !dupDismissed && dupRisk !== "none" && (
               <DuplicateWarning
-                duplicates={duplicates}
-                risk={dupRisk}
+                duplicates={duplicates} risk={dupRisk}
                 onDismiss={() => setDupDismissed(true)}
                 onLinkDuplicate={(id) => { setLinkedDuplicateOf(id); setDupDismissed(true); }}
               />
@@ -123,6 +139,34 @@ export default function LeadForm() {
                 <button type="button" onClick={() => setLinkedDuplicateOf(null)} className="ml-2 opacity-60 hover:opacity-100">×</button>
               </div>
             )}
+
+            {/* DJEP Lead Status + Flags */}
+            <div className="bg-gray-50/80 rounded-lg p-4 border">
+              <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Lead Status & Flags</h3>
+              <div className="grid grid-cols-2 gap-4">
+                <div>
+                  <Label className="text-xs">Lead Status *</Label>
+                  <Select value={form.lead_status} onValueChange={v => set("lead_status", v)}>
+                    <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {leadStatusOptions.map(o => <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
+                {form.lead_status === "x_dated" && (
+                  <div>
+                    <Label className="text-xs">X-Date Follow-up *</Label>
+                    <Input type="date" value={form.x_date_followup_at} onChange={e => set("x_date_followup_at", e.target.value)} required className="mt-1" />
+                  </div>
+                )}
+                <div className="flex items-center gap-3 pt-4">
+                  <Switch checked={form.do_not_call} onCheckedChange={v => set("do_not_call", v)} id="do_not_call" />
+                  <Label htmlFor="do_not_call" className="text-xs font-medium text-red-600 cursor-pointer">DO NOT CALL</Label>
+                </div>
+              </div>
+            </div>
+
+            {/* Client Info */}
             <div>
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Client Info</h3>
               <div className="grid grid-cols-2 gap-4">
@@ -153,6 +197,7 @@ export default function LeadForm() {
               </div>
             </div>
 
+            {/* Event Info */}
             <div>
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Event Info</h3>
               <div className="grid grid-cols-2 gap-4">
@@ -181,6 +226,7 @@ export default function LeadForm() {
               </div>
             </div>
 
+            {/* Source & Assignment */}
             <div>
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Source & Assignment</h3>
               <div className="grid grid-cols-2 gap-4">
@@ -193,12 +239,12 @@ export default function LeadForm() {
                     </SelectContent>
                   </Select>
                 </div>
-                <div><Label className="text-xs">Source Detail</Label><Input value={form.source_detail} onChange={e => set("source_detail", e.target.value)} placeholder="e.g. referral name, vendor" className="mt-1" /></div>
+                <div><Label className="text-xs">Source Detail</Label><Input value={form.source_detail} onChange={e => set("source_detail", e.target.value)} placeholder="e.g. referral name" className="mt-1" /></div>
                 <div><Label className="text-xs">Assigned Rep (email)</Label><Input value={form.assigned_rep} onChange={e => set("assigned_rep", e.target.value)} className="mt-1" /></div>
               </div>
             </div>
 
-            {/* Attribution toggle */}
+            {/* Attribution */}
             <div>
               <button type="button" onClick={() => setShowAttribution(!showAttribution)} className="text-xs text-violet-600 hover:text-violet-800 font-medium">
                 {showAttribution ? "▼ Hide" : "▶ Show"} UTM / Attribution Fields

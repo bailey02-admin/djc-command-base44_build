@@ -9,18 +9,19 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
 import { ArrowLeft, Save, Loader2 } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useLabels, eventDisplayString, CITIES, EVENT_STATUSES } from "../components/crm/labelMap";
 
 const EVENT_TYPES = ["wedding","corporate","school_dance","private_party","birthday","anniversary","mitzvah","quinceañera","holiday_party","other"];
-const EVENT_STATUSES = ["booked","planning_in_progress","awaiting_planning_form","final_call_scheduled","finalized","dj_assigned","confirmed","event_completed","survey_sent","closed_won","closed_issue"];
-const BOOKED_STATUSES = new Set(["booked","planning_in_progress","awaiting_planning_form","final_call_scheduled","finalized","dj_assigned","confirmed"]);
+const BOOKED_STATUSES = new Set(["booked_pending","booked","planning_in_progress","finalized"]);
 
 const EMPTY_FORM = {
   event_name: "", event_type: "wedding", event_date: "", start_time: "", end_time: "",
   city: "", venue_name: "", ceremony_venue: "", guest_count: "",
   contact_name: "", contact_email: "", contact_phone: "",
-  package_name: "", package_price: "", status: "booked",
+  package_name: "", package_price: "", status: "booked_pending",
   internal_notes: "", client_notes: "", equipment_notes: "", load_in_notes: "", setup_time: "",
 };
 
@@ -30,6 +31,7 @@ export default function EventForm() {
   const params = new URLSearchParams(window.location.search);
   const editId = params.get("id");
   const [form, setForm] = useState(EMPTY_FORM);
+  const { label, optionsFor } = useLabels();
 
   useEffect(() => {
     if (editId) {
@@ -59,13 +61,10 @@ export default function EventForm() {
     if (editId) {
       await EventAPI.update(editId, data);
     } else {
-      // Stamp booked_date when creating a booked event
       if (BOOKED_STATUSES.has(data.status)) {
         data.booked_date = new Date().toISOString().split("T")[0];
       }
       const created = await EventAPI.create(data);
-
-      // Trigger automation + payment schedule for booked events
       if (created && BOOKED_STATUSES.has(created.status)) {
         await Promise.all([
           onEventBooked(created),
@@ -77,20 +76,33 @@ export default function EventForm() {
     navigate(createPageUrl("Events"));
   };
 
+  const statusOptions = optionsFor("event_status");
+  const cityOptions = optionsFor("city");
+
   return (
     <div className="p-4 lg:p-8 max-w-3xl mx-auto">
       <Link to={createPageUrl("Events")} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700 mb-6">
         <ArrowLeft className="w-4 h-4" /> Back to Events
       </Link>
       <Card className="border-0 shadow-sm">
-        <CardHeader><CardTitle className="text-lg">{editId ? "Edit Event" : "New Event"}</CardTitle></CardHeader>
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <CardTitle className="text-lg">{editId ? "Edit Event" : "New Event"}</CardTitle>
+            {form.status && form.city && (
+              <Badge className="bg-violet-50 text-violet-700 border-violet-200 text-xs font-medium">
+                {eventDisplayString(form.status, form.city)}
+              </Badge>
+            )}
+          </div>
+        </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-6">
             <div>
               <h3 className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-3">Event Info</h3>
               <div className="grid grid-cols-2 gap-4">
                 <div className="col-span-2"><Label className="text-xs">Event Name *</Label><Input value={form.event_name} onChange={e => handleChange("event_name", e.target.value)} required className="mt-1" /></div>
-                <div><Label className="text-xs">Type *</Label>
+                <div>
+                  <Label className="text-xs">Type *</Label>
                   <Select value={form.event_type} onValueChange={v => handleChange("event_type", v)}>
                     <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                     <SelectContent>
@@ -101,7 +113,15 @@ export default function EventForm() {
                 <div><Label className="text-xs">Date *</Label><Input type="date" value={form.event_date} onChange={e => handleChange("event_date", e.target.value)} required className="mt-1" /></div>
                 <div><Label className="text-xs">Start Time</Label><Input value={form.start_time} onChange={e => handleChange("start_time", e.target.value)} placeholder="6:00 PM" className="mt-1" /></div>
                 <div><Label className="text-xs">End Time</Label><Input value={form.end_time} onChange={e => handleChange("end_time", e.target.value)} placeholder="11:00 PM" className="mt-1" /></div>
-                <div><Label className="text-xs">City</Label><Input value={form.city} onChange={e => handleChange("city", e.target.value)} className="mt-1" /></div>
+                <div>
+                  <Label className="text-xs">City</Label>
+                  <Select value={form.city} onValueChange={v => handleChange("city", v)}>
+                    <SelectTrigger className="mt-1"><SelectValue placeholder="Select city" /></SelectTrigger>
+                    <SelectContent>
+                      {cityOptions.map(o => <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>)}
+                    </SelectContent>
+                  </Select>
+                </div>
                 <div><Label className="text-xs">Guest Count</Label><Input type="number" value={form.guest_count} onChange={e => handleChange("guest_count", e.target.value)} className="mt-1" /></div>
                 <div><Label className="text-xs">Reception Venue</Label><Input value={form.venue_name} onChange={e => handleChange("venue_name", e.target.value)} className="mt-1" /></div>
                 <div><Label className="text-xs">Ceremony Venue</Label><Input value={form.ceremony_venue} onChange={e => handleChange("ceremony_venue", e.target.value)} className="mt-1" /></div>
@@ -118,7 +138,7 @@ export default function EventForm() {
                   <Select value={form.status} onValueChange={v => handleChange("status", v)}>
                     <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                     <SelectContent>
-                      {EVENT_STATUSES.map(s => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
+                      {statusOptions.map(o => <SelectItem key={o.key} value={o.key}>{o.label}</SelectItem>)}
                     </SelectContent>
                   </Select>
                 </div>
