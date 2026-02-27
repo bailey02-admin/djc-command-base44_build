@@ -200,6 +200,18 @@ export const ArchiveAPI = {
     invoke("restoreRecord", { entity_type, id }),
 };
 
+// ─── ADMIN OPS ────────────────────────────────────────────────────────────
+export const AdminAPI = {
+  resetDemoData: () =>
+    invoke("adminResetTestData", {}),
+
+  seedDemoData: () =>
+    invoke("adminSeedDemoData", {}),
+
+  wipeAllLeadsEvents: () =>
+    invoke("adminWipeAllLeadsEvents", {}),
+};
+
 // ─── FLAG SYNC + PAYMENT SCHEDULE ─────────────────────────────────────────
 export const EventOpsAPI = {
   syncFlags: (event_id) =>
