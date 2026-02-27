@@ -98,11 +98,12 @@ export default function LabelsTab() {
       const seedData = seedRes.data || {};
       if (!seedData.ok) throw new Error(seedData.error || "Seed failed");
 
-      const d = resetData.deleted || {};
+      const del = resetData.deleted || {};
+      const lm = resetData.labelMap || {};
       toast.success(
-        `Reset done. Deleted: ${d.leads ?? 0} leads, ${d.events ?? 0} events, ${d.tasks ?? 0} tasks. ` +
-        `Seeded: ${seedData.leadsCreated} leads, ${seedData.eventsCreated} events. ` +
-        `LabelMap: ${resetData.labelMapCount} records${resetData.labelMapReseeded ? " (reseeded)" : ""}.`
+        `Reset: deleted ${del.leads ?? 0} leads, ${del.events ?? 0} events, ${del.tasks ?? 0} tasks, ${del.activities ?? 0} activities. ` +
+        `Seeded: ${seedData.leadsCreated} leads, ${seedData.eventsCreated} events (${seedData.linkedPairsCreated} linked pairs). ` +
+        `LabelMap: ${lm.finalCount} records${lm.insertedCount > 0 ? ` (+${lm.insertedCount} added)` : " (complete)"}.`
       );
       qc.invalidateQueries(["label_map"]);
     } catch (err) {
