@@ -10,6 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Save, Loader2, Plus, RefreshCw } from "lucide-react";
 import { PIPELINE_STAGES, AUTOMATION_TEMPLATES, READINESS_ITEMS } from "../components/crm/pipeline";
+import LabelsTab from "../components/settings/LabelsTab";
 
 const DEFAULT_SETTINGS = [
   { key: "sla_warning_minutes", value: "15", category: "sla", label: "SLA Warning Threshold (minutes)", description: "Show warning badge after this many minutes without response" },
@@ -60,11 +61,12 @@ export default function Settings() {
       </div>
 
       <Tabs defaultValue="sla">
-        <TabsList className="bg-white border">
+        <TabsList className="bg-white border flex-wrap h-auto">
           <TabsTrigger value="sla">SLA</TabsTrigger>
           <TabsTrigger value="pipeline">Pipeline</TabsTrigger>
           <TabsTrigger value="automations">Automations</TabsTrigger>
           <TabsTrigger value="readiness">Readiness</TabsTrigger>
+          <TabsTrigger value="labels">Labels &amp; Statuses</TabsTrigger>
           <TabsTrigger value="general">General</TabsTrigger>
         </TabsList>
 
@@ -178,6 +180,11 @@ export default function Settings() {
               </div>
             </CardContent>
           </Card>
+        </TabsContent>
+
+        {/* Labels & Statuses */}
+        <TabsContent value="labels" className="mt-6">
+          <LabelsTab />
         </TabsContent>
 
         {/* General */}
