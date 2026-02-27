@@ -212,18 +212,6 @@ export const AdminAPI = {
     invoke("adminWipeAllLeadsEvents", {}),
 };
 
-// ─── ADMIN OPS ────────────────────────────────────────────────────────────
-export const AdminAPI = {
-  resetDemoData: () =>
-    invoke("adminResetTestData", {}),
-
-  seedDemoData: () =>
-    invoke("adminSeedDemoData", {}),
-
-  wipeAllLeadsEvents: () =>
-    invoke("adminWipeAllLeadsEvents", {}),
-};
-
 // ─── FLAG SYNC + PAYMENT SCHEDULE ─────────────────────────────────────────
 export const EventOpsAPI = {
   syncFlags: (event_id) =>
