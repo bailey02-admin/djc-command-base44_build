@@ -105,14 +105,17 @@ Deno.serve(async (req) => {
     // Pagination slice
     const paginated = events.slice(skip, skip + limit);
 
+    // Add computed alias: event_id = record.id (display only, never persisted)
+    const withAlias = (e) => ({ ...e, event_id: e.id });
+
     // Apply slim projection for list views
     const result = slim
-      ? paginated.map(e => projectFields(e, role))
+      ? paginated.map(e => withAlias(projectFields(e, role)))
       : paginated.map(e => {
           const hidden = new Set(EVENT_HIDDEN_FIELDS[role] || []);
           const out = { ...e };
           for (const f of hidden) delete out[f];
-          return out;
+          return withAlias(out);
         });
 
     return Response.json({
