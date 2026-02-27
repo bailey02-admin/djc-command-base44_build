@@ -10,6 +10,7 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import GlobalSearch from "./components/layout/GlobalSearch";
+import RouteGuard from "./components/layout/RouteGuard";
 
 const NAV_ITEMS = [
   { name: "Dashboard",       icon: LayoutDashboard, page: "Dashboard" },
