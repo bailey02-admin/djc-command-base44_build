@@ -50,7 +50,9 @@ Deno.serve(async (req) => {
       return Response.json({ error: "Forbidden: outside your city" }, { status: 403 });
     }
 
-    return Response.json({ lead: redactFields(lead, role) });
+    // Add computed alias: lead_id = record.id (display only, never persisted)
+    const redacted = redactFields(lead, role);
+    return Response.json({ lead: { ...redacted, lead_id: lead.id } });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }
