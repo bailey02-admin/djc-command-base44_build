@@ -74,8 +74,10 @@ Deno.serve(async (req) => {
       ? rawPayments
       : [];
 
+    // Add computed alias: event_id = record.id (display only, never persisted)
+    const redacted = redactEvent(event, role);
     return Response.json({
-      event: redactEvent(event, role),
+      event: { ...redacted, event_id: event.id },
       activities,
       tasks,
       payments,
