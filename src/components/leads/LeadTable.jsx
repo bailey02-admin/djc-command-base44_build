@@ -15,6 +15,7 @@ export default function LeadTable({ leads }) {
       <Table>
         <TableHeader>
           <TableRow className="bg-gray-50/80">
+            <TableHead className="text-xs font-semibold text-gray-400 w-24">Lead ID</TableHead>
             <TableHead className="text-xs font-semibold">Name</TableHead>
             <TableHead className="text-xs font-semibold">Event</TableHead>
             <TableHead className="text-xs font-semibold">Date</TableHead>
