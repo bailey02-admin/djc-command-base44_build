@@ -21,6 +21,7 @@ const LEAD_HIDDEN_FIELDS = {
 const LIST_VIEW_FIELDS = new Set([
   "id", "client_first_name", "client_last_name", "partner_first_name", "email", "phone",
   "event_date", "event_type", "city", "venue_name", "status", "pipeline_stage",
+  "lead_status", "do_not_call", "x_date_followup_at",
   "assigned_rep", "priority", "sla_status", "sla_minutes_elapsed",
   "lead_source", "inquiry_date", "first_response_date", "next_follow_up_date",
   "last_contact_date", "quote_amount", "package_name", "is_deleted",
@@ -64,7 +65,7 @@ Deno.serve(async (req) => {
     // Build DB-level filter
     const dbFilter = { is_deleted: false };
 
-    const DB_FILTERABLE = ["status", "pipeline_stage", "city", "assigned_rep", "priority", "sla_status", "lead_source", "event_type"];
+    const DB_FILTERABLE = ["status", "pipeline_stage", "lead_status", "city", "assigned_rep", "priority", "sla_status", "lead_source", "event_type", "do_not_call"];
     for (const key of DB_FILTERABLE) {
       if (filters[key] && filters[key] !== "all") {
         dbFilter[key] = filters[key];

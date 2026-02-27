@@ -82,6 +82,13 @@ Deno.serve(async (req) => {
       return acc;
     }, {});
 
+    // Aggregate: DJEP lead_status breakdown
+    const leadStatusCounts = fl.reduce((acc, l) => {
+      const s = l.lead_status || "web_lead";
+      acc[s] = (acc[s] || 0) + 1;
+      return acc;
+    }, {});
+
     // SLA breakdown
     const slaCounts = fl.reduce((acc, l) => {
       const s = l.sla_status || "on_time";
@@ -108,11 +115,14 @@ Deno.serve(async (req) => {
     const cities = [...new Set([...leads.map(l => l.city), ...events.map(e => e.city)].filter(Boolean))];
     const realPayments = allPayments.filter(p => (p.amount || 0) > 0);
 
+    // City comparison — group by event.city canonical code
     const cityComparison = ["admin", "sales_manager"].includes(role)
       ? cities.map(city => ({
-          name: city,
+          city_code: city,
+          name: city,  // UI resolves display name via LabelMap
           leads: leads.filter(l => l.city === city).length,
-          booked: leads.filter(l => l.city === city && l.status === "booked").length,
+          booked: events.filter(e => e.city === city && ["booked","finalized","completed"].includes(e.status)).length,
+          completed: events.filter(e => e.city === city && e.status === "completed").length,
           revenue: realPayments.filter(p => {
             const ev = events.find(e => e.id === p.event_id);
             return ev?.city === city && p.status === "paid";
@@ -148,6 +158,7 @@ Deno.serve(async (req) => {
     return Response.json({
       metrics: { totalRevenue, bookingRate, avgBookingValue, avgResponseMin, missedSLA, unassignedDJ, incompletePlanning },
       pipelineStages,
+      leadStatusCounts,
       slaCounts,
       sourceCounts,
       lostReasons,
