@@ -26,15 +26,25 @@ const WRITE_PROTECTED_FIELDS = {
   office_finalizer: ["package_price","lead_id"],
 };
 
-// Readiness checklist items required before status can move to "finalized"
+/**
+ * Canonical finalization checklist — SINGLE source of truth.
+ * Also used by FinalizationChecklist.jsx (UI) for display.
+ * Only `blocking: true` items gate the status→finalized transition.
+ * isString=true items are truthy-checked (string presence), others boolean.
+ */
 const FINALIZATION_REQUIRED = [
-  { key: "contract_signed",      label: "Contract Signed" },
-  { key: "deposit_paid",         label: "Deposit Paid" },
-  { key: "planning_complete",    label: "Planning Form Complete" },
-  { key: "timeline_complete",    label: "Timeline Complete" },
-  { key: "music_complete",       label: "Music Selections Complete" },
-  { key: "assigned_dj",         label: "DJ Assigned" },
-  { key: "final_call_completed", label: "Final Call Completed" },
+  { key: "contract_signed",        label: "Contract signed",           blocking: true  },
+  { key: "deposit_paid",           label: "Deposit received",          blocking: true  },
+  { key: "planning_complete",      label: "Planning form completed",   blocking: true  },
+  { key: "timeline_complete",      label: "Event timeline built",      blocking: true  },
+  { key: "music_complete",         label: "Music selections done",     blocking: true  },
+  { key: "balance_paid",           label: "Final balance collected",   blocking: true  },
+  { key: "final_call_completed",   label: "Final call completed",      blocking: true  },
+  { key: "assigned_dj",           label: "DJ assigned",               blocking: true,  isString: true },
+  { key: "dj_briefed",            label: "DJ briefed",                blocking: true  },
+  { key: "pronunciation_complete", label: "Pronunciation list done",   blocking: false },
+  { key: "special_songs_complete", label: "Special songs confirmed",   blocking: false },
+  { key: "internal_notes_reviewed",label: "Internal notes reviewed",  blocking: false },
 ];
 
 function stripProtectedFields(data, role) {
@@ -45,11 +55,12 @@ function stripProtectedFields(data, role) {
 }
 
 function checkFinalizationGate(event) {
-  const failing = FINALIZATION_REQUIRED.filter(item => {
+  // Only blocking items prevent finalization
+  return FINALIZATION_REQUIRED.filter(item => {
+    if (!item.blocking) return false;
     const val = event[item.key];
-    return !val || val === "" || val === false;
+    return item.isString ? !val || val === "" : !val;
   });
-  return failing;
 }
 
 async function logDenial(base44, user, action, eventId, reason) {
