@@ -1,18 +1,11 @@
 /**
  * Secure Event read endpoint — Performance-hardened.
- *
- * Key changes:
- * - All filtering pushed to DB-level (filter() calls) instead of post-fetch JS
- * - Default date window: upcoming 90 days unless overridden
- * - Mandatory limit cap: 50 per page, skip for pagination
- * - Field projection: list view returns slim payload, detail handled by getEventDetail
- * - DJs filtered at DB layer via assigned_dj_id
+ * Includes contact_id in list view; contact summary injected when present.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 const EVENT_READ_DENIED = new Set(["client"]);
 
-// Fields stripped for DJs — no financial or internal data
 const EVENT_HIDDEN_FIELDS = {
   dj:               ["package_price", "contact_email", "contact_phone", "lead_id", "internal_notes"],
   sales_rep:        ["package_price", "internal_notes"],
@@ -20,15 +13,17 @@ const EVENT_HIDDEN_FIELDS = {
   finance:          ["internal_notes"],
 };
 
-// Slim field list for list/card views (omit heavy text blobs)
+// Slim field list for list/card views — contact_id included for Contact-first arch
 const LIST_VIEW_FIELDS = new Set([
   "id", "event_name", "event_type", "event_date", "start_time", "end_time",
-  "city", "venue_name", "contact_name", "status", "assigned_dj", "assigned_dj_id",
+  "city", "venue_name", "contact_name", "contact_id", "status", "assigned_dj", "assigned_dj_id",
   "assigned_mc", "planning_complete", "timeline_complete", "music_complete",
   "contract_signed", "deposit_paid", "balance_paid", "final_call_completed",
-  "dj_briefed", "readiness_score", "is_deleted", "lead_id", "contact_id",
+  "dj_briefed", "readiness_score", "is_deleted", "lead_id",
   "package_price", "guest_count",
 ]);
+
+const CONTACT_SUMMARY_FIELDS = ["id", "first_name", "last_name", "email", "phone", "preferred_contact_method", "city", "role"];
 
 function projectFields(record, role) {
   const hidden = new Set(EVENT_HIDDEN_FIELDS[role] || []);
@@ -38,8 +33,16 @@ function projectFields(record, role) {
       out[key] = record[key];
     }
   }
-  // Always carry id
   out.id = record.id;
+  return out;
+}
+
+function safeContactSummary(contact) {
+  if (!contact) return null;
+  const out = {};
+  for (const f of CONTACT_SUMMARY_FIELDS) {
+    if (contact[f] !== undefined) out[f] = contact[f];
+  }
   return out;
 }
 
@@ -62,54 +65,42 @@ Deno.serve(async (req) => {
       filters = {},
       date_from,
       date_to,
-      slim = true,  // list view uses slim projection by default
+      slim = true,
+      include_contact = false, // set true to batch-resolve contact summaries
     } = body;
 
-    // Hard cap: never more than 200 per request
     const limit = Math.min(Number(rawLimit) || 50, 200);
 
-    // Build DB-level filter object
     const dbFilter = { is_deleted: false };
 
-    // Date window — default: today → +90 days for list views
     const today = new Date().toISOString().split("T")[0];
     const defaultTo = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-
-    // Allow explicit override; otherwise apply defaults only for list view
     const fromDate = date_from || (slim ? today : null);
     const toDate   = date_to   || (slim ? defaultTo : null);
 
-    // Apply DB-filterable fields from caller filters
-    const DB_FILTERABLE = ["status", "city", "assigned_dj_id", "event_type"];
+    const DB_FILTERABLE = ["status", "city", "assigned_dj_id", "event_type", "contact_id"];
     for (const key of DB_FILTERABLE) {
       if (filters[key] && filters[key] !== "all") {
         dbFilter[key] = filters[key];
       }
     }
 
-    // Role-based DB scoping (push to DB, not post-fetch)
+    // Role-based DB scoping
     if (role === "dj") {
-      // DJs: only their events via email match on assigned_dj field
       dbFilter.assigned_dj = user.email;
     } else if ((role === "sales_rep" || role === "city_manager") && user.city) {
       dbFilter.city = user.city;
     }
 
-    // Fetch from DB with filters applied
     let events = await base44.asServiceRole.entities.Event.filter(dbFilter, sort, limit + skip);
 
-    // Date range filter (post-fetch since SDK doesn't support range operators)
     if (fromDate) events = events.filter(e => e.event_date >= fromDate);
     if (toDate)   events = events.filter(e => e.event_date <= toDate);
 
-    // Pagination slice
     const paginated = events.slice(skip, skip + limit);
-
-    // Add computed alias: event_id = record.id (display only, never persisted)
     const withAlias = (e) => ({ ...e, event_id: e.id });
 
-    // Apply slim projection for list views
-    const result = slim
+    let result = slim
       ? paginated.map(e => withAlias(projectFields(e, role)))
       : paginated.map(e => {
           const hidden = new Set(EVENT_HIDDEN_FIELDS[role] || []);
@@ -117,6 +108,31 @@ Deno.serve(async (req) => {
           for (const f of hidden) delete out[f];
           return withAlias(out);
         });
+
+    // Optional: batch-resolve contact summaries (not for DJ/client role)
+    if (include_contact && !["dj", "client"].includes(role)) {
+      const contactIds = [...new Set(result.filter(e => e.contact_id).map(e => e.contact_id))];
+      if (contactIds.length > 0) {
+        // Fetch all needed contacts in parallel batches of 10
+        const contactMap = {};
+        const BATCH = 10;
+        for (let i = 0; i < contactIds.length; i += BATCH) {
+          const batch = contactIds.slice(i, i + BATCH);
+          const fetched = await Promise.all(
+            batch.map(cid =>
+              base44.asServiceRole.entities.Contact.filter({ id: cid }).then(rows => rows[0] || null).catch(() => null)
+            )
+          );
+          for (const c of fetched) {
+            if (c) contactMap[c.id] = safeContactSummary(c);
+          }
+        }
+        result = result.map(e => ({
+          ...e,
+          contact: e.contact_id ? (contactMap[e.contact_id] || null) : null,
+        }));
+      }
+    }
 
     return Response.json({
       events: result,

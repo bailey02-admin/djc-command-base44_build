@@ -1,5 +1,6 @@
 /**
  * Secure single-Lead read endpoint with full field redaction.
+ * Includes a safe contact summary when contact_id is present.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
@@ -11,11 +12,23 @@ const LEAD_HIDDEN_FIELDS = {
   finance:          ["internal_notes"],
 };
 
+// Safe contact summary fields — never expose internal notes or city manager data
+const CONTACT_SUMMARY_FIELDS = ["id", "first_name", "last_name", "email", "phone", "secondary_phone", "preferred_contact_method", "city", "role"];
+
 function redactFields(record, role) {
   const hidden = LEAD_HIDDEN_FIELDS[role] || [];
   if (hidden.length === 0) return record;
   const out = { ...record };
   for (const f of hidden) delete out[f];
+  return out;
+}
+
+function safeContactSummary(contact) {
+  if (!contact) return null;
+  const out = {};
+  for (const f of CONTACT_SUMMARY_FIELDS) {
+    if (contact[f] !== undefined) out[f] = contact[f];
+  }
   return out;
 }
 
@@ -50,9 +63,15 @@ Deno.serve(async (req) => {
       return Response.json({ error: "Forbidden: outside your city" }, { status: 403 });
     }
 
-    // Add computed alias: lead_id = record.id (display only, never persisted)
+    // Fetch contact summary if linked
+    let contact = null;
+    if (lead.contact_id) {
+      const contactRows = await base44.asServiceRole.entities.Contact.filter({ id: lead.contact_id });
+      contact = safeContactSummary(contactRows[0] || null);
+    }
+
     const redacted = redactFields(lead, role);
-    return Response.json({ lead: { ...redacted, lead_id: lead.id } });
+    return Response.json({ lead: { ...redacted, lead_id: lead.id }, contact });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }
