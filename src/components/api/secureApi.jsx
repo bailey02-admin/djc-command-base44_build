@@ -221,6 +221,32 @@ export const AdminAPI = {
     invoke("adminWipeAllLeadsEvents", {}),
 };
 
+// ─── MUSIC + TIMELINE ─────────────────────────────────────────────────────────
+export const MusicAPI = {
+  list: (event_id) =>
+    invoke("getMusicTimeline", { entity: "MusicSelection", event_id }).then(r => r.records || []),
+
+  create: (event_id, data) =>
+    invoke("mutateMusicTimeline", { entity: "MusicSelection", action: "create", event_id, data: { ...data, event_id } }).then(r => r.record),
+
+  delete: (id) =>
+    invoke("mutateMusicTimeline", { entity: "MusicSelection", action: "delete", id }),
+};
+
+export const TimelineAPI = {
+  list: (event_id) =>
+    invoke("getMusicTimeline", { entity: "TimelineItem", event_id }).then(r => r.records || []),
+
+  create: (event_id, data) =>
+    invoke("mutateMusicTimeline", { entity: "TimelineItem", action: "create", event_id, data: { ...data, event_id } }).then(r => r.record),
+
+  bulkCreate: (event_id, items) =>
+    invoke("mutateMusicTimeline", { entity: "TimelineItem", action: "bulkCreate", event_id, items: items.map(i => ({ ...i, event_id })) }),
+
+  delete: (id) =>
+    invoke("mutateMusicTimeline", { entity: "TimelineItem", action: "delete", id }),
+};
+
 // ─── FLAG SYNC + PAYMENT SCHEDULE ─────────────────────────────────────────
 export const EventOpsAPI = {
   syncFlags: (event_id) =>
