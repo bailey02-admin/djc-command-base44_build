@@ -6,6 +6,8 @@ import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { EventAPI } from "../api/secureApi";
+// DJProfile roster is non-sensitive reference data — direct read is acceptable
+// (no PII beyond name/city/role, already visible in DJ Roster page)
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -45,7 +47,8 @@ export default function DJAssignModal({ event, onClose, onSaved }) {
   const handleAssign = async () => {
     if (!selected) return;
     setSaving(true);
-    await EventAPI.update(event.id, {
+    // Use assign_dj action — server enforces role (admin/city_manager/sales_manager only)
+    await EventAPI.assignDJ(event.id, {
       assigned_dj: selected.name,       // display name (shown everywhere)
       assigned_dj_id: selected.id,      // roster ID (conflict detection, linking)
     });
