@@ -159,10 +159,10 @@ Deno.serve(async (req) => {
         return Response.json({ error: "Event not found" }, { status: 404 });
       }
 
-      // City scoping
-      if (role === "city_manager" && user.city && preUpdateEvent.city !== user.city) {
-        await logDenial(base44, user, action, id, "outside city");
-        return Response.json({ error: "Forbidden: outside your city" }, { status: 403 });
+      // Access check via centralized rule
+      if (!canAccessEvent(user, preUpdateEvent)) {
+        await logDenial(base44, user, action, id, "outside city or not assigned");
+        return Response.json({ error: "Forbidden: access denied" }, { status: 403 });
       }
 
       const cleaned = stripProtectedFields(data, role);

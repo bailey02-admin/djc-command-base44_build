@@ -45,7 +45,7 @@ Deno.serve(async (req) => {
 
     if (action === "create") {
       const targetEventId = data.event_id || event_id;
-      const { ok, error, event: targetEvent } = await verifyEventAccess(base44, targetEventId, role, user.city);
+      const { ok, error, event: targetEvent } = await verifyEventAccess(base44, user, targetEventId);
       if (!ok) return Response.json({ error }, { status: 403 });
       if (!data.event_id) data.event_id = targetEventId;
       const record = await entityRef.create(data);
@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     if (action === "bulkCreate") {
       if (!items || items.length === 0) return Response.json({ error: "items required" }, { status: 400 });
       const targetEventId = items[0]?.event_id || event_id;
-      const { ok, error } = await verifyEventAccess(base44, targetEventId, role, user.city);
+      const { ok, error } = await verifyEventAccess(base44, user, targetEventId);
       if (!ok) return Response.json({ error }, { status: 403 });
       const created = [];
       for (const item of items) {
