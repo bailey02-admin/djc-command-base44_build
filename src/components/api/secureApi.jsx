@@ -59,6 +59,9 @@ export const EventAPI = {
   assignDJ: (id, data) =>
     invoke("mutateEvent", { action: "assign_dj", id, data }).then(r => r.event),
 
+  markDJReviewed: (id) =>
+    invoke("mutateEvent", { action: "mark_dj_reviewed", id }).then(r => r.event),
+
   delete: (id) =>
     invoke("mutateEvent", { action: "delete", id }),
 };
@@ -190,6 +193,33 @@ export const ContractAPI = {
 
   delete: (id) =>
     invoke("mutateContract", { action: "delete", id }),
+};
+
+// ─── TASK ENGINE (server-side canonical entrypoint) ───────────────────────
+export const TaskEngineAPI = {
+  createFromTrigger: (trigger, related_id, related_name, related_type = "lead", event_date = null, assigned_to = null) =>
+    invoke("taskEngine", { action: "create_from_trigger", trigger, related_id, related_name, related_type, event_date, assigned_to }),
+
+  createSingle: (data) =>
+    invoke("taskEngine", { action: "create_single", data }),
+
+  detectOverdue: (related_id, related_type = "event") =>
+    invoke("taskEngine", { action: "detect_overdue", related_id, related_type }),
+};
+
+// ─── MESSAGING (backend-resolved merge tags + send) ───────────────────────
+export const MessageAPI = {
+  preview: (template_id, template_body, template_subject, lead_id, event_id, contact_id) =>
+    invoke("sendMessage", { action: "preview", template_id, template_body, template_subject, lead_id, event_id, contact_id }),
+
+  send: (opts) =>
+    invoke("sendMessage", { action: "send", ...opts }),
+};
+
+// ─── CLIENT CHANGE TRACKING ───────────────────────────────────────────────
+export const ChangeTrackAPI = {
+  trackClientEdit: (event_id, entity_type, change_description, changed_by) =>
+    invoke("trackClientChanges", { event_id, entity_type, change_description, changed_by }),
 };
 
 // ─── GLOBAL SEARCH ────────────────────────────────────────────────────────
