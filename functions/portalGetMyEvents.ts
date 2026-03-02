@@ -1,8 +1,8 @@
 /**
  * portalGetMyEvents — Returns all events for the authenticated client.
  *
- * Ownership: resolves Contact by user.email, then returns events where
- * event.contact_id === contact.id
+ * Ownership: PRIMARY = user.contact_id (stamped at user creation).
+ * Fallback: email-based contact lookup (migration path for legacy records).
  *
  * Returns upcoming + past split, with payment summary per event.
  */
@@ -22,17 +22,30 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    // Resolve Contact by email
-    const contactRows = await base44.asServiceRole.entities.Contact.filter({ email: user.email }).catch(() => []);
-    const contact = contactRows[0] || null;
+    // Resolve contact_id: PRIMARY = user.contact_id, FALLBACK = email lookup
+    let contactId = user.contact_id || null;
+    let contactMeta = null;
 
-    if (!contact) {
+    if (contactId) {
+      const rows = await base44.asServiceRole.entities.Contact.filter({ id: contactId }).catch(() => []);
+      if (rows[0]) contactMeta = { id: rows[0].id, first_name: rows[0].first_name, last_name: rows[0].last_name };
+    } else {
+      // Email fallback for migration
+      const contactRows = await base44.asServiceRole.entities.Contact.filter({ email: user.email }).catch(() => []);
+      const contact = contactRows[0] || null;
+      if (contact) {
+        contactId = contact.id;
+        contactMeta = { id: contact.id, first_name: contact.first_name, last_name: contact.last_name };
+      }
+    }
+
+    if (!contactId) {
       return Response.json({ events: [], upcoming: [], past: [], contact: null });
     }
 
     // Fetch all non-deleted events for this contact
     const allEvents = await base44.asServiceRole.entities.Event.filter(
-      { contact_id: contact.id, is_deleted: false },
+      { contact_id: contactId, is_deleted: false },
       "event_date",
       100
     );
@@ -66,7 +79,7 @@ Deno.serve(async (req) => {
       events: safeEvents,
       upcoming,
       past,
-      contact: { id: contact.id, first_name: contact.first_name, last_name: contact.last_name },
+      contact: contactMeta,
     });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
