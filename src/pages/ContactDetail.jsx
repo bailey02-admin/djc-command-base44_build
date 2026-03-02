@@ -30,6 +30,16 @@ export default function ContactDetail() {
   const urlParams = new URLSearchParams(window.location.search);
   const id = urlParams.get("id");
   const navigate = useNavigate();
+  const [provisioning, setProvisioning] = useState(false);
+  const [provisionResult, setProvisionResult] = useState(null);
+
+  const handleCreateClientUser = async () => {
+    setProvisioning(true);
+    setProvisionResult(null);
+    const res = await base44.functions.invoke("createClientUser", { contact_id: id });
+    setProvisionResult(res.data);
+    setProvisioning(false);
+  };
 
   const { data: contact, isLoading: loadingContact } = useQuery({
     queryKey: ["contact", id],
@@ -70,10 +80,37 @@ export default function ContactDetail() {
             <Badge variant="secondary" className="text-xs mt-1 capitalize">{contact.role?.replace(/_/g, " ")}</Badge>
           </div>
         </div>
-        <Link to={createPageUrl("Contacts")}>
-          <Button variant="outline" className="text-sm h-8">Edit Contact</Button>
-        </Link>
+        <div className="flex gap-2">
+          <Button
+            variant="outline"
+            className="text-sm h-8 gap-1.5"
+            onClick={handleCreateClientUser}
+            disabled={provisioning}
+          >
+            {provisioning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
+            Create Portal Login
+          </Button>
+          <Link to={createPageUrl("Contacts")}>
+            <Button variant="outline" className="text-sm h-8">Edit Contact</Button>
+          </Link>
+        </div>
       </div>
+
+      {/* Provision result */}
+      {provisionResult && (
+        <div className={`rounded-xl p-4 text-sm flex items-start gap-3 ${provisionResult.success ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>
+          {provisionResult.success
+            ? <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
+            : <UserPlus className="w-4 h-4 mt-0.5 flex-shrink-0" />}
+          <div>
+            <p className="font-semibold">{provisionResult.success ? "Portal login created!" : "Error"}</p>
+            <p className="text-xs mt-0.5">{provisionResult.message || provisionResult.error}</p>
+            {provisionResult.success && (
+              <p className="text-xs mt-1 opacity-70">{provisionResult.temp_note}</p>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* Info Cards */}
       <div className="grid sm:grid-cols-2 gap-4">
