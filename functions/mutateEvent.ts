@@ -1,7 +1,12 @@
 /**
  * Secure Event mutation endpoint.
- * Actions: create | update | toggle_readiness | delete
- * Enforces role-based access, city scoping, field-level write protection.
+ * Actions: create | update | toggle_readiness | assign_dj | mark_dj_reviewed | delete
+ *
+ * Enforces:
+ *  - Role-based access + city scoping + field-level write protection
+ *  - Finalization gating: status cannot advance to "finalized" unless readiness checklist passes
+ *  - dj_reviewed_at stamp via mark_dj_reviewed action
+ *  - Post-event automation triggers (server-side)
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
@@ -16,18 +21,35 @@ const EVENT_WRITE_RULES = {
   client:           { create: false, update: false, delete: false },
 };
 
-// Fields DJs/finalizers cannot write
 const WRITE_PROTECTED_FIELDS = {
-  // DJs cannot touch financials, contacts, or reassign themselves/others
-  dj:               ["package_price", "contact_email", "contact_phone", "lead_id", "assigned_dj", "assigned_dj_id", "assigned_mc", "assigned_mc_id"],
-  office_finalizer: ["package_price", "lead_id"],
+  dj:               ["package_price","contact_email","contact_phone","lead_id","assigned_dj","assigned_dj_id","assigned_mc","assigned_mc_id"],
+  office_finalizer: ["package_price","lead_id"],
 };
+
+// Readiness checklist items required before status can move to "finalized"
+const FINALIZATION_REQUIRED = [
+  { key: "contract_signed",      label: "Contract Signed" },
+  { key: "deposit_paid",         label: "Deposit Paid" },
+  { key: "planning_complete",    label: "Planning Form Complete" },
+  { key: "timeline_complete",    label: "Timeline Complete" },
+  { key: "music_complete",       label: "Music Selections Complete" },
+  { key: "assigned_dj",         label: "DJ Assigned" },
+  { key: "final_call_completed", label: "Final Call Completed" },
+];
 
 function stripProtectedFields(data, role) {
   const blocked = WRITE_PROTECTED_FIELDS[role] || [];
   const out = { ...data };
   for (const f of blocked) delete out[f];
   return out;
+}
+
+function checkFinalizationGate(event) {
+  const failing = FINALIZATION_REQUIRED.filter(item => {
+    const val = event[item.key];
+    return !val || val === "" || val === false;
+  });
+  return failing;
 }
 
 async function logDenial(base44, user, action, eventId, reason) {
@@ -53,6 +75,7 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { action, id, data = {} } = body;
 
+    // ── CREATE ────────────────────────────────────────────────────
     if (action === "create") {
       if (!rules.create) {
         await logDenial(base44, user, "create_event", null, "role denied");
@@ -62,17 +85,17 @@ Deno.serve(async (req) => {
       return Response.json({ event });
     }
 
+    // ── ASSIGN DJ ─────────────────────────────────────────────────
     if (action === "assign_dj") {
-      // Only admin, city_manager, sales_manager can assign DJs
-      if (!["admin", "city_manager", "sales_manager"].includes(role)) {
+      if (!["admin","city_manager","sales_manager"].includes(role)) {
         await logDenial(base44, user, "assign_dj", id, "role denied");
         return Response.json({ error: "Forbidden: your role cannot assign DJs" }, { status: 403 });
       }
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
       const updated = await base44.asServiceRole.entities.Event.update(id, {
-        assigned_dj: data.assigned_dj,
+        assigned_dj:    data.assigned_dj,
         assigned_dj_id: data.assigned_dj_id,
-        assigned_mc: data.assigned_mc,
+        assigned_mc:    data.assigned_mc,
         assigned_mc_id: data.assigned_mc_id,
       });
       await base44.asServiceRole.entities.Activity.create({
@@ -86,6 +109,30 @@ Deno.serve(async (req) => {
       return Response.json({ event: updated });
     }
 
+    // ── MARK DJ REVIEWED ─────────────────────────────────────────
+    if (action === "mark_dj_reviewed") {
+      if (!["admin","city_manager","sales_manager","office_finalizer","dj"].includes(role)) {
+        return Response.json({ error: "Forbidden" }, { status: 403 });
+      }
+      if (!id) return Response.json({ error: "id required" }, { status: 400 });
+      const now = new Date().toISOString();
+      const updated = await base44.asServiceRole.entities.Event.update(id, {
+        dj_reviewed_at: now,
+        client_changed_after_review: false, // reset flag on re-review
+      });
+      await base44.asServiceRole.entities.Activity.create({
+        type: "system",
+        subject: `✅ DJ reviewed event details`,
+        description: `Reviewed by ${user.email} at ${now}`,
+        related_type: "event",
+        related_id: id,
+        is_internal: true,
+        performed_by: user.email,
+      }).catch(() => {});
+      return Response.json({ event: updated });
+    }
+
+    // ── UPDATE / TOGGLE_READINESS ─────────────────────────────────
     if (action === "update" || action === "toggle_readiness") {
       if (!rules.update) {
         await logDenial(base44, user, action, id, "role denied");
@@ -93,49 +140,60 @@ Deno.serve(async (req) => {
       }
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
-      // City scoping for city_manager
-      let preUpdateEvent = null;
-      if (role === "city_manager" && user.city) {
-        const rows = await base44.asServiceRole.entities.Event.filter({ id });
-        preUpdateEvent = rows[0];
-        if (preUpdateEvent && preUpdateEvent.city !== user.city) {
-          await logDenial(base44, user, action, id, "outside city");
-          return Response.json({ error: "Forbidden: outside your city" }, { status: 403 });
-        }
+      // Fetch pre-update event for scoping + finalization gate
+      const rows = await base44.asServiceRole.entities.Event.filter({ id });
+      const preUpdateEvent = rows[0];
+      if (!preUpdateEvent || preUpdateEvent.is_deleted) {
+        return Response.json({ error: "Event not found" }, { status: 404 });
+      }
+
+      // City scoping
+      if (role === "city_manager" && user.city && preUpdateEvent.city !== user.city) {
+        await logDenial(base44, user, action, id, "outside city");
+        return Response.json({ error: "Forbidden: outside your city" }, { status: 403 });
       }
 
       const cleaned = stripProtectedFields(data, role);
+
+      // ── Finalization gate ─────────────────────────────────────
+      // If status is being set to "finalized", check all readiness items
+      if (cleaned.status === "finalized") {
+        const mergedEvent = { ...preUpdateEvent, ...cleaned };
+        const failing = checkFinalizationGate(mergedEvent);
+        if (failing.length > 0) {
+          return Response.json({
+            error: "Event cannot be finalized — checklist incomplete",
+            failing_items: failing.map(f => f.label),
+            failing_keys: failing.map(f => f.key),
+          }, { status: 422 });
+        }
+      }
+
       const updated = await base44.asServiceRole.entities.Event.update(id, cleaned);
 
-      // ── Post-event automation triggers (server-side, idempotent) ─────
-      if (cleaned.status === "event_completed") {
+      // ── Post-event automation triggers (server-side, idempotent) ─
+      if (cleaned.status === "completed") {
         base44.asServiceRole.functions.invoke("postEventAutomation", {
           action: "event_completed",
           event_id: id,
         }).catch(() => {});
       }
 
-      // survey_received: only fire when score transitions from null/absent → a value.
-      // Fetch pre-update event if we haven't already (city_manager path may have it).
       if (cleaned.survey_score !== undefined && cleaned.survey_score !== null) {
-        const preEvent = preUpdateEvent ||
-          (await base44.asServiceRole.entities.Event.filter({ id }).catch(() => []))[0];
-        const hadScoreBefore = preEvent && preEvent.survey_score !== undefined && preEvent.survey_score !== null;
+        const hadScoreBefore = preUpdateEvent.survey_score !== undefined && preUpdateEvent.survey_score !== null;
         if (!hadScoreBefore) {
-          // First-time score write — fire trigger
           base44.asServiceRole.functions.invoke("postEventAutomation", {
             action: "survey_received",
             event_id: id,
             survey_score: cleaned.survey_score,
           }).catch(() => {});
         }
-        // If score already existed, postEventAutomation idempotency (AutomationLog) is the secondary guard,
-        // but we avoid the call entirely here for score edits/corrections.
       }
 
       return Response.json({ event: updated });
     }
 
+    // ── DELETE ────────────────────────────────────────────────────
     if (action === "delete") {
       if (!rules.delete) {
         await logDenial(base44, user, "delete_event", id, "role denied");
