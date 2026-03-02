@@ -105,7 +105,13 @@ export default function ClientPortal() {
 
   useEffect(() => {
     base44.auth.me()
-      .then(setUser)
+      .then(u => {
+        setUser(u);
+        // Non-client staff who land here get redirected to the CRM dashboard
+        if (u && u.role && u.role !== "client") {
+          window.location.href = createPageUrl("Dashboard");
+        }
+      })
       .catch(() => setUser(null))
       .finally(() => setAuthLoading(false));
   }, []);
