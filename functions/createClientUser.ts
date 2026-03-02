@@ -71,19 +71,16 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Invite new user via base44
-    await base44.users.inviteUser(contact.email, "client");
+    // Invite as "user" (only valid roles for inviteUser are "user" and "admin")
+    await base44.users.inviteUser(contact.email, "user");
 
-    // Stamp contact_id onto the new user record once it's created
-    // We'll store contact_id directly on the user via updateMe-equivalent
-    // Poll/find the new user record and update it
-    // Give a brief moment for the invite to propagate
-    await new Promise(r => setTimeout(r, 1500));
+    // Wait for invite to propagate, then stamp role=client and contact_id
+    await new Promise(r => setTimeout(r, 2000));
 
     const allUsersAfter = await base44.asServiceRole.entities.User.list().catch(() => []);
-    const newUserRows = allUsersAfter.filter(u => u.email === contact.email);
-    if (newUserRows[0]) {
-      await base44.asServiceRole.entities.User.update(newUserRows[0].id, { contact_id: contact.id });
+    const newUser = allUsersAfter.find(u => u.email === contact.email);
+    if (newUser) {
+      await base44.asServiceRole.entities.User.update(newUser.id, { role: "client", contact_id: contact.id });
     }
 
     return Response.json({
