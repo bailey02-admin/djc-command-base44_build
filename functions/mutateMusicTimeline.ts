@@ -44,10 +44,21 @@ Deno.serve(async (req) => {
 
     if (action === "create") {
       const targetEventId = data.event_id || event_id;
-      const { ok, error } = await verifyEventAccess(base44, targetEventId, role, user.city);
+      const { ok, error, event: targetEvent } = await verifyEventAccess(base44, targetEventId, role, user.city);
       if (!ok) return Response.json({ error }, { status: 403 });
       if (!data.event_id) data.event_id = targetEventId;
       const record = await entityRef.create(data);
+
+      // Track client changes if event has been DJ-reviewed
+      if (targetEvent?.dj_reviewed_at) {
+        base44.asServiceRole.functions.invoke("trackClientChanges", {
+          event_id: targetEventId,
+          entity_type: entity,
+          change_description: `Added ${entity} record: ${data.song_title || data.segment_name || ""}`,
+          changed_by: user.email,
+        }).catch(() => {});
+      }
+
       return Response.json({ record });
     }
 
