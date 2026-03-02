@@ -55,6 +55,9 @@ export const EventAPI = {
   toggleReadiness: (id, data) =>
     invoke("mutateEvent", { action: "toggle_readiness", id, data }).then(r => r.event),
 
+  assignDJ: (id, data) =>
+    invoke("mutateEvent", { action: "assign_dj", id, data }).then(r => r.event),
+
   delete: (id) =>
     invoke("mutateEvent", { action: "delete", id }),
 };
