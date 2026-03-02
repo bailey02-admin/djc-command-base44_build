@@ -32,9 +32,6 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const role = user.role || "sales_rep";
-    if (EVENT_READ_DENIED.has(role)) {
-      return Response.json({ error: "Forbidden" }, { status: 403 });
-    }
 
     const body = await req.json().catch(() => ({}));
     const { id } = body;
@@ -47,6 +44,32 @@ Deno.serve(async (req) => {
       return Response.json({ error: "Not found" }, { status: 404 });
     }
 
+    // CLIENT: return safe-only fields (no internal notes, no pricing, no staff info)
+    if (role === "client") {
+      const CLIENT_SAFE_FIELDS = [
+        "id", "event_name", "event_type", "event_date", "start_time", "end_time",
+        "venue_name", "guest_count", "status", "contract_signed", "deposit_paid",
+        "balance_paid", "planning_complete", "timeline_complete", "music_complete",
+        "final_call_completed",
+      ];
+      const safeEvent = {};
+      for (const f of CLIENT_SAFE_FIELDS) {
+        if (event[f] !== undefined) safeEvent[f] = event[f];
+      }
+      const [musicSelections, timeline, rawPayments, planning] = await Promise.all([
+        base44.asServiceRole.entities.MusicSelection.filter({ event_id: id }, "category", 100),
+        base44.asServiceRole.entities.TimelineItem.filter({ event_id: id }, "order", 50),
+        base44.asServiceRole.entities.Payment.filter({ event_id: id }, "-created_date", 20),
+        base44.asServiceRole.entities.EventPlanning.filter({ event_id: id }).then(r => r[0] || null),
+      ]);
+      // Client-safe payments: only type, due_date, amount, status — no notes
+      const payments = rawPayments.map(p => ({
+        id: p.id, payment_type: p.payment_type,
+        amount: p.amount, due_date: p.due_date, status: p.status,
+      }));
+      return Response.json({ event: { ...safeEvent, event_id: event.id }, musicSelections, timeline, payments, planning, activities: [], tasks: [] });
+    }
+
     // DJ: only events they are assigned to
     if (role === "dj" && event.assigned_dj !== user.email) {
       return Response.json({ error: "Forbidden: not your event" }, { status: 403 });
@@ -57,12 +80,13 @@ Deno.serve(async (req) => {
     }
 
     // Parallel fetch of all related data
-    const [rawActivities, tasks, rawPayments, musicSelections, timeline] = await Promise.all([
+    const [rawActivities, tasks, rawPayments, musicSelections, timeline, planningArr] = await Promise.all([
       base44.asServiceRole.entities.Activity.filter({ related_id: id }, "-created_date", 50),
       base44.asServiceRole.entities.Task.filter({ related_id: id }, "-due_date", 20),
       base44.asServiceRole.entities.Payment.filter({ event_id: id }, "-created_date", 20),
       base44.asServiceRole.entities.MusicSelection.filter({ event_id: id }, "category", 100),
       base44.asServiceRole.entities.TimelineItem.filter({ event_id: id }, "order", 50),
+      base44.asServiceRole.entities.EventPlanning.filter({ event_id: id }),
     ]);
 
     // DJs: strip internal activities, system entries
@@ -84,6 +108,7 @@ Deno.serve(async (req) => {
       payments,
       musicSelections,
       timeline,
+      planning: planningArr[0] || null,
     });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
