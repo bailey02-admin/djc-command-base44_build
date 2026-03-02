@@ -60,7 +60,8 @@ Deno.serve(async (req) => {
     // Give a brief moment for the invite to propagate
     await new Promise(r => setTimeout(r, 1500));
 
-    const newUserRows = await base44.asServiceRole.entities.User.filter({ email: contact.email }).catch(() => []);
+    const allUsersAfter = await base44.asServiceRole.entities.User.list().catch(() => []);
+    const newUserRows = allUsersAfter.filter(u => u.email === contact.email);
     if (newUserRows[0]) {
       await base44.asServiceRole.entities.User.update(newUserRows[0].id, { contact_id: contact.id });
     }
