@@ -294,10 +294,23 @@ export default function LeadDetail() {
             </CardContent>
           </Card>
 
+          {linkedContact && (
+            <Card className="border-0 shadow-sm border-l-4 border-l-violet-400">
+              <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold flex items-center gap-1.5">Contact Record <span className="text-[10px] font-normal text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded">Linked</span></CardTitle></CardHeader>
+              <CardContent className="space-y-1.5 text-sm">
+                <div className="flex justify-between"><span className="text-gray-400">Name</span><span className="font-medium">{linkedContact.first_name} {linkedContact.last_name}</span></div>
+                {linkedContact.email && <div className="flex justify-between"><span className="text-gray-400">Email</span><span className="text-xs truncate max-w-[140px]">{linkedContact.email}</span></div>}
+                {linkedContact.phone && <div className="flex justify-between"><span className="text-gray-400">Phone</span><span>{linkedContact.phone}</span></div>}
+                {linkedContact.preferred_contact_method && <div className="flex justify-between"><span className="text-gray-400">Prefers</span><span className="capitalize">{linkedContact.preferred_contact_method}</span></div>}
+              </CardContent>
+            </Card>
+          )}
+
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Quick Info</CardTitle></CardHeader>
             <CardContent className="space-y-2 text-sm">
               <div className="flex justify-between items-center"><span className="text-gray-400">Lead ID</span><span className="font-mono text-[10px] text-gray-500 select-all">{lead.lead_id || lead.id}</span></div>
+              {lead.contact_id && <div className="flex justify-between items-center"><span className="text-gray-400">Contact ID</span><span className="font-mono text-[10px] text-gray-500 select-all">{lead.contact_id}</span></div>}
               <div className="flex justify-between"><span className="text-gray-400">Priority</span><Badge variant="secondary" className="capitalize">{lead.priority}</Badge></div>
               <div className="flex justify-between"><span className="text-gray-400">Preferred Contact</span><span className="capitalize">{lead.preferred_contact_method || "any"}</span></div>
               <div className="flex justify-between"><span className="text-gray-400">Created</span><span>{format(new Date(lead.created_date), "MMM d, yyyy")}</span></div>

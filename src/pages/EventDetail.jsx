@@ -153,12 +153,34 @@ export default function EventDetail() {
                 </CardContent>
               </Card>
               <Card className="border-0 shadow-sm">
-                <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Client Contact</CardTitle></CardHeader>
+                <CardHeader className="pb-2">
+                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                    Client Contact
+                    {contact && <span className="text-[10px] font-normal text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded">Contact Record Linked</span>}
+                  </CardTitle>
+                </CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div><span className="text-gray-400 text-xs">Name</span><p className="font-medium mt-0.5">{event.contact_name || "—"}</p></div>
-                    <div><span className="text-gray-400 text-xs">Email</span><p className="font-medium mt-0.5">{event.contact_email || "—"}</p></div>
-                    <div><span className="text-gray-400 text-xs">Phone</span><p className="font-medium mt-0.5">{event.contact_phone || "—"}</p></div>
+                    <div><span className="text-gray-400 text-xs">Name</span>
+                      <p className="font-medium mt-0.5">{contact ? `${contact.first_name} ${contact.last_name}` : (event.contact_name || "—")}</p>
+                    </div>
+                    <div><span className="text-gray-400 text-xs">Email</span>
+                      <p className="font-medium mt-0.5">{contact?.email || event.contact_email || "—"}</p>
+                    </div>
+                    <div><span className="text-gray-400 text-xs">Phone</span>
+                      <p className="font-medium mt-0.5">{contact?.phone || event.contact_phone || "—"}</p>
+                    </div>
+                    {contact?.preferred_contact_method && (
+                      <div><span className="text-gray-400 text-xs">Preferred Contact</span>
+                        <p className="font-medium mt-0.5 capitalize">{contact.preferred_contact_method}</p>
+                      </div>
+                    )}
+                    {contact?.id && (
+                      <div className="col-span-2">
+                        <span className="text-gray-400 text-xs">Contact ID</span>
+                        <p className="font-mono text-[10px] text-gray-400 mt-0.5 select-all">{contact.id}</p>
+                      </div>
+                    )}
                   </div>
                 </CardContent>
               </Card>
