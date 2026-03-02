@@ -14,12 +14,12 @@ const ALLOWED = new Set(["admin", "city_manager", "sales_manager", "office_final
 async function verifyEventAccess(base44, event_id, role, userCity) {
   if (!event_id) return { ok: false, error: "event_id required" };
   const rows = await base44.asServiceRole.entities.Event.filter({ id: event_id });
-  const event = rows[0];
-  if (!event || event.is_deleted) return { ok: false, error: "Event not found" };
-  if (role === "city_manager" && userCity && event.city !== userCity) {
+  const ev = rows[0];
+  if (!ev || ev.is_deleted) return { ok: false, error: "Event not found" };
+  if (role === "city_manager" && userCity && ev.city !== userCity) {
     return { ok: false, error: "Forbidden: event is outside your city" };
   }
-  return { ok: true, event };
+  return { ok: true, event: ev };
 }
 
 Deno.serve(async (req) => {
