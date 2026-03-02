@@ -25,7 +25,8 @@ const CLIENT_SAFE_FIELDS = [
   "id", "event_name", "event_type", "event_date", "start_time", "end_time",
   "venue_name", "guest_count", "status", "contract_signed", "deposit_paid",
   "balance_paid", "planning_complete", "timeline_complete", "music_complete",
-  "final_call_completed", "city",
+  "final_call_completed", "city", "package_name",
+  "planning_lock_at", "planning_submitted_at",
 ];
 
 /**
@@ -78,18 +79,24 @@ Deno.serve(async (req) => {
 
     // ─── CLIENT path ─────────────────────────────────────────────────────────
     if (role === "client") {
-      // Ownership: deny-by-default — must resolve a verified email match
-      let ownerEmail = null;
-      if (event.contact_id) {
-        const contactRows = await base44.asServiceRole.entities.Contact.filter({ id: event.contact_id }).catch(() => []);
-        ownerEmail = contactRows[0]?.email || null;
-      }
-      // Fallback to denormalized contact_email on event only if no contact record
-      if (!ownerEmail && event.contact_email) {
-        ownerEmail = event.contact_email;
-      }
-      // Deny if we cannot verify OR if email doesn't match
-      if (!ownerEmail || ownerEmail.toLowerCase() !== user.email.toLowerCase()) {
+      // Ownership: primary = contact_id strict match, fallback = email (migration only)
+      // Resolve this user's contact record
+      const myContactRows = await base44.asServiceRole.entities.Contact.filter({ email: user.email }).catch(() => []);
+      const myContact = myContactRows[0] || null;
+
+      if (myContact && event.contact_id) {
+        // Primary path: strict contact_id match
+        if (event.contact_id !== myContact.id) {
+          return Response.json({ error: "Forbidden: not your event" }, { status: 403 });
+        }
+      } else if (myContact && !event.contact_id) {
+        // event has no contact_id yet — fallback to email check on event.contact_email
+        const ownerEmail = event.contact_email || null;
+        if (!ownerEmail || ownerEmail.toLowerCase() !== user.email.toLowerCase()) {
+          return Response.json({ error: "Forbidden: not your event" }, { status: 403 });
+        }
+      } else {
+        // No contact record for this user at all — deny
         return Response.json({ error: "Forbidden: not your event" }, { status: 403 });
       }
 

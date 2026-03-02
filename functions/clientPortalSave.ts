@@ -42,11 +42,26 @@ Deno.serve(async (req) => {
     const event = events[0];
     if (!event) return Response.json({ error: "Event not found" }, { status: 404 });
 
-    // Allow if user is staff (admin, sales_rep, etc.) OR is the contact
-    const isStaff = !["client"].includes(user.role);
-    const isOwner = event.contact_email && event.contact_email.toLowerCase() === user.email.toLowerCase();
-    if (!isStaff && !isOwner) {
-      return Response.json({ error: "Forbidden: not your event" }, { status: 403 });
+    // Staff roles bypass ownership check
+    const isStaff = user.role !== "client";
+    if (!isStaff) {
+      // Resolve contact record for this user
+      const myContactRows = await base44.asServiceRole.entities.Contact.filter({ email: user.email }).catch(() => []);
+      const myContact = myContactRows[0] || null;
+
+      // Primary: contact_id match; fallback: email match (migration)
+      const contactIdMatch = myContact && event.contact_id && event.contact_id === myContact.id;
+      const emailMatch = !event.contact_id && event.contact_email &&
+        event.contact_email.toLowerCase() === user.email.toLowerCase();
+
+      if (!contactIdMatch && !emailMatch) {
+        return Response.json({ error: "Forbidden: not your event" }, { status: 403 });
+      }
+
+      // Lock enforcement for any client write
+      if (event.planning_lock_at && Date.now() >= new Date(event.planning_lock_at).getTime()) {
+        return Response.json({ error: "Planning is locked", locked: true }, { status: 422 });
+      }
     }
 
     // Helper: fire trackClientChanges if dj_reviewed_at is set
