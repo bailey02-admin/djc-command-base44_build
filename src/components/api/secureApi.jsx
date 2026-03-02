@@ -13,8 +13,9 @@ export const LeadAPI = {
   list: (filters = {}, sort = "-created_date", limit = 50, skip = 0) =>
     invoke("getLeads", { filters, sort, limit, skip }).then(r => r.leads || []),
 
+  // Returns { lead, contact } — contact is safe summary or null
   get: (id) =>
-    invoke("getLeadById", { id }).then(r => r.lead),
+    invoke("getLeadById", { id }),
 
   create: (data) =>
     invoke("mutateLead", { action: "create", data }).then(r => r.lead),
