@@ -1,7 +1,7 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { EventAPI, ActivityAPI } from "../components/api/secureApi";
+import { EventAPI, ActivityAPI, TaskEngineAPI } from "../components/api/secureApi";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -67,6 +67,11 @@ export default function EventDetail() {
     queryClient.invalidateQueries(["change-history", id]);
   };
 
+  const markDJReviewed = async () => {
+    await EventAPI.markDJReviewed(id);
+    queryClient.invalidateQueries(["event-bundle", id]);
+  };
+
   if (isLoading || !bundle) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-violet-600" /></div>;
   if (!event) return <div className="flex items-center justify-center h-64 text-gray-400 text-sm">Event not found or access denied.</div>;
 
@@ -78,6 +83,18 @@ export default function EventDetail() {
       <Link to={createPageUrl("Events")} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
         <ArrowLeft className="w-4 h-4" /> Back to Events
       </Link>
+
+      {/* Client-changed-after-review warning banner */}
+      {event.client_changed_after_review && (
+        <div className="flex items-center gap-3 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 text-sm text-amber-800">
+          <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+          <span className="font-medium">Client edited details after DJ review.</span>
+          <span className="text-amber-700">Re-brief the DJ and confirm all changes are accounted for.</span>
+          <Button size="sm" variant="outline" onClick={markDJReviewed} className="ml-auto border-amber-400 text-amber-700 hover:bg-amber-100 text-xs">
+            Mark Reviewed Again
+          </Button>
+        </div>
+      )}
 
       <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
         <div>
@@ -110,6 +127,11 @@ export default function EventDetail() {
           <Button variant="outline" size="sm" onClick={() => setSendMsgOpen(true)}>
             <Send className="w-4 h-4 mr-1" />Send Message
           </Button>
+          {!event.client_changed_after_review && (
+            <Button variant="outline" size="sm" onClick={markDJReviewed} className="border-violet-200 text-violet-700 hover:bg-violet-50 text-xs">
+              ✅ Mark DJ Reviewed
+            </Button>
+          )}
           <Select value={event.status} onValueChange={v => updateEvent("status", v)}>
             <SelectTrigger className="w-44 h-9 text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
