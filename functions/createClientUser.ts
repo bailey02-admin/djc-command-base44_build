@@ -33,13 +33,14 @@ Deno.serve(async (req) => {
     if (!contact_id) return Response.json({ error: "contact_id required" }, { status: 400 });
 
     // Fetch contact
-    const contactRows = await base44.asServiceRole.entities.Contact.filter({ id: contact_id });
-    const contact = contactRows[0];
+    const contactRows = await base44.asServiceRole.entities.Contact.list();
+    const contact = contactRows.find(c => c.id === contact_id);
     if (!contact) return Response.json({ error: "Contact not found" }, { status: 404 });
     if (!contact.email) return Response.json({ error: "Contact has no email address" }, { status: 422 });
 
     // Check if a client user already exists for this contact
-    const existingUsers = await base44.asServiceRole.entities.User.filter({ contact_id: contact.id }).catch(() => []);
+    const allUsers = await base44.asServiceRole.entities.User.list().catch(() => []);
+    const existingUsers = allUsers.filter(u => u.contact_id === contact.id);
     if (existingUsers.length > 0) {
       return Response.json({
         error: "A client user already exists for this contact",
