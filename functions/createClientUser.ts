@@ -72,7 +72,6 @@ Deno.serve(async (req) => {
     }
 
     // Invite new user via base44
-    await base44.asServiceRole.integrations.Core.InvokeLLM({ prompt: "" }).catch(() => {}); // warm up (no-op)
     await base44.users.inviteUser(contact.email, "client");
 
     // Stamp contact_id onto the new user record once it's created
