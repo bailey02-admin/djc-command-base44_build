@@ -5,14 +5,33 @@
  *   canAccessEvent(user, event) → boolean
  *   redactEvent(record, role)   → redacted record
  *   safeContactSummary(contact, role) → role-scoped contact fields (or null)
+ *
+ * Access Policy (authoritative):
+ *   admin, sales_manager, sales_rep, city_manager, office_finalizer, finance → global (all events)
+ *   dj → only events where event.assigned_dj === user.email
+ *   client → handled separately in each endpoint (returns false here)
  */
+
+// ─── DJ finance/contact fields to hide (from Event schema) ───────────────────
+const DJ_HIDDEN = [
+  // Contact PII
+  "contact_email", "contact_phone",
+  // Finance / pricing
+  "package_price",
+  // Internal
+  "lead_id", "internal_notes",
+];
 
 // ─── Role → hidden event fields ──────────────────────────────────────────────
 const EVENT_HIDDEN_FIELDS = {
-  dj:               ["package_price", "contact_email", "contact_phone", "lead_id", "internal_notes"],
+  dj:               DJ_HIDDEN,
+  // office_finalizer: hide finance pricing, internal notes, survey data
+  office_finalizer: ["package_price", "internal_notes", "survey_score", "survey_avg", "survey_flag", "survey_comments"],
+  // sales_rep: hide pricing and internal notes
   sales_rep:        ["package_price", "internal_notes"],
-  office_finalizer: ["package_price"],
+  // finance: hide internal notes (they see all finance fields)
   finance:          ["internal_notes"],
+  // city_manager, sales_manager, admin: no field redaction
 };
 
 // ─── Role → allowed contact fields ───────────────────────────────────────────
@@ -43,13 +62,15 @@ const CONTACT_FIELDS_BY_ROLE = {
 };
 
 /**
- * canAccessEvent — returns true if the user can read/act on this event.
+ * canAccessEvent — returns true if the user may read/act on this event.
  *
- * Rules:
- *   admin / sales_manager / sales_rep / finance → always allowed
- *   city_manager / office_finalizer → allowed only if event.city === user.city (when user.city set)
- *   dj → allowed only if event.assigned_dj === user.email
- *   client → must be handled separately in the endpoint
+ * Global roles (all events visible):
+ *   admin, sales_manager, sales_rep, city_manager, office_finalizer, finance
+ *
+ * Scoped roles:
+ *   dj → only if event.assigned_dj === user.email
+ *
+ * Client handled separately in endpoints — returns false here.
  */
 export function canAccessEvent(user, event) {
   const role = user.role || "sales_rep";
@@ -58,14 +79,10 @@ export function canAccessEvent(user, event) {
     case "admin":
     case "sales_manager":
     case "sales_rep":
-    case "finance":
-      return true;
-
     case "city_manager":
     case "office_finalizer":
-      // If user.city is not set, allow (degraded-mode guard)
-      if (!user.city) return true;
-      return event.city === user.city;
+    case "finance":
+      return true;
 
     case "dj":
       return event.assigned_dj === user.email;
@@ -81,7 +98,7 @@ export function canAccessEvent(user, event) {
  */
 export function redactEvent(record, role) {
   const hidden = EVENT_HIDDEN_FIELDS[role];
-  if (!hidden || hidden.length === 0) return record;
+  if (!hidden || hidden.length === 0) return { ...record };
   const out = { ...record };
   for (const f of hidden) delete out[f];
   return out;

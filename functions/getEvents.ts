@@ -1,25 +1,28 @@
 /**
- * Secure Event read endpoint — Performance-hardened.
- * Includes contact_id in list view; contact summary injected when present.
+ * Secure Event list endpoint.
  * Uses centralized access control from crm/accessControl.js.
+ *
+ * DB scoping:
+ *   dj             → scoped to assigned_dj == user.email
+ *   all other roles → global (no city filter applied at DB level)
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 import { redactEvent, safeContactSummary } from './crm/accessControl.js';
 
 const EVENT_READ_DENIED = new Set(["client"]);
 
-// Slim field list for list/card views — contact_id included for Contact-first arch
+// Slim field list for list/card views
 const LIST_VIEW_FIELDS = new Set([
   "id", "event_name", "event_type", "event_date", "start_time", "end_time",
-  "city", "venue_name", "contact_name", "contact_id", "status", "assigned_dj", "assigned_dj_id",
-  "assigned_mc", "planning_complete", "timeline_complete", "music_complete",
+  "city", "venue_name", "contact_name", "contact_id", "status",
+  "assigned_dj", "assigned_dj_id", "assigned_mc",
+  "planning_complete", "timeline_complete", "music_complete",
   "contract_signed", "deposit_paid", "balance_paid", "final_call_completed",
   "dj_briefed", "readiness_score", "is_deleted", "lead_id",
   "package_price", "guest_count",
 ]);
 
 function projectFields(record, role) {
-  // Use redactEvent to determine hidden fields, then project to LIST_VIEW_FIELDS
   const redacted = redactEvent(record, role);
   const out = {};
   for (const key of LIST_VIEW_FIELDS) {
@@ -68,12 +71,11 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Role-based DB scoping
-    // sales_rep: global (no city filter) — per access control spec
+    // Role-based DB scoping:
+    //   DJ only → scope to their assigned events
+    //   Everyone else (including city_manager, office_finalizer) → global
     if (role === "dj") {
       dbFilter.assigned_dj = user.email;
-    } else if (["city_manager", "office_finalizer"].includes(role) && user.city) {
-      dbFilter.city = user.city;
     }
 
     let events = await base44.asServiceRole.entities.Event.filter(dbFilter, sort, limit + skip);
@@ -88,8 +90,8 @@ Deno.serve(async (req) => {
       ? paginated.map(e => withAlias(projectFields(e, role)))
       : paginated.map(e => withAlias(redactEvent(e, role)));
 
-    // Optional: batch-resolve contact summaries (not for DJ/client role)
-    if (include_contact && !["dj", "client"].includes(role)) {
+    // Optional: batch-resolve contact summaries (not for DJ)
+    if (include_contact && role !== "dj") {
       const contactIds = [...new Set(result.filter(e => e.contact_id).map(e => e.contact_id))];
       if (contactIds.length > 0) {
         const contactMap = {};
@@ -98,7 +100,9 @@ Deno.serve(async (req) => {
           const batch = contactIds.slice(i, i + BATCH);
           const fetched = await Promise.all(
             batch.map(cid =>
-              base44.asServiceRole.entities.Contact.filter({ id: cid }).then(rows => rows[0] || null).catch(() => null)
+              base44.asServiceRole.entities.Contact.filter({ id: cid })
+                .then(rows => rows[0] || null)
+                .catch(() => null)
             )
           );
           for (const c of fetched) {
