@@ -37,9 +37,15 @@ export default function ContactDetail() {
   const handleCreateClientUser = async () => {
     setProvisioning(true);
     setProvisionResult(null);
-    const res = await base44.functions.invoke("createClientUser", { contact_id: id });
-    setProvisionResult(res.data);
-    setProvisioning(false);
+    try {
+      const res = await base44.functions.invoke("createClientUser", { contact_id: id });
+      setProvisionResult({ success: true, ...res.data });
+    } catch (err) {
+      const errData = err?.response?.data;
+      setProvisionResult({ success: false, message: errData?.error || "An unexpected error occurred." });
+    } finally {
+      setProvisioning(false);
+    }
   };
 
   const { data: contact, isLoading: loadingContact } = useQuery({
