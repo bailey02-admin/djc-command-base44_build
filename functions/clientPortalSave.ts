@@ -3,8 +3,28 @@
  * Validates that the event_id being written to belongs to the authenticated user
  * (matched by contact_email on the event).
  * Supports saving EventPlanning and adding/deleting MusicSelections.
+ *
+ * Calls trackClientChanges on ALL mutation paths when dj_reviewed_at is set.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+
+// Planning fields that are tracked for change description
+const PLANNING_TRACKED_FIELDS = [
+  "bride_full_name","groom_full_name","formality_level","vibe_description",
+  "genre_preferences","genre_dislikes","dj_freedom_level",
+  "special_requests","notes_to_dj","ceremony_details",
+  "cocktail_vibe","dinner_vibe","dance_vibe","special_announcements",
+];
+
+function describePlanningChanges(oldData, newData) {
+  if (!oldData) return "Planning form submitted";
+  const changed = PLANNING_TRACKED_FIELDS.filter(f => {
+    const o = JSON.stringify(oldData[f] ?? "");
+    const n = JSON.stringify(newData[f] ?? "");
+    return o !== n;
+  });
+  return changed.length > 0 ? `Planning fields updated: ${changed.join(", ")}` : "Planning form saved";
+}
 
 Deno.serve(async (req) => {
   try {
@@ -29,15 +49,29 @@ Deno.serve(async (req) => {
       return Response.json({ error: "Forbidden: not your event" }, { status: 403 });
     }
 
+    // Helper: fire trackClientChanges if dj_reviewed_at is set
+    const maybeTrackChange = (entityType, description) => {
+      if (!event.dj_reviewed_at) return;
+      base44.asServiceRole.functions.invoke("trackClientChanges", {
+        event_id,
+        entity_type: entityType,
+        change_description: description,
+        changed_by: user.email,
+      }).catch(() => {});
+    };
+
     if (action === "save_planning") {
       const planData = { ...data, event_id };
       const existing = await base44.asServiceRole.entities.EventPlanning.filter({ event_id }, "-created_date", 1);
       let result;
+      let description = "Planning form submitted";
       if (existing[0]) {
+        description = describePlanningChanges(existing[0], planData);
         result = await base44.asServiceRole.entities.EventPlanning.update(existing[0].id, planData);
       } else {
         result = await base44.asServiceRole.entities.EventPlanning.create(planData);
       }
+      maybeTrackChange("EventPlanning", description);
       // Fire-and-forget flag sync
       base44.asServiceRole.functions.invoke("syncEventFlags", { action: "sync_flags", event_id }).catch(() => {});
       return Response.json({ planning: result });
@@ -45,6 +79,7 @@ Deno.serve(async (req) => {
 
     if (action === "add_song") {
       const song = await base44.asServiceRole.entities.MusicSelection.create({ ...data, event_id, added_by: "client" });
+      maybeTrackChange("MusicSelection", `Client added song: ${data.song_title || ""} – ${data.artist || ""} (${data.category || ""})`);
       return Response.json({ song });
     }
 
@@ -53,7 +88,9 @@ Deno.serve(async (req) => {
       // Verify the song belongs to this event
       const songs = await base44.asServiceRole.entities.MusicSelection.filter({ id: music_id, event_id }, "-created_date", 1);
       if (!songs[0]) return Response.json({ error: "Song not found on this event" }, { status: 404 });
+      const songTitle = songs[0].song_title || music_id;
       await base44.asServiceRole.entities.MusicSelection.delete(music_id);
+      maybeTrackChange("MusicSelection", `Client removed song: ${songTitle}`);
       return Response.json({ success: true });
     }
 
