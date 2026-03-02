@@ -88,7 +88,7 @@ export default function ContactDetail() {
             onClick={handleCreateClientUser}
             disabled={provisioning}
           >
-            {provisioning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserPlus className="w-3.5 h-3.5" />}
+            {provisioning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserCheck className="w-3.5 h-3.5" />}
             Create Portal Login
           </Button>
           <Link to={createPageUrl("Contacts")}>
@@ -102,7 +102,7 @@ export default function ContactDetail() {
         <div className={`rounded-xl p-4 text-sm flex items-start gap-3 ${provisionResult.success ? "bg-emerald-50 text-emerald-800" : "bg-red-50 text-red-800"}`}>
           {provisionResult.success
             ? <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" />
-            : <UserPlus className="w-4 h-4 mt-0.5 flex-shrink-0" />}
+            : <UserCheck className="w-4 h-4 mt-0.5 flex-shrink-0" />}
           <div>
             <p className="font-semibold">{provisionResult.success ? "Portal login created!" : "Error"}</p>
             <p className="text-xs mt-0.5">{provisionResult.message || provisionResult.error}</p>
