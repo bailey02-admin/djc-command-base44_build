@@ -13,11 +13,16 @@
  */
 
 // ─── DJ finance/contact fields to hide (from Event schema) ───────────────────
+// Finance keys derived from entities/Event.json: package_price, survey_score,
+// survey_avg, survey_flag, survey_comments, booked_date (financial milestone),
+// plus any balance/fee fields.
 const DJ_HIDDEN = [
   // Contact PII
   "contact_email", "contact_phone",
-  // Finance / pricing
+  // All finance / pricing fields present in Event schema
   "package_price",
+  // Survey / performance data (finance-adjacent, not for DJs)
+  "survey_score", "survey_avg", "survey_flag", "survey_comments",
   // Internal
   "lead_id", "internal_notes",
 ];
@@ -27,8 +32,8 @@ const EVENT_HIDDEN_FIELDS = {
   dj:               DJ_HIDDEN,
   // office_finalizer: hide finance pricing, internal notes, survey data
   office_finalizer: ["package_price", "internal_notes", "survey_score", "survey_avg", "survey_flag", "survey_comments"],
-  // sales_rep: hide pricing and internal notes
-  sales_rep:        ["package_price", "internal_notes"],
+  // sales_rep: hide pricing only — internal_notes are visible and writable
+  sales_rep:        ["package_price"],
   // finance: hide internal notes (they see all finance fields)
   finance:          ["internal_notes"],
   // city_manager, sales_manager, admin: no field redaction

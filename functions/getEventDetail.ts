@@ -28,14 +28,18 @@ const CLIENT_SAFE_FIELDS = [
   "final_call_completed", "city",
 ];
 
-/** Compute payment totals from a raw payment array */
+/**
+ * Compute payment totals from a raw payment array.
+ * Canonical total order: event.total_fee → event.package_price → 0
+ */
 function computePaymentSummary(rawPayments, event) {
   const paidStatuses = new Set(["paid"]);
   const amountPaidTotal = rawPayments
     .filter(p => paidStatuses.has(p.status))
     .reduce((sum, p) => sum + (p.amount || 0), 0);
 
-  const totalFee = event.package_price || 0;
+  // Prefer total_fee (canonical contracted total), fallback to package_price
+  const totalFee = event.total_fee ?? event.package_price ?? 0;
   const remainingBalance = Math.max(0, totalFee - amountPaidTotal);
 
   return { amount_paid_total: amountPaidTotal, remaining_balance: remainingBalance };
@@ -74,13 +78,18 @@ Deno.serve(async (req) => {
 
     // ─── CLIENT path ─────────────────────────────────────────────────────────
     if (role === "client") {
-      // Ownership check: match on contact email
-      let contactEmail = event.contact_email || null;
+      // Ownership: deny-by-default — must resolve a verified email match
+      let ownerEmail = null;
       if (event.contact_id) {
         const contactRows = await base44.asServiceRole.entities.Contact.filter({ id: event.contact_id }).catch(() => []);
-        contactEmail = contactRows[0]?.email || contactEmail;
+        ownerEmail = contactRows[0]?.email || null;
       }
-      if (contactEmail && contactEmail.toLowerCase() !== user.email.toLowerCase()) {
+      // Fallback to denormalized contact_email on event only if no contact record
+      if (!ownerEmail && event.contact_email) {
+        ownerEmail = event.contact_email;
+      }
+      // Deny if we cannot verify OR if email doesn't match
+      if (!ownerEmail || ownerEmail.toLowerCase() !== user.email.toLowerCase()) {
         return Response.json({ error: "Forbidden: not your event" }, { status: 403 });
       }
 
@@ -169,6 +178,7 @@ Deno.serve(async (req) => {
           amount_paid_total,
           remaining_balance,
           payment_link: links.payment_link,
+          finalizer_call_link: links.finalizer_call_link,
         },
         musicSelections,
         timeline,
