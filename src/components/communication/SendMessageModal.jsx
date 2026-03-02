@@ -14,7 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Badge } from "@/components/ui/badge";
 import { Mail, MessageSquare, Loader2, CheckCircle2, Send } from "lucide-react";
-import { resolveMergeTags, sendMessage } from "../crm/messaging";
+import { MessageAPI } from "../api/secureApi";
 
 const CATEGORY_LABELS = {
   new_lead: "New Lead",
@@ -37,8 +37,6 @@ export default function SendMessageModal({ open, onClose, lead = null, event = n
   const [sent, setSent] = useState(false);
   const [user, setUser] = useState(null);
 
-  useEffect(() => { base44.auth.me().then(setUser).catch(() => {}); }, []);
-
   const { data: templates = [] } = useQuery({
     queryKey: ["message-templates"],
     queryFn: () => base44.entities.MessageTemplate.filter({ is_active: true }, "name", 100),
@@ -46,37 +44,37 @@ export default function SendMessageModal({ open, onClose, lead = null, event = n
 
   const filteredTemplates = templates.filter(t => t.channel === channel || t.channel === "both");
 
-  const context = { lead: lead || {}, event: event || {}, contact: contact || {}, extra: { company_name: "DJ Command" } };
-
-  const applyTemplate = (tmpl) => {
+  const applyTemplate = async (tmpl) => {
     setSelectedTemplateId(tmpl.id);
-    setSubject(resolveMergeTags(tmpl.subject || "", context));
-    setBody(resolveMergeTags(tmpl.body || "", context));
+    setSubject(tmpl.subject || "");
+    setBody(tmpl.body || "");
+    // Preview via backend for accurate merge tag resolution
+    const preview = await MessageAPI.preview(
+      tmpl.id, tmpl.body || "", tmpl.subject || "",
+      lead?.id, event?.id, contact?.id
+    ).catch(() => null);
+    if (preview) {
+      if (preview.subject) setSubject(preview.subject);
+      if (preview.body)    setBody(preview.body);
+    }
   };
 
   const handleSend = async () => {
     setSending(true);
-    const toName  = lead ? `${lead.client_first_name} ${lead.client_last_name}` : (event?.contact_name || relatedName);
-    const toEmail = lead?.email || event?.contact_email || "";
-    const toPhone = lead?.phone || event?.contact_phone || "";
-    const tmpl    = templates.find(t => t.id === selectedTemplateId);
-
-    await sendMessage({
+    const tmpl = templates.find(t => t.id === selectedTemplateId);
+    await MessageAPI.send({
       channel,
-      to_name: toName,
-      to_email: toEmail,
-      to_phone: toPhone,
       subject,
       body,
       template_id: selectedTemplateId,
       template_name: tmpl?.name || "",
-      related_type: relatedType,
-      related_id: relatedId,
-      related_name: relatedName,
-      sent_by: user?.email || "",
-      provider: "mock",
+      related_type:  relatedType,
+      related_id:    relatedId,
+      related_name:  relatedName,
+      lead_id:   lead?.id,
+      event_id:  event?.id,
+      contact_id: contact?.id,
     });
-
     setSending(false);
     setSent(true);
     setTimeout(() => { setSent(false); onClose(); }, 1500);
