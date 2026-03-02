@@ -9,6 +9,7 @@
  *  - Post-event automation triggers (server-side)
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { canAccessEvent } from './crm/accessControl.js';
 
 const EVENT_WRITE_RULES = {
   admin:            { create: true, update: true, delete: true },

@@ -8,15 +8,16 @@
  * (Clients use clientPortalSave for their own songs.)
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { canAccessEvent } from './crm/accessControl.js';
 
 const ALLOWED = new Set(["admin", "city_manager", "sales_manager", "office_finalizer"]);
 
-async function verifyEventAccess(base44, event_id, role, userCity) {
+async function verifyEventAccess(base44, user, event_id) {
   if (!event_id) return { ok: false, error: "event_id required" };
   const rows = await base44.asServiceRole.entities.Event.filter({ id: event_id });
   const ev = rows[0];
   if (!ev || ev.is_deleted) return { ok: false, error: "Event not found" };
-  if (role === "city_manager" && userCity && ev.city !== userCity) {
+  if (!canAccessEvent(user, ev)) {
     return { ok: false, error: "Forbidden: event is outside your city" };
   }
   return { ok: true, event: ev };
