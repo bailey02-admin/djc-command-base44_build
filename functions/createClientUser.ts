@@ -48,10 +48,31 @@ Deno.serve(async (req) => {
       }, { status: 409 });
     }
 
-    // Invite/create the user via base44
-    const tempPassword = generateTempPassword();
+    // Check if user with this email already exists (any role)
+    const existingByEmail = allUsers.filter(u => u.email === contact.email);
+    if (existingByEmail.length > 0) {
+      const existingUser = existingByEmail[0];
+      // If already a client with contact_id stamped, done
+      if (existingUser.contact_id === contact.id) {
+        return Response.json({
+          error: `A portal user already exists for ${contact.email}`,
+          existing_email: contact.email,
+        }, { status: 409 });
+      }
+      // User exists but missing contact_id — just stamp it
+      await base44.asServiceRole.entities.User.update(existingUser.id, { contact_id: contact.id, role: "client" });
+      return Response.json({
+        success: true,
+        email: contact.email,
+        contact_name: `${contact.first_name} ${contact.last_name || ""}`.trim(),
+        contact_id: contact.id,
+        message: `Existing user ${contact.email} updated to client role and linked to this contact.`,
+        temp_note: "The user already has an account — their login remains unchanged.",
+      });
+    }
 
-    // Use the users invite API
+    // Invite new user via base44
+    await base44.asServiceRole.integrations.Core.InvokeLLM({ prompt: "" }).catch(() => {}); // warm up (no-op)
     await base44.users.inviteUser(contact.email, "client");
 
     // Stamp contact_id onto the new user record once it's created
