@@ -1,17 +1,12 @@
 /**
  * Secure Event read endpoint — Performance-hardened.
  * Includes contact_id in list view; contact summary injected when present.
+ * Uses centralized access control from crm/accessControl.js.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { redactEvent, safeContactSummary } from './crm/accessControl.js';
 
 const EVENT_READ_DENIED = new Set(["client"]);
-
-const EVENT_HIDDEN_FIELDS = {
-  dj:               ["package_price", "contact_email", "contact_phone", "lead_id", "internal_notes"],
-  sales_rep:        ["package_price", "internal_notes"],
-  office_finalizer: ["package_price"],
-  finance:          ["internal_notes"],
-};
 
 // Slim field list for list/card views — contact_id included for Contact-first arch
 const LIST_VIEW_FIELDS = new Set([
@@ -23,26 +18,14 @@ const LIST_VIEW_FIELDS = new Set([
   "package_price", "guest_count",
 ]);
 
-const CONTACT_SUMMARY_FIELDS = ["id", "first_name", "last_name", "email", "phone", "preferred_contact_method", "city", "role"];
-
 function projectFields(record, role) {
-  const hidden = new Set(EVENT_HIDDEN_FIELDS[role] || []);
+  // Use redactEvent to determine hidden fields, then project to LIST_VIEW_FIELDS
+  const redacted = redactEvent(record, role);
   const out = {};
   for (const key of LIST_VIEW_FIELDS) {
-    if (!hidden.has(key) && record[key] !== undefined) {
-      out[key] = record[key];
-    }
+    if (redacted[key] !== undefined) out[key] = redacted[key];
   }
   out.id = record.id;
-  return out;
-}
-
-function safeContactSummary(contact) {
-  if (!contact) return null;
-  const out = {};
-  for (const f of CONTACT_SUMMARY_FIELDS) {
-    if (contact[f] !== undefined) out[f] = contact[f];
-  }
   return out;
 }
 
@@ -66,7 +49,7 @@ Deno.serve(async (req) => {
       date_from,
       date_to,
       slim = true,
-      include_contact = false, // set true to batch-resolve contact summaries
+      include_contact = false,
     } = body;
 
     const limit = Math.min(Number(rawLimit) || 50, 200);
@@ -86,9 +69,10 @@ Deno.serve(async (req) => {
     }
 
     // Role-based DB scoping
+    // sales_rep: global (no city filter) — per access control spec
     if (role === "dj") {
       dbFilter.assigned_dj = user.email;
-    } else if ((role === "sales_rep" || role === "city_manager") && user.city) {
+    } else if (["city_manager", "office_finalizer"].includes(role) && user.city) {
       dbFilter.city = user.city;
     }
 
@@ -102,18 +86,12 @@ Deno.serve(async (req) => {
 
     let result = slim
       ? paginated.map(e => withAlias(projectFields(e, role)))
-      : paginated.map(e => {
-          const hidden = new Set(EVENT_HIDDEN_FIELDS[role] || []);
-          const out = { ...e };
-          for (const f of hidden) delete out[f];
-          return withAlias(out);
-        });
+      : paginated.map(e => withAlias(redactEvent(e, role)));
 
     // Optional: batch-resolve contact summaries (not for DJ/client role)
     if (include_contact && !["dj", "client"].includes(role)) {
       const contactIds = [...new Set(result.filter(e => e.contact_id).map(e => e.contact_id))];
       if (contactIds.length > 0) {
-        // Fetch all needed contacts in parallel batches of 10
         const contactMap = {};
         const BATCH = 10;
         for (let i = 0; i < contactIds.length; i += BATCH) {
@@ -124,7 +102,7 @@ Deno.serve(async (req) => {
             )
           );
           for (const c of fetched) {
-            if (c) contactMap[c.id] = safeContactSummary(c);
+            if (c) contactMap[c.id] = safeContactSummary(c, role);
           }
         }
         result = result.map(e => ({
