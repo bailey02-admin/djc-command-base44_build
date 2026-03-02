@@ -73,8 +73,8 @@ export default function LeadDetail() {
 
   const convertToEvent = async () => {
     setConverting(true);
-    const res = await base44.functions.invoke("convertLeadToEvent", { lead_id: id });
-    const { event } = res.data || {};
+    const result = await ConversionAPI.convertLeadToEvent(id);
+    const event = result?.event;
     if (event) await onEventBooked(event);
     queryClient.invalidateQueries(["lead", id]);
     setConverting(false);
