@@ -43,13 +43,13 @@ export default function MusicPlanner() {
 
   const { data: songs = [] } = useQuery({
     queryKey: ["music", eventId],
-    queryFn: () => base44.entities.MusicSelection.filter({ event_id: eventId }, "category", 200),
+    queryFn: () => MusicAPI.list(eventId),
     enabled: !!eventId,
   });
 
   const handleSave = async () => {
     setSaving(true);
-    await base44.entities.MusicSelection.create({ ...form, event_id: eventId });
+    await MusicAPI.create(eventId, form);
     setForm({ category: "must_play", song_title: "", artist: "", notes: "", clean_version_preferred: false });
     setSaving(false);
     setAdding(false);
@@ -58,7 +58,7 @@ export default function MusicPlanner() {
   };
 
   const handleDelete = async (id) => {
-    await base44.entities.MusicSelection.delete(id);
+    await MusicAPI.delete(id);
     queryClient.invalidateQueries(["music", eventId]);
     EventOpsAPI.syncFlags(eventId).catch(() => {});
   };
