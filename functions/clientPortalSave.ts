@@ -45,16 +45,14 @@ Deno.serve(async (req) => {
     // Staff roles bypass ownership check
     const isStaff = user.role !== "client";
     if (!isStaff) {
-      // Resolve contact record for this user
-      const myContactRows = await base44.asServiceRole.entities.Contact.filter({ email: user.email }).catch(() => []);
-      const myContact = myContactRows[0] || null;
+      // PRIMARY: user.contact_id (stamped at provisioning); FALLBACK: email lookup
+      let resolvedContactId = user.contact_id || null;
+      if (!resolvedContactId) {
+        const rows = await base44.asServiceRole.entities.Contact.filter({ email: user.email }).catch(() => []);
+        resolvedContactId = rows[0]?.id || null;
+      }
 
-      // Primary: contact_id match; fallback: email match (migration)
-      const contactIdMatch = myContact && event.contact_id && event.contact_id === myContact.id;
-      const emailMatch = !event.contact_id && event.contact_email &&
-        event.contact_email.toLowerCase() === user.email.toLowerCase();
-
-      if (!contactIdMatch && !emailMatch) {
+      if (!resolvedContactId || !event.contact_id || event.contact_id !== resolvedContactId) {
         return Response.json({ error: "Forbidden: not your event" }, { status: 403 });
       }
 

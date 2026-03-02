@@ -23,12 +23,15 @@ Deno.serve(async (req) => {
     const { event_id } = body;
     if (!event_id) return Response.json({ error: "event_id required" }, { status: 400 });
 
-    // ── Resolve this user's Contact record ───────────────────────────────────
-    const contactRows = await base44.asServiceRole.entities.Contact.filter({ email: user.email }).catch(() => []);
-    const contact = contactRows[0] || null;
+    // ── Resolve contact_id: PRIMARY = user.contact_id, FALLBACK = email ──────
+    let resolvedContactId = user.contact_id || null;
+    if (!resolvedContactId) {
+      const contactRows = await base44.asServiceRole.entities.Contact.filter({ email: user.email }).catch(() => []);
+      resolvedContactId = contactRows[0]?.id || null;
+    }
 
-    if (!contact) {
-      return Response.json({ error: "Forbidden: no contact record found for your account" }, { status: 403 });
+    if (!resolvedContactId) {
+      return Response.json({ error: "Forbidden: no contact record linked to your account" }, { status: 403 });
     }
 
     // ── Fetch event ──────────────────────────────────────────────────────────
@@ -39,7 +42,7 @@ Deno.serve(async (req) => {
     }
 
     // ── Ownership: strict contact_id match ───────────────────────────────────
-    if (!event.contact_id || event.contact_id !== contact.id) {
+    if (!event.contact_id || event.contact_id !== resolvedContactId) {
       return Response.json({ error: "Forbidden: not your event" }, { status: 403 });
     }
 

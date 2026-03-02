@@ -79,24 +79,21 @@ Deno.serve(async (req) => {
 
     // ─── CLIENT path ─────────────────────────────────────────────────────────
     if (role === "client") {
-      // Ownership: primary = contact_id strict match, fallback = email (migration only)
-      // Resolve this user's contact record
-      const myContactRows = await base44.asServiceRole.entities.Contact.filter({ email: user.email }).catch(() => []);
-      const myContact = myContactRows[0] || null;
+      // Ownership: PRIMARY = user.contact_id (stamped at provisioning)
+      // FALLBACK: email-based contact lookup (migration path)
+      let resolvedContactId = user.contact_id || null;
 
-      if (myContact && event.contact_id) {
-        // Primary path: strict contact_id match
-        if (event.contact_id !== myContact.id) {
-          return Response.json({ error: "Forbidden: not your event" }, { status: 403 });
-        }
-      } else if (myContact && !event.contact_id) {
-        // event has no contact_id yet — fallback to email check on event.contact_email
-        const ownerEmail = event.contact_email || null;
-        if (!ownerEmail || ownerEmail.toLowerCase() !== user.email.toLowerCase()) {
-          return Response.json({ error: "Forbidden: not your event" }, { status: 403 });
-        }
-      } else {
-        // No contact record for this user at all — deny
+      if (!resolvedContactId) {
+        // Migration fallback: resolve contact by email
+        const emailContactRows = await base44.asServiceRole.entities.Contact.filter({ email: user.email }).catch(() => []);
+        resolvedContactId = emailContactRows[0]?.id || null;
+      }
+
+      if (!resolvedContactId) {
+        return Response.json({ error: "Forbidden: no contact record linked to your account" }, { status: 403 });
+      }
+
+      if (!event.contact_id || event.contact_id !== resolvedContactId) {
         return Response.json({ error: "Forbidden: not your event" }, { status: 403 });
       }
 
