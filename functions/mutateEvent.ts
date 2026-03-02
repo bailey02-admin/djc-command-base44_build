@@ -182,6 +182,24 @@ Deno.serve(async (req) => {
 
       const updated = await base44.asServiceRole.entities.Event.update(id, cleaned);
 
+      // ── Track client-visible field changes post-DJ-review ─────────
+      // Fields that are planning-relevant and should trigger re-brief warning
+      const TRACKED_EVENT_FIELDS = [
+        "venue_name","venue_id","ceremony_venue","guest_count","start_time","end_time",
+        "setup_time","load_in_notes","client_notes","internal_notes",
+      ];
+      const changedTrackedFields = TRACKED_EVENT_FIELDS.filter(
+        f => cleaned[f] !== undefined && cleaned[f] !== preUpdateEvent[f]
+      );
+      if (changedTrackedFields.length > 0 && preUpdateEvent.dj_reviewed_at) {
+        base44.asServiceRole.functions.invoke("trackClientChanges", {
+          event_id: id,
+          entity_type: "EventPlanning",
+          change_description: `Event fields updated: ${changedTrackedFields.join(", ")}`,
+          changed_by: user.email,
+        }).catch(() => {});
+      }
+
       // ── Post-event automation triggers (server-side, idempotent) ─
       if (cleaned.status === "completed") {
         base44.asServiceRole.functions.invoke("postEventAutomation", {
