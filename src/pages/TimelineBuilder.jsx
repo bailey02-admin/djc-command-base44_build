@@ -10,7 +10,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Plus, Trash2, Clock, GripVertical, Loader2, Save, Sparkles } from "lucide-react";
-import { EventOpsAPI } from "../components/api/secureApi";
+import { EventOpsAPI, TimelineAPI } from "../components/api/secureApi";
 
 const WEDDING_TEMPLATE = [
   { segment_name: "Guest Arrival & Cocktail Music", time: "5:00 PM", end_time: "5:30 PM", order: 1 },

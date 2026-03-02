@@ -11,7 +11,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Switch } from "@/components/ui/switch";
 import { ArrowLeft, Plus, Trash2, Music, Loader2, Save } from "lucide-react";
-import { EventOpsAPI } from "../components/api/secureApi";
+import { EventOpsAPI, MusicAPI } from "../components/api/secureApi";
 
 const CATEGORIES = [
   { key: "first_dance", label: "First Dance", icon: "💃" },
