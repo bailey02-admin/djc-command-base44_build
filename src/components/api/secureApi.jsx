@@ -203,6 +203,12 @@ export const ArchiveAPI = {
     invoke("restoreRecord", { entity_type, id }),
 };
 
+// ─── LEAD CONVERSION ──────────────────────────────────────────────────────────
+export const ConversionAPI = {
+  convertLeadToEvent: (lead_id) =>
+    invoke("convertLeadToEvent", { lead_id }),
+};
+
 // ─── ADMIN OPS ────────────────────────────────────────────────────────────
 export const AdminAPI = {
   resetDemoData: () =>
