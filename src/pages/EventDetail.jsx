@@ -40,6 +40,7 @@ export default function EventDetail() {
   });
 
   const event = bundle?.event;
+  const contact = bundle?.contact || null;
   const activities = bundle?.activities || [];
   const musicSelections = bundle?.musicSelections || [];
   const timeline = bundle?.timeline || [];

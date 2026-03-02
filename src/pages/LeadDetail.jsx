@@ -38,11 +38,13 @@ export default function LeadDetail() {
   const [lostDetail, setLostDetail] = useState("");
   const [sendMsgOpen, setSendMsgOpen] = useState(false);
 
-  const { data: lead, isLoading } = useQuery({
+  const { data: leadBundle, isLoading } = useQuery({
     queryKey: ["lead", id],
     queryFn: () => LeadAPI.get(id),
     enabled: !!id,
   });
+  const lead = leadBundle?.lead || leadBundle; // getLeadById returns { lead, contact }
+  const linkedContact = leadBundle?.contact || null;
 
   const { data: activities = [] } = useQuery({
     queryKey: ["activities", id],
