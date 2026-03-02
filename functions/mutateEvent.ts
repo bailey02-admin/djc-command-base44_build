@@ -62,6 +62,30 @@ Deno.serve(async (req) => {
       return Response.json({ event });
     }
 
+    if (action === "assign_dj") {
+      // Only admin, city_manager, sales_manager can assign DJs
+      if (!["admin", "city_manager", "sales_manager"].includes(role)) {
+        await logDenial(base44, user, "assign_dj", id, "role denied");
+        return Response.json({ error: "Forbidden: your role cannot assign DJs" }, { status: 403 });
+      }
+      if (!id) return Response.json({ error: "id required" }, { status: 400 });
+      const updated = await base44.asServiceRole.entities.Event.update(id, {
+        assigned_dj: data.assigned_dj,
+        assigned_dj_id: data.assigned_dj_id,
+        assigned_mc: data.assigned_mc,
+        assigned_mc_id: data.assigned_mc_id,
+      });
+      await base44.asServiceRole.entities.Activity.create({
+        type: "assignment",
+        subject: `DJ assigned: ${data.assigned_dj || "unassigned"}`,
+        related_type: "event",
+        related_id: id,
+        is_internal: true,
+        performed_by: user.email,
+      }).catch(() => {});
+      return Response.json({ event: updated });
+    }
+
     if (action === "update" || action === "toggle_readiness") {
       if (!rules.update) {
         await logDenial(base44, user, action, id, "role denied");

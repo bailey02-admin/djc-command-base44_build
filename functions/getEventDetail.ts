@@ -5,7 +5,8 @@
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
-const EVENT_READ_DENIED = new Set(["client"]);
+// CLIENT role gets a limited safe bundle — not full denied
+const EVENT_READ_DENIED = new Set([]);
 
 const EVENT_HIDDEN_FIELDS = {
   // DJs see assigned_dj_id for their own reference but not financial/contact fields
