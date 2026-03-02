@@ -38,17 +38,13 @@ export default function TimelineBuilder() {
 
   const { data: items = [] } = useQuery({
     queryKey: ["timeline", eventId],
-    queryFn: () => base44.entities.TimelineItem.filter({ event_id: eventId }, "order", 100),
+    queryFn: () => TimelineAPI.list(eventId),
     enabled: !!eventId,
   });
 
   const handleSave = async () => {
     setSaving(true);
-    await base44.entities.TimelineItem.create({
-      ...form,
-      event_id: eventId,
-      order: items.length + 1,
-    });
+    await TimelineAPI.create(eventId, { ...form, order: items.length + 1 });
     setForm({ segment_name: "", time: "", end_time: "", description: "", music_cue: "", mic_needed: false, lighting_cue: "", notes: "" });
     setSaving(false);
     setAdding(false);
@@ -57,16 +53,14 @@ export default function TimelineBuilder() {
   };
 
   const handleDelete = async (id) => {
-    await base44.entities.TimelineItem.delete(id);
+    await TimelineAPI.delete(id);
     queryClient.invalidateQueries(["timeline", eventId]);
     EventOpsAPI.syncFlags(eventId).catch(() => {});
   };
 
   const applyTemplate = async () => {
     setSaving(true);
-    await base44.entities.TimelineItem.bulkCreate(
-      WEDDING_TEMPLATE.map(t => ({ ...t, event_id: eventId }))
-    );
+    await TimelineAPI.bulkCreate(eventId, WEDDING_TEMPLATE);
     setSaving(false);
     queryClient.invalidateQueries(["timeline", eventId]);
     EventOpsAPI.syncFlags(eventId).catch(() => {});
