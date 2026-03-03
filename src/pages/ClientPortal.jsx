@@ -255,9 +255,17 @@ export default function ClientPortal() {
     );
   }
 
+  const backToDetail = `ClientPortal?view=detail&event_id=${eventId}`;
+  const backToPlanning = `ClientPortal?view=planning&event_id=${eventId}`;
+
   return (
     <>
       {impersonating && <ImpersonationBanner contactId={impersonatedContactId} />}
+      {impersonating && (
+        <div className="bg-blue-100 text-blue-800 px-4 py-1 text-xs text-center font-mono">
+          DEBUG: view={view} event_id={eventId || "—"} search={location.search}
+        </div>
+      )}
       <PortalShell user={user}>
         {view === "home" && (
           <PortalHome user={user} myEvents={myEvents || { events: [], upcoming: [], past: [], contact: null }} />
@@ -268,12 +276,21 @@ export default function ClientPortal() {
             <PortalEventList myEvents={myEvents || { events: [], upcoming: [], past: [] }} />
           </>
         )}
+
+        {EVENT_VIEWS.includes(view) && !eventBundle && !bundleLoading && (
+          <Card className="border-0 shadow-sm">
+            <CardContent className="py-10 text-center text-gray-400 text-sm">
+              {!eventId ? "Missing event_id." : "Event not found or you don't have access to this event."}
+            </CardContent>
+          </Card>
+        )}
+
         {view === "detail" && eventBundle && (
           <>
             <BackLink to="ClientPortal" label="Back to Home" />
             <PortalEventDetail bundle={eventBundle} />
             <div className="mt-4">
-              <Link to={createPageUrl(`ClientPortal?view=planning&event_id=${eventId}`)}>
+              <Link to={createPageUrl(backToPlanning)}>
                 <Button className="w-full bg-gradient-to-r from-violet-600 to-indigo-600">
                   Plan My Event →
                 </Button>
@@ -283,16 +300,27 @@ export default function ClientPortal() {
         )}
         {view === "planning" && eventBundle && (
           <>
-            <BackLink to={`ClientPortal?view=detail&event_id=${eventId}`} label="Back to Event Details" />
+            <BackLink to={backToDetail} label="Back to Event Details" />
             <PortalPlanningHub bundle={eventBundle} eventId={eventId} />
           </>
         )}
-        {(view === "detail" || view === "planning") && !eventBundle && !bundleLoading && (
-          <Card className="border-0 shadow-sm">
-            <CardContent className="py-10 text-center text-gray-400 text-sm">
-              Event not found or you don't have access to this event.
-            </CardContent>
-          </Card>
+        {view === "timeline" && eventBundle && (
+          <>
+            <BackLink to={backToPlanning} label="Back to Planning Hub" />
+            <PortalTimelineEditor bundle={eventBundle} eventId={eventId} />
+          </>
+        )}
+        {view === "music" && eventBundle && (
+          <>
+            <BackLink to={backToPlanning} label="Back to Planning Hub" />
+            <PortalMusicSelections bundle={eventBundle} eventId={eventId} />
+          </>
+        )}
+        {view === "special_songs" && eventBundle && (
+          <>
+            <BackLink to={backToPlanning} label="Back to Planning Hub" />
+            <PortalSpecialSongs bundle={eventBundle} eventId={eventId} />
+          </>
         )}
       </PortalShell>
     </>
