@@ -169,6 +169,8 @@ export default function ClientPortal() {
     enabled: isReady && ["home", "events"].includes(view),
   });
 
+  const EVENT_VIEWS = ["detail", "planning", "timeline", "music", "special_songs"];
+
   // Fetch single event bundle — always called (hooks must not be conditional)
   const { data: eventBundle, isLoading: bundleLoading } = useQuery({
     queryKey: ["portal-event", eventId, effectiveContactId],
@@ -176,7 +178,7 @@ export default function ClientPortal() {
       const res = await base44.functions.invoke("getEventDetail", { id: eventId });
       return res.data || null;
     },
-    enabled: isReady && !!eventId && ["detail", "planning"].includes(view),
+    enabled: isReady && !!eventId && EVENT_VIEWS.includes(view),
   });
 
   // ── Loading spinner ────────────────────────────────────────────────────────
