@@ -38,15 +38,29 @@ export default function PortalMusicSelections({ bundle, eventId }) {
     return res.data;
   };
 
+  const norm = (s) => (s || "").trim().toLowerCase().replace(/\s+/g, " ");
+
   const handleAdd = async () => {
     if (!newSong.song_title.trim()) { setError("Song title is required"); return; }
+
+    // Client-side duplicate check
+    const normTitle = norm(newSong.song_title);
+    const normArtist = norm(newSong.artist);
+    const isDupe = songs.some(s =>
+      s.category === activeCategory &&
+      norm(s.song_title) === normTitle &&
+      norm(s.artist) === normArtist
+    );
+    if (isDupe) { setError(`That song is already in ${catMeta?.label}.`); return; }
+
     setAdding(true); setError(null);
     try {
       const res = await invoke("add_song", { ...newSong, category: activeCategory });
       setSongs(prev => [...prev, res.song]);
       setNewSong(p => ({ ...p, song_title: "", artist: "", notes: "" }));
     } catch (e) {
-      setError(e?.response?.data?.error || "Failed to add song");
+      const errData = e?.response?.data;
+      setError(errData?.message || errData?.error || "Failed to add song");
     } finally { setAdding(false); }
   };
 
