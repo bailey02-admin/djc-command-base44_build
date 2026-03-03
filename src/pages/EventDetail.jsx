@@ -153,6 +153,22 @@ export default function EventDetail() {
               ✅ Mark DJ Reviewed
             </Button>
           )}
+          {canImpersonate && event.contact_id && (
+            <Button
+              variant="outline" size="sm"
+              onClick={handleViewAsClient}
+              disabled={impersonating}
+              className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs gap-1"
+            >
+              {impersonating
+                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
+                : <ExternalLink className="w-3.5 h-3.5" />}
+              View as Client
+            </Button>
+          )}
+          {impersonateError && (
+            <span className="text-xs text-red-600 self-center">⚠ {impersonateError}</span>
+          )}
           <Select value={event.status} onValueChange={v => updateEvent("status", v)}>
             <SelectTrigger className="w-44 h-9 text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
