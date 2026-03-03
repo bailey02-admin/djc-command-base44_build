@@ -12,7 +12,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, differenceInDays } from "date-fns";
 import {
   ArrowLeft, Edit, CalendarDays, MapPin, Music, Clock,
-  DollarSign, Loader2, AlertTriangle, Send, History
+  DollarSign, Loader2, AlertTriangle, Send, History, ExternalLink
 } from "lucide-react";
 import ReadinessPanel from "../components/events/ReadinessPanel";
 import FinalizationChecklist from "../components/events/FinalizationChecklist";
