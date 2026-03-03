@@ -90,20 +90,97 @@ Deno.serve(async (req) => {
       return Response.json({ planning: result });
     }
 
+    // ── Music selection limits ────────────────────────────────────────────────
+    const MUSIC_LIMITS = {
+      must_play: 20, do_not_play: 20, dedication: 10, dinner: 30,
+      cocktail_hour: 30, open_dance: 50,
+      first_dance: 1, father_daughter: 1, mother_son: 1,
+      grand_entrance: 1, cake_cutting: 1, last_dance: 1,
+      wedding_party_entrance: 1, ceremony_processional: 5, ceremony_recessional: 5,
+    };
+    const TOTAL_MUSIC_LIMIT = 80;
+
     if (action === "add_song") {
+      const { category, song_title, artist } = data;
+      if (!song_title) return Response.json({ error: "song_title required" }, { status: 400 });
+
+      // Check for duplicate
+      const allSongs = await base44.asServiceRole.entities.MusicSelection.filter({ event_id });
+      const duplicate = allSongs.find(s =>
+        s.song_title?.toLowerCase() === song_title?.toLowerCase() &&
+        (artist ? s.artist?.toLowerCase() === artist?.toLowerCase() : true) &&
+        s.category === category
+      );
+      if (duplicate) return Response.json({ error: "Song already added in this category" }, { status: 422 });
+
+      // Check limits
+      if (allSongs.length >= TOTAL_MUSIC_LIMIT) {
+        return Response.json({ error: `Total music limit of ${TOTAL_MUSIC_LIMIT} songs reached` }, { status: 422 });
+      }
+      const catLimit = MUSIC_LIMITS[category];
+      if (catLimit !== undefined) {
+        const catCount = allSongs.filter(s => s.category === category).length;
+        if (catCount >= catLimit) {
+          return Response.json({ error: `Limit of ${catLimit} songs reached for category: ${category}` }, { status: 422 });
+        }
+      }
+
       const song = await base44.asServiceRole.entities.MusicSelection.create({ ...data, event_id, added_by: "client" });
-      maybeTrackChange("MusicSelection", `Client added song: ${data.song_title || ""} – ${data.artist || ""} (${data.category || ""})`);
+      maybeTrackChange("music", `Client added song: ${song_title} – ${artist || ""} (${category || ""})`);
       return Response.json({ song });
     }
 
     if (action === "delete_song") {
       if (!music_id) return Response.json({ error: "music_id required" }, { status: 400 });
-      // Verify the song belongs to this event
       const songs = await base44.asServiceRole.entities.MusicSelection.filter({ id: music_id, event_id }, "-created_date", 1);
       if (!songs[0]) return Response.json({ error: "Song not found on this event" }, { status: 404 });
       const songTitle = songs[0].song_title || music_id;
       await base44.asServiceRole.entities.MusicSelection.delete(music_id);
-      maybeTrackChange("MusicSelection", `Client removed song: ${songTitle}`);
+      maybeTrackChange("music", `Client removed song: ${songTitle}`);
+      return Response.json({ success: true });
+    }
+
+    // ── Timeline actions ──────────────────────────────────────────────────────
+    if (action === "timeline_create") {
+      const { segment_name, time, notes, order } = data;
+      if (!segment_name) return Response.json({ error: "segment_name required" }, { status: 400 });
+      const item = await base44.asServiceRole.entities.TimelineItem.create({
+        event_id, segment_name, time: time || "", notes: notes || "", order: order ?? 0,
+      });
+      maybeTrackChange("timeline", `Client added timeline item: ${segment_name}${time ? " at " + time : ""}`);
+      return Response.json({ item });
+    }
+
+    if (action === "timeline_update") {
+      const { item_id, ...updateData } = data;
+      if (!item_id) return Response.json({ error: "item_id required" }, { status: 400 });
+      const rows = await base44.asServiceRole.entities.TimelineItem.filter({ id: item_id, event_id }, "-created_date", 1);
+      if (!rows[0]) return Response.json({ error: "Timeline item not found" }, { status: 404 });
+      const old = rows[0];
+      const updated = await base44.asServiceRole.entities.TimelineItem.update(item_id, updateData);
+      const desc = `Client updated timeline item: ${old.segment_name}${old.time ? " " + old.time : ""}${updateData.time && updateData.time !== old.time ? " → " + updateData.time : ""}`;
+      maybeTrackChange("timeline", desc);
+      return Response.json({ item: updated });
+    }
+
+    if (action === "timeline_delete") {
+      const { item_id } = data;
+      if (!item_id) return Response.json({ error: "item_id required" }, { status: 400 });
+      const rows = await base44.asServiceRole.entities.TimelineItem.filter({ id: item_id, event_id }, "-created_date", 1);
+      if (!rows[0]) return Response.json({ error: "Timeline item not found" }, { status: 404 });
+      await base44.asServiceRole.entities.TimelineItem.delete(item_id);
+      maybeTrackChange("timeline", `Client removed timeline item: ${rows[0].segment_name}`);
+      return Response.json({ success: true });
+    }
+
+    if (action === "timeline_reorder") {
+      // data.items = [{ id, order }]
+      const { items: reorderItems = [] } = data;
+      if (!reorderItems.length) return Response.json({ error: "items required" }, { status: 400 });
+      for (const { id: iid, order: iorder } of reorderItems) {
+        await base44.asServiceRole.entities.TimelineItem.update(iid, { order: iorder });
+      }
+      maybeTrackChange("timeline", "Client reordered timeline");
       return Response.json({ success: true });
     }
 
