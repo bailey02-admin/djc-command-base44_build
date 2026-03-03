@@ -33,7 +33,10 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     const body = await req.json().catch(() => ({}));
-    const { action, event_id, data, music_id } = body;
+    const { action, event_id, data } = body;
+
+    // DEBUG: log action routing
+    console.log("[clientPortalSave] action=", action, "event_id=", event_id);
 
     if (!event_id) return Response.json({ error: "event_id required" }, { status: 400 });
 
@@ -104,14 +107,22 @@ Deno.serve(async (req) => {
       const { category, song_title, artist } = data;
       if (!song_title) return Response.json({ error: "song_title required" }, { status: 400 });
 
+      // Normalize for duplicate detection: trim + lowercase + collapse spaces
+      const norm = (s) => (s || "").trim().toLowerCase().replace(/\s+/g, " ");
+      const normTitle = norm(song_title);
+      const normArtist = norm(artist);
+
       // Check for duplicate
       const allSongs = await base44.asServiceRole.entities.MusicSelection.filter({ event_id });
       const duplicate = allSongs.find(s =>
-        s.song_title?.toLowerCase() === song_title?.toLowerCase() &&
-        (artist ? s.artist?.toLowerCase() === artist?.toLowerCase() : true) &&
+        norm(s.song_title) === normTitle &&
+        norm(s.artist) === normArtist &&
         s.category === category
       );
-      if (duplicate) return Response.json({ error: "Song already added in this category" }, { status: 422 });
+      if (duplicate) return Response.json({
+        error: "DUPLICATE_SONG",
+        message: `That song is already in ${category?.replace(/_/g, " ") || "this category"}.`,
+      }, { status: 422 });
 
       // Check limits
       if (allSongs.length >= TOTAL_MUSIC_LIMIT) {
@@ -131,11 +142,13 @@ Deno.serve(async (req) => {
     }
 
     if (action === "delete_song") {
-      if (!music_id) return Response.json({ error: "music_id required" }, { status: 400 });
-      const songs = await base44.asServiceRole.entities.MusicSelection.filter({ id: music_id, event_id }, "-created_date", 1);
+      // music_id may be in data or at top level for backwards compat
+      const musicId = data?.music_id || body.music_id;
+      if (!musicId) return Response.json({ error: "music_id required" }, { status: 400 });
+      const songs = await base44.asServiceRole.entities.MusicSelection.filter({ id: musicId, event_id }, "-created_date", 1);
       if (!songs[0]) return Response.json({ error: "Song not found on this event" }, { status: 404 });
-      const songTitle = songs[0].song_title || music_id;
-      await base44.asServiceRole.entities.MusicSelection.delete(music_id);
+      const songTitle = songs[0].song_title || musicId;
+      await base44.asServiceRole.entities.MusicSelection.delete(musicId);
       maybeTrackChange("music", `Client removed song: ${songTitle}`);
       return Response.json({ success: true });
     }
