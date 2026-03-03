@@ -40,6 +40,20 @@ export default function ContactDetail() {
     base44.auth.me().then(setCurrentUser).catch(() => {});
   }, []);
 
+  const handleViewAsClient = async () => {
+    setImpersonating(true);
+    try {
+      const res = await base44.functions.invoke("createImpersonationSession", { contact_id: id });
+      if (res.data?.ok) {
+        window.location.href = res.data.redirect_url;
+      }
+    } catch (err) {
+      console.error("Impersonation failed", err);
+    } finally {
+      setImpersonating(false);
+    }
+  };
+
   const handleCreateClientUser = async () => {
     setProvisioning(true);
     setProvisionResult(null);
