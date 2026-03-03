@@ -95,6 +95,11 @@ Deno.serve(async (req) => {
     let allEvents = await base44.asServiceRole.entities.Event.filter(dbFilter, sort, HARD_CAP + skip);
     console.log(`[getEvents] DB fetch: ${Date.now() - tDb}ms, raw=${allEvents.length}`);
 
+    // ── Unassigned DJ filter (post-fetch) ─────────────────────────────────
+    if (filterUnassignedDj) {
+      allEvents = allEvents.filter(e => !e.assigned_dj_id);
+    }
+
     // ── Date range filter (in-memory — SDK doesn't support $gte/$lte yet) ──
     allEvents = allEvents.filter(e => {
       if (!e.event_date) return false;
