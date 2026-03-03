@@ -72,7 +72,7 @@ function evaluateFlags(event) {
 
 function filterEvents(events, filterKey) {
   const decorated = events
-    .filter(e => ACTIVE_STATUSES.includes(e.status) && !e.is_deleted)
+    .filter(e => !EXCLUDED_STATUSES.has(e.status) && !e.is_deleted)
     .map(e => ({ ...e, _flags: evaluateFlags(e) }))
     .filter(e => e._flags.isUpcoming);
 
