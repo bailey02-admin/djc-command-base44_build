@@ -106,30 +106,50 @@ export default function PortalPlanningHub({ bundle, eventId }) {
         )}
       </div>
 
-      {/* View-only sections for Music / Timeline */}
-      <div className="grid grid-cols-2 gap-3">
-        <Card className="border border-gray-100 shadow-sm">
-          <CardContent className="pt-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center">
-              <Music className="w-4 h-4 text-violet-600" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-800">Music</p>
-              <p className="text-xs text-gray-400">{musicSelections.length} song{musicSelections.length !== 1 ? "s" : ""} added</p>
-            </div>
-          </CardContent>
-        </Card>
-        <Card className="border border-gray-100 shadow-sm">
-          <CardContent className="pt-4 flex items-center gap-3">
-            <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center">
-              <Clock className="w-4 h-4 text-indigo-600" />
-            </div>
-            <div>
-              <p className="text-sm font-semibold text-gray-800">Timeline</p>
-              <p className="text-xs text-gray-400">{timeline.length} segment{timeline.length !== 1 ? "s" : ""}</p>
-            </div>
-          </CardContent>
-        </Card>
+      {/* Navigation cards for Music / Timeline / Special Songs */}
+      <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+        <Link to={createPageUrl(`ClientPortal?view=music&event_id=${eventId}`)}>
+          <Card className="border border-gray-100 shadow-sm hover:border-violet-200 hover:shadow-md transition-all cursor-pointer">
+            <CardContent className="pt-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-violet-50 flex items-center justify-center">
+                <Music className="w-4 h-4 text-violet-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-gray-800">Music</p>
+                <p className="text-xs text-gray-400">{musicSelections.length} song{musicSelections.length !== 1 ? "s" : ""} added</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-300" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to={createPageUrl(`ClientPortal?view=special_songs&event_id=${eventId}`)}>
+          <Card className="border border-gray-100 shadow-sm hover:border-pink-200 hover:shadow-md transition-all cursor-pointer">
+            <CardContent className="pt-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-pink-50 flex items-center justify-center">
+                <Star className="w-4 h-4 text-pink-500" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-gray-800">Special Songs</p>
+                <p className="text-xs text-gray-400">First dance, entrance & more</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-300" />
+            </CardContent>
+          </Card>
+        </Link>
+        <Link to={createPageUrl(`ClientPortal?view=timeline&event_id=${eventId}`)}>
+          <Card className="border border-gray-100 shadow-sm hover:border-indigo-200 hover:shadow-md transition-all cursor-pointer">
+            <CardContent className="pt-4 flex items-center gap-3">
+              <div className="w-9 h-9 rounded-xl bg-indigo-50 flex items-center justify-center">
+                <Clock className="w-4 h-4 text-indigo-600" />
+              </div>
+              <div className="flex-1">
+                <p className="text-sm font-semibold text-gray-800">Timeline</p>
+                <p className="text-xs text-gray-400">{timeline.length} segment{timeline.length !== 1 ? "s" : ""}</p>
+              </div>
+              <ChevronRight className="w-4 h-4 text-gray-300" />
+            </CardContent>
+          </Card>
+        </Link>
       </div>
 
       {/* Planning Form */}
