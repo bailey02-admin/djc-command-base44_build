@@ -56,7 +56,7 @@ function evaluateFlags(event) {
     days,
     isUpcoming: days >= 0,
     isAtRisk: days <= 30 && score < 80,
-    noDJ: !event.assigned_dj,
+    noDJ: !event.assigned_dj_id && !event.assigned_dj,
     noPlanning: !event.planning_complete,
     noTimeline: !event.timeline_complete,
     noMusic: !event.music_complete,
