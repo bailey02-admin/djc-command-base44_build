@@ -232,7 +232,7 @@ export default function ClientPortal() {
   }
 
   const isLoading = (["home", "events"].includes(view) && eventsLoading) ||
-    (["detail", "planning"].includes(view) && bundleLoading);
+    (EVENT_VIEWS.includes(view) && bundleLoading);
 
   if (isLoading) {
     return (
