@@ -1,6 +1,8 @@
 import React, { useState, useEffect } from "react";
 import { differenceInDays, format } from "date-fns";
-import { Lock, AlertTriangle, CheckCircle2, Music, Clock, Star, Loader2, Save } from "lucide-react";
+import { Lock, AlertTriangle, CheckCircle2, Music, Clock, Star, Loader2, Save, ChevronRight } from "lucide-react";
+import { Link } from "react-router-dom";
+import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
