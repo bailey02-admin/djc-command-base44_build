@@ -284,7 +284,7 @@ export default function FinalizerQueue() {
       all_upcoming: decorated.length,
       needs_finalization: decorated.filter(e => e._flags.needsFinalization).length,
       at_risk: decorated.filter(e => e._flags.isAtRisk).length,
-      no_dj: decorated.filter(e => !e.assigned_dj).length,
+      no_dj: decorated.filter(e => !e.assigned_dj_id && !e.assigned_dj).length,
       no_planning: decorated.filter(e => e._flags.noPlanning).length,
       no_timeline: decorated.filter(e => e._flags.noTimeline).length,
       no_music: decorated.filter(e => e._flags.noMusic).length,
