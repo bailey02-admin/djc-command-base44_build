@@ -18,6 +18,9 @@ import PortalShell from "../components/portal/PortalShell";
 import EventCard from "../components/portal/EventCard";
 import PortalEventDetail from "../components/portal/PortalEventDetail";
 import PortalPlanningHub from "../components/portal/PortalPlanningHub";
+import PortalTimelineEditor from "../components/portal/PortalTimelineEditor";
+import PortalMusicSelections from "../components/portal/PortalMusicSelections";
+import PortalSpecialSongs from "../components/portal/PortalSpecialSongs";
 
 // ─── Portal Home Dashboard ────────────────────────────────────────────────────
 function PortalHome({ user, myEvents }) {
