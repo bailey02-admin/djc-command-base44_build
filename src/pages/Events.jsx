@@ -375,6 +375,10 @@ export default function Events() {
             {serverTotal !== null ? `${serverTotal} upcoming` : accumulated.length + " loaded"}
             {filtered.length !== accumulated.length ? ` · ${filtered.length} shown` : ""}
           </p>
+          {/* DEBUG — remove after verification */}
+          <p className="text-[10px] text-gray-300 font-mono">
+            Total: {serverTotal ?? "?"} · Rows: {accumulated.length} · Visible: {filtered.length}
+          </p>
         </div>
         <Link to={createPageUrl("EventForm")}>
           <Button className="bg-gradient-to-r from-violet-600 to-indigo-600 text-sm h-9">
