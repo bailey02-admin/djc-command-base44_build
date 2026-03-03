@@ -65,12 +65,15 @@ Deno.serve(async (req) => {
     // ── Build DB filter ────────────────────────────────────────────
     const dbFilter = { is_deleted: false };
 
-    const DB_FILTERABLE = ["status", "city", "assigned_dj_id", "event_type", "contact_id"];
+    const DB_FILTERABLE = ["status", "city", "event_type", "contact_id"];
     for (const key of DB_FILTERABLE) {
       if (filters[key] && filters[key] !== "all") {
         dbFilter[key] = filters[key];
       }
     }
+
+    // Special: unassigned DJ — filter post-fetch since SDK doesn't support $exists:false
+    const filterUnassignedDj = filters.assigned_dj_id === "__unassigned__";
 
     // DJ role: only their own events
     if (role === "dj") {
