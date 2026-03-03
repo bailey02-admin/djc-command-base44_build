@@ -31,7 +31,28 @@ export default function EventDetail() {
   const queryClient = useQueryClient();
   const [sendMsgOpen, setSendMsgOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [impersonating, setImpersonating] = useState(false);
+  const [impersonateError, setImpersonateError] = useState(null);
   React.useEffect(() => { base44.auth.me().then(setUser).catch(() => {}); }, []);
+
+  const canImpersonate = user && ["admin", "city_manager", "office_finalizer"].includes(user.role);
+
+  const handleViewAsClient = async () => {
+    setImpersonating(true);
+    setImpersonateError(null);
+    try {
+      const res = await base44.functions.invoke("createImpersonationSession", { event_id: id });
+      if (res.data?.ok && res.data?.redirect_url) {
+        window.open(res.data.redirect_url, "_blank");
+      } else {
+        setImpersonateError(res.data?.error || "Failed to create session");
+      }
+    } catch (e) {
+      setImpersonateError(e?.response?.data?.error || "Not authorized");
+    } finally {
+      setImpersonating(false);
+    }
+  };
 
   const { data: bundle, isLoading } = useQuery({
     queryKey: ["event-bundle", id],
