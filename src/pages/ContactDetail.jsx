@@ -107,7 +107,18 @@ export default function ContactDetail() {
             <Badge variant="secondary" className="text-xs mt-1 capitalize">{contact.role?.replace(/_/g, " ")}</Badge>
           </div>
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
+          {currentUser?.role === "admin" && contact?.email && events?.length > 0 && (
+            <Button
+              variant="outline"
+              className="text-sm h-8 gap-1.5 border-amber-300 text-amber-700 hover:bg-amber-50"
+              onClick={handleViewAsClient}
+              disabled={impersonating}
+            >
+              {impersonating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Eye className="w-3.5 h-3.5" />}
+              View As Client
+            </Button>
+          )}
           <Button
             variant="outline"
             className="text-sm h-8 gap-1.5"
