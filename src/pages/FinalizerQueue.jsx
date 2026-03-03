@@ -151,7 +151,7 @@ function DaysBadge({ days }) {
 // ─── Event row card ───────────────────────────────────────────────────────
 function EventQueueCard({ event, onAssignDJ, onCreateTask, onMarkReadyForDJ, queryClient }) {
   const flags = event._flags;
-  const canMarkReady = !flags.noPlanning && !flags.noTimeline && !flags.noMusic && event.assigned_dj && event.final_call_completed && !event.balance_paid === false;
+  const canMarkReady = !flags.noPlanning && !flags.noTimeline && !flags.noMusic && (event.assigned_dj_id || event.assigned_dj) && event.final_call_completed && !!event.balance_paid;
 
   const handleMarkFinalCall = async () => {
     await EventAPI.update(event.id, { final_call_completed: true });
