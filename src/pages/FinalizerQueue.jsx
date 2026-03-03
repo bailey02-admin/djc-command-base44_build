@@ -42,10 +42,7 @@ const SORT_OPTIONS = [
   { key: "city",           label: "City" },
 ];
 
-const ACTIVE_STATUSES = [
-  "booked","planning_in_progress","awaiting_planning_form","final_call_scheduled",
-  "finalized","dj_assigned","confirmed"
-];
+const EXCLUDED_STATUSES = new Set(["cancelled", "completed"]);
 
 // ─── Flag evaluation ─────────────────────────────────────────────────────
 function evaluateFlags(event) {
