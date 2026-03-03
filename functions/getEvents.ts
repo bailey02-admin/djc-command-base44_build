@@ -89,18 +89,17 @@ Deno.serve(async (req) => {
       ? date_to
       : null;
 
-    // Fetch HARD_CAP + skip rows so we can paginate within the cap.
-    // We over-fetch by skip so we can slice correctly without a 2nd call.
+    // ── Step 1: Fetch full candidate set (always HARD_CAP, never +skip) ──
+    // Filters are applied BEFORE pagination — skip/limit only come after.
     const tDb = Date.now();
-    let allEvents = await base44.asServiceRole.entities.Event.filter(dbFilter, sort, HARD_CAP + skip);
+    let allEvents = await base44.asServiceRole.entities.Event.filter(dbFilter, sort, HARD_CAP);
     console.log(`[getEvents] DB fetch: ${Date.now() - tDb}ms, raw=${allEvents.length}`);
 
-    // ── Unassigned DJ filter (post-fetch) ─────────────────────────────────
+    // ── Step 2: In-memory filters (applied to full set, before pagination) ──
     if (filterUnassignedDj) {
       allEvents = allEvents.filter(e => !e.assigned_dj_id);
     }
 
-    // ── Date range filter (in-memory — SDK doesn't support $gte/$lte yet) ──
     allEvents = allEvents.filter(e => {
       if (!e.event_date) return false;
       if (fromDate && e.event_date < fromDate) return false;
@@ -108,10 +107,10 @@ Deno.serve(async (req) => {
       return true;
     });
 
-    // ── Enforce hard cap BEFORE pagination ─────────────────────────
-    if (allEvents.length > HARD_CAP) allEvents = allEvents.slice(0, HARD_CAP);
+    // ── Step 3: total = filtered count (before pagination) ────────────────
+    const total = allEvents.length;
 
-    const total     = allEvents.length;
+    // ── Step 4: Paginate the filtered set ─────────────────────────────────
     const paginated = allEvents.slice(skip, skip + limit);
     const result    = paginated.map(e => projectFields(e, role));
 
