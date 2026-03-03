@@ -48,11 +48,18 @@ export default function PortalPlanningHub({ bundle, eventId }) {
   const submitPlanning = async () => {
     setSubmitting(true);
     setSubmitResult(null);
-    const res = await base44.functions.invoke("portalSubmitPlanning", { event_id: eventId });
-    setSubmitResult(res.data);
-    setSubmitting(false);
-    if (res.data?.success) {
-      queryClient.invalidateQueries({ queryKey: ["portal-event", eventId] });
+    try {
+      const res = await base44.functions.invoke("portalSubmitPlanning", { event_id: eventId });
+      setSubmitResult(res.data);
+      if (res.data?.success) {
+        queryClient.invalidateQueries({ queryKey: ["portal-event", eventId] });
+      }
+    } catch (e) {
+      // 422 errors from the SDK land here — extract the response body
+      const errData = e?.response?.data || { error: e?.message || "Submission failed" };
+      setSubmitResult(errData);
+    } finally {
+      setSubmitting(false);
     }
   };
 
@@ -236,10 +243,16 @@ export default function PortalPlanningHub({ bundle, eventId }) {
 
             {submitResult?.error && (
               <div className="bg-red-50 text-red-700 text-xs rounded-lg p-3">
-                {submitResult.error}
-                {submitResult.missing_fields?.length > 0 && (
-                  <ul className="list-disc ml-4 mt-1">
-                    {submitResult.missing_fields.map(f => <li key={f}>{f}</li>)}
+                <p className="font-semibold mb-1">
+                  {submitResult.error === "INCOMPLETE_PLANNING"
+                    ? "Please complete the following before submitting:"
+                    : submitResult.error}
+                </p>
+                {submitResult.missing?.length > 0 && (
+                  <ul className="list-disc ml-4 space-y-0.5">
+                    {submitResult.missing.map(f => (
+                      <li key={f}>{f.replace(/_/g, " ").replace(/:/g, " → ")}</li>
+                    ))}
                   </ul>
                 )}
               </div>
