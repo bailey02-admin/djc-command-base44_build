@@ -264,27 +264,35 @@ export default function Events() {
     queryKey: ["events-v2", filterKey, skip],
     queryFn: () => EventAPI.list(serverFilters, "event_date", PAGE_SIZE, skip, dateFrom || null, dateTo || null),
     staleTime: 45_000,
-    keepPreviousData: true,
-    onSuccess: (raw) => {
-      // Normalize: backend returns { events, total, page } — not an array
-      const rows = Array.isArray(raw) ? raw : (raw?.events ?? []);
-      if (skip === 0) {
-        setAccumulated(rows);
-      } else {
-        setAccumulated(prev => {
-          const existingIds = new Set(prev.map(e => e.id));
-          return [...prev, ...rows.filter(r => !existingIds.has(r.id))];
-        });
-      }
-    },
+    placeholderData: (prev) => prev,
   });
 
-  // Normalize once for hasMore
-  const lastPage = Array.isArray(rawData) ? rawData : (rawData?.page ?? null);
+  // Normalize the latest page of results
+  const latestRows = useMemo(() => {
+    if (!rawData) return [];
+    return Array.isArray(rawData) ? rawData : (rawData?.events ?? []);
+  }, [rawData]);
+
   const serverTotal = rawData?.total ?? null;
-  const hasMore = lastPage
-    ? (lastPage.returned ?? lastPage.length ?? 0) === PAGE_SIZE
-    : false;
+
+  // Accumulate pages — re-runs whenever latestRows or skip changes
+  useEffect(() => {
+    if (latestRows.length === 0 && skip === 0) {
+      setAccumulated([]);
+      return;
+    }
+    if (skip === 0) {
+      setAccumulated(latestRows);
+    } else {
+      setAccumulated(prev => {
+        const existingIds = new Set(prev.map(e => e.id));
+        const newRows = latestRows.filter(r => !existingIds.has(r.id));
+        return newRows.length ? [...prev, ...newRows] : prev;
+      });
+    }
+  }, [latestRows, skip]);
+
+  const hasMore = latestRows.length === PAGE_SIZE;
 
   // ── client-side filters ───────────────────────────────────────────────────
   const filtered = useMemo(() => {
