@@ -40,8 +40,9 @@ export const LeadAPI = {
 
 // ─── EVENTS ───────────────────────────────────────────────────────────────
 export const EventAPI = {
+  // Returns the full { events, total, page, _timing_ms } response — callers must normalize
   list: (filters = {}, sort = "event_date", limit = 50, skip = 0, date_from, date_to) =>
-    invoke("getEvents", { filters, sort, limit, skip, date_from, date_to }).then(r => r.events || []),
+    invoke("getEvents", { filters, sort, limit, skip, date_from, date_to }),
 
   /** Returns { event, activities, tasks, payments, musicSelections, timeline } */
   getDetailBundle: (id) =>

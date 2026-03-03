@@ -1,16 +1,21 @@
 /**
- * Secure Event list endpoint — optimised for list/card views.
- * - Date range filtering applied BEFORE slicing (no in-memory full-scan)
- * - Proper skip/limit passed to DB (no over-fetching)
- * - No N+1: contact data is NOT fetched here (contact_name is denormalized on Event)
- * - staleTime on the frontend + keepPreviousData eliminates redundant fetches
+ * getEvents — secure, paginated event list for internal staff.
+ *
+ * Server-side filters:  status, city, assigned_dj_id, event_type, contact_id
+ *                       date_from ($gte), date_to ($lte), assigned_unassigned
+ * Client-side filters:  completion booleans (planning_complete etc.), readiness_score band
+ *
+ * Response shape:
+ *   { events: [...], total: N, page: { skip, limit, returned }, _timing_ms }
+ *
+ * Hard cap: max 500 events returned across any paginated sequence.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 import { redactEvent } from './crm/accessControl.js';
 
 const EVENT_READ_DENIED = new Set(["client"]);
+const HARD_CAP = 500;
 
-// Only the fields needed for the Events card grid — keep payload small
 const LIST_FIELDS = new Set([
   "id", "event_name", "event_type", "event_date", "start_time", "end_time",
   "city", "venue_name", "contact_name", "contact_id", "status",
@@ -28,8 +33,7 @@ function projectFields(record, role) {
   for (const key of LIST_FIELDS) {
     if (redacted[key] !== undefined) out[key] = redacted[key];
   }
-  out.id = record.id; // always include id
-  out.event_id = record.id;
+  out.id = record.id;
   return out;
 }
 
@@ -48,16 +52,17 @@ Deno.serve(async (req) => {
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const {
       limit: rawLimit = 25,
-      skip = 0,
+      skip: rawSkip = 0,
       sort = "event_date",
       filters = {},
-      date_from,
-      date_to,
+      date_from,   // string "YYYY-MM-DD" or undefined
+      date_to,     // string "YYYY-MM-DD" or undefined (optional)
     } = body;
 
     const limit = Math.min(Number(rawLimit) || 25, 200);
+    const skip  = Math.max(Number(rawSkip) || 0, 0);
 
-    // Build DB filter — is_deleted always excluded
+    // ── Build DB filter ────────────────────────────────────────────
     const dbFilter = { is_deleted: false };
 
     const DB_FILTERABLE = ["status", "city", "assigned_dj_id", "event_type", "contact_id"];
@@ -67,33 +72,42 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Role scoping: DJs only see their own events
+    // DJ role: only their own events
     if (role === "dj") {
       dbFilter.assigned_dj = user.email;
     }
 
-    // Fetch with generous upper bound so we can apply date filter + paginate.
-    // We fetch up to 500 at once; for typical usage (< 200 events) this is one DB call.
-    // A proper range query would need SDK $gte/$lte support — using post-filter for now,
-    // but we only over-fetch once (not per-page).
-    const tDb = Date.now();
-    let events = await base44.asServiceRole.entities.Event.filter(dbFilter, sort, 500);
-    console.log(`[getEvents] DB fetch: ${Date.now() - tDb}ms, raw count: ${events.length}`);
-
-    // Date range filter (in-memory, but only on the already-scoped set)
+    // Date range — default: today onwards, no upper cap
     const today = new Date().toISOString().split("T")[0];
-    const defaultTo = new Date(Date.now() + 90 * 24 * 60 * 60 * 1000).toISOString().split("T")[0];
-    const fromDate = date_from !== undefined ? date_from : today;
-    const toDate   = date_to   !== undefined ? date_to   : defaultTo;
+    const fromDate = (date_from !== undefined && date_from !== null && date_from !== "")
+      ? date_from
+      : today;
+    const toDate   = (date_to !== undefined && date_to !== null && date_to !== "")
+      ? date_to
+      : null;
 
-    if (fromDate) events = events.filter(e => e.event_date >= fromDate);
-    if (toDate)   events = events.filter(e => e.event_date <= toDate);
+    // Fetch HARD_CAP + skip rows so we can paginate within the cap.
+    // We over-fetch by skip so we can slice correctly without a 2nd call.
+    const tDb = Date.now();
+    let allEvents = await base44.asServiceRole.entities.Event.filter(dbFilter, sort, HARD_CAP + skip);
+    console.log(`[getEvents] DB fetch: ${Date.now() - tDb}ms, raw=${allEvents.length}`);
 
-    const total = events.length;
-    const paginated = events.slice(skip, skip + limit);
-    const result = paginated.map(e => projectFields(e, role));
+    // ── Date range filter (in-memory — SDK doesn't support $gte/$lte yet) ──
+    allEvents = allEvents.filter(e => {
+      if (!e.event_date) return false;
+      if (fromDate && e.event_date < fromDate) return false;
+      if (toDate   && e.event_date > toDate)   return false;
+      return true;
+    });
 
-    console.log(`[getEvents] total=${total} page=[${skip}–${skip + limit}] returned=${result.length} elapsed=${Date.now() - t0}ms`);
+    // ── Enforce hard cap BEFORE pagination ─────────────────────────
+    if (allEvents.length > HARD_CAP) allEvents = allEvents.slice(0, HARD_CAP);
+
+    const total     = allEvents.length;
+    const paginated = allEvents.slice(skip, skip + limit);
+    const result    = paginated.map(e => projectFields(e, role));
+
+    console.log(`[getEvents] total=${total} skip=${skip} limit=${limit} returned=${result.length} elapsed=${Date.now() - t0}ms`);
 
     return Response.json({
       events: result,
