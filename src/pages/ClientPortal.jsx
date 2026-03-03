@@ -103,7 +103,8 @@ function ImpersonationBanner({ contactId }) {
 
 // ─── Main ClientPortal Component ─────────────────────────────────────────────
 export default function ClientPortal() {
-  const params = new URLSearchParams(window.location.search);
+  const location = useLocation();
+  const params = new URLSearchParams(location.search);
   const view = params.get("view") || "home";
   const eventId = params.get("event_id");
   const impersonationToken = params.get("impersonation_token");
