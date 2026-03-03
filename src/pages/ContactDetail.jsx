@@ -33,6 +33,12 @@ export default function ContactDetail() {
   const navigate = useNavigate();
   const [provisioning, setProvisioning] = useState(false);
   const [provisionResult, setProvisionResult] = useState(null);
+  const [currentUser, setCurrentUser] = useState(null);
+  const [impersonating, setImpersonating] = useState(false);
+
+  useEffect(() => {
+    base44.auth.me().then(setCurrentUser).catch(() => {});
+  }, []);
 
   const handleCreateClientUser = async () => {
     setProvisioning(true);
