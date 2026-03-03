@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { LeadAPI, EventAPI, ContactAPI } from "../components/api/secureApi";
 import { Link, useNavigate } from "react-router-dom";
@@ -6,7 +6,7 @@ import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { Loader2, ArrowLeft, Mail, Phone, MapPin, CalendarDays, User, ExternalLink, UserCheck, CheckCircle2 } from "lucide-react";
+import { Loader2, ArrowLeft, Mail, Phone, MapPin, CalendarDays, User, ExternalLink, UserCheck, CheckCircle2, Eye } from "lucide-react";
 import { base44 } from "@/api/base44Client";
 import { format } from "date-fns";
 
