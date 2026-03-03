@@ -203,6 +203,7 @@ function EventQueueCard({ event, onAssignDJ, onCreateTask, onMarkReadyForDJ, que
                 <User className="w-3.5 h-3.5" />
                 No DJ assigned
               </span>
+
             )}
           </div>
         </div>
