@@ -10,7 +10,7 @@ import { Loader2, Heart, ShieldAlert, X } from "lucide-react";
 import { Card, CardContent } from "@/components/ui/card";
 import { format } from "date-fns";
 import { createPageUrl } from "@/utils";
-import { Link } from "react-router-dom";
+import { Link, useLocation } from "react-router-dom";
 import { Button } from "@/components/ui/button";
 import { CalendarDays, DollarSign, ChevronRight } from "lucide-react";
 
