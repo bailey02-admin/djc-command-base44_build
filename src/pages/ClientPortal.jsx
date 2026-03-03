@@ -150,56 +150,6 @@ export default function ClientPortal() {
       .finally(() => setAuthLoading(false));
   }, [impersonationToken]);
 
-  // Loading
-  if (authLoading) {
-    return (
-      <div className="min-h-screen flex items-center justify-center">
-        <Loader2 className="w-8 h-8 animate-spin text-violet-600" />
-      </div>
-    );
-  }
-
-  // Impersonation error
-  if (impersonationError) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-amber-50 to-red-50 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full border-0 shadow-xl">
-          <CardContent className="p-8 text-center">
-            <ShieldAlert className="w-12 h-12 text-red-400 mx-auto mb-4" />
-            <h1 className="text-xl font-bold text-gray-900">Impersonation Failed</h1>
-            <p className="text-sm text-gray-500 mt-2 mb-6">{impersonationError}</p>
-            <a href={createPageUrl("Dashboard")}>
-              <Button className="w-full">Return to Dashboard</Button>
-            </a>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
-  // Not logged in (and not impersonating)
-  if (!user && !impersonating) {
-    return (
-      <div className="min-h-screen bg-gradient-to-br from-violet-50 to-rose-50 flex items-center justify-center p-4">
-        <Card className="max-w-md w-full border-0 shadow-xl">
-          <CardContent className="p-8 text-center">
-            <Heart className="w-12 h-12 text-rose-400 mx-auto mb-4" />
-            <h1 className="text-2xl font-bold text-gray-900">Client Portal</h1>
-            <p className="text-sm text-gray-500 mt-2 mb-6">
-              Please sign in to access your event planning portal.
-            </p>
-            <Button
-              onClick={() => base44.auth.redirectToLogin(window.location.href)}
-              className="w-full bg-gradient-to-r from-violet-600 to-indigo-600"
-            >
-              Sign In
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
   // For impersonation mode: override the effective contact id so queries work
   const effectiveContactId = impersonating ? impersonatedContactId : null;
   const isReady = !authLoading && !impersonationError && (!!user || impersonating);
