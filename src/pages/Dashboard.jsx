@@ -28,7 +28,7 @@ export default function Dashboard() {
 
   const { data: events = [] } = useQuery({
     queryKey: ["events"],
-    queryFn: () => EventAPI.list({}, "-event_date", 50),
+    queryFn: () => EventAPI.list({}, "-event_date", 50).then(r => Array.isArray(r) ? r : (r?.events ?? [])),
   });
 
   const { data: tasks = [] } = useQuery({
