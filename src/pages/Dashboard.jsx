@@ -72,8 +72,7 @@ export default function Dashboard() {
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
         <div>
           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">
-            {user
-  ? `Good ${new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, ${user.full_name?.split(" ")[0] || "there"}: "Dashboard"}
+            {user ? `Good ${new Date().getHours() < 12 ? "morning" : new Date().getHours() < 17 ? "afternoon" : "evening"}, ${user.full_name?.split(" ")[0] || "there"} 👋` : "Dashboard"}
           </h1>
           <p className="text-sm text-gray-500 mt-0.5">{format(new Date(), "EEEE, MMMM d")} · DJ Command CRM</p>
         </div>
