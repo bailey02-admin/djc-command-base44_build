@@ -529,7 +529,7 @@ export default function Events() {
               <EventCard key={event.id} event={event} canImpersonate={canImpersonate} />
             ))
         }
-        {!isLoading && accumulated.length === 0 && serverTotal === 0 && (
+        {!isLoading && accumulated.length === 0 && (
           <div className="col-span-full text-center py-16 text-gray-400 text-sm">No upcoming events.</div>
         )}
         {!isLoading && accumulated.length > 0 && filtered.length === 0 && (
