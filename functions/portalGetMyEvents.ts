@@ -22,8 +22,13 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
+    // Admin impersonation: allow overriding contact_id
+    const body = await req.json().catch(() => ({}));
+    const isAdmin = user.role === "admin";
+    const overrideContactId = isAdmin && body.impersonate_contact_id ? body.impersonate_contact_id : null;
+
     // Resolve contact_id: PRIMARY = user.contact_id, FALLBACK = email lookup
-    let contactId = user.contact_id || null;
+    let contactId = overrideContactId || user.contact_id || null;
     let contactMeta = null;
 
     if (contactId) {
