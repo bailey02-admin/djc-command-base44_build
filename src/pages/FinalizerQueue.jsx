@@ -264,7 +264,7 @@ export default function FinalizerQueue() {
       0,
       todayStr,
       plus180
-    ),
+    ).then(raw => Array.isArray(raw) ? raw : (raw?.events ?? [])),
     staleTime: 60000,
   });
 
