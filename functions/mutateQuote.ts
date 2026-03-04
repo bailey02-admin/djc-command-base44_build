@@ -1,7 +1,11 @@
 /**
  * Secure Quote mutation endpoint.
- * Actions: create | update | delete | send | accept | decline
+ * Actions: create | update (upsert) | delete | send | accept | decline
  *
+ * PHASE A: Lead-owned quotes (1-1 per lead)
+ * - create/update both use the same path: upsert by lead_id
+ * - add-ons normalized: legacy {name, price} → {name, qty: 1, amount: price}
+ * 
  * SERVER-SIDE STATUS TRANSITION MAP:
  *   draft   → sent
  *   sent    → accepted | declined | expired
@@ -14,6 +18,27 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
 
 const ALLOWED = new Set(["admin", "city_manager", "sales_manager", "sales_rep"]);
+
+// Normalize add-ons: convert legacy {name, price} to {name, qty, amount}
+function normalizeAddOns(addOns) {
+  if (!Array.isArray(addOns)) return [];
+  return addOns.map(addon => {
+    const normalized = { ...addon };
+    // If legacy 'price' exists but no 'amount', use price as amount
+    if (normalized.price !== undefined && normalized.amount === undefined) {
+      normalized.amount = Number(normalized.price);
+    }
+    // Ensure qty is set (default 1)
+    if (normalized.qty === undefined || normalized.qty === null) {
+      normalized.qty = 1;
+    }
+    normalized.qty = Number(normalized.qty);
+    if (normalized.amount !== undefined) {
+      normalized.amount = Number(normalized.amount);
+    }
+    return normalized;
+  });
+}
 
 // Transition map: current_status → Set of allowed next statuses
 const QUOTE_TRANSITIONS = {
@@ -68,25 +93,40 @@ Deno.serve(async (req) => {
     const body = await req.json().catch(() => ({}));
     const { action, id, data = {}, admin_override = false } = body;
 
-    if (action === "create") {
+    if (action === "create" || action === "upsert") {
       if (!data.lead_id || !data.package_name || data.total_amount === undefined) {
         return Response.json({ error: "lead_id, package_name, and total_amount are required" }, { status: 400 });
       }
 
-      // Fetch lead to stamp city on quote (eliminates join in getQuotes)
+      // Fetch existing quote for this lead (1-1 enforcement)
+      const existing = await base44.asServiceRole.entities.Quote.filter({ lead_id: data.lead_id });
+      const existingQuote = existing[0];
+
+      // Fetch lead to stamp city on quote
       let leadCity = data.city || null;
       if (!leadCity && data.lead_id) {
         const leadRows = await base44.asServiceRole.entities.Lead.filter({ id: data.lead_id });
         leadCity = leadRows[0]?.city || null;
       }
 
-      const quote = await base44.asServiceRole.entities.Quote.create({
+      // Normalize add-ons (convert legacy price → amount, ensure qty)
+      const normalized = {
         ...data,
         city: leadCity,
         total_amount: Number(data.total_amount),
         base_price: Number(data.base_price || 0),
+        add_ons: normalizeAddOns(data.add_ons),
         status: data.status || "draft",
-      });
+      };
+
+      let quote;
+      if (existingQuote) {
+        // Upsert: update existing quote for this lead
+        quote = await base44.asServiceRole.entities.Quote.update(existingQuote.id, normalized);
+      } else {
+        // Create new quote
+        quote = await base44.asServiceRole.entities.Quote.create(normalized);
+      }
 
       // Write quote_amount back to lead
       if (data.lead_id) {
@@ -99,7 +139,7 @@ Deno.serve(async (req) => {
       // Log activity
       await base44.asServiceRole.entities.Activity.create({
         type: "note",
-        subject: `Quote created: ${data.package_name} — $${Number(data.total_amount).toLocaleString()}`,
+        subject: `Quote ${existingQuote ? "updated" : "created"}: ${data.package_name} — $${Number(data.total_amount).toLocaleString()}`,
         related_type: "lead",
         related_id: data.lead_id,
         is_internal: true,
@@ -109,11 +149,12 @@ Deno.serve(async (req) => {
       return Response.json({ quote });
     }
 
-    if (action === "update") {
-      if (!id) return Response.json({ error: "id required" }, { status: 400 });
+    if (action === "update" && id) {
+      // Direct update by quote ID (status transitions, minor edits)
       const payload = { ...data };
       if (payload.total_amount !== undefined) payload.total_amount = Number(payload.total_amount);
       if (payload.base_price !== undefined) payload.base_price = Number(payload.base_price);
+      if (payload.add_ons !== undefined) payload.add_ons = normalizeAddOns(payload.add_ons);
 
       // If lead_id is being updated or city not yet stamped, re-stamp city
       if (payload.lead_id && !payload.city) {
