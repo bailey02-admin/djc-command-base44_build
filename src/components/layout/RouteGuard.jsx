@@ -28,6 +28,11 @@ const PAGE_ACCESS = {
   MessageTemplates:["admin", "city_manager", "sales_manager"],
   Reports:         ["admin", "city_manager", "sales_manager", "finance"],
   ArchivedRecords: ["admin", "city_manager"],
+  Users:           ["admin", "city_manager"],
+  UserForm:        ["admin"],
+  AcceptInvite:    [],
+  ForgotPassword:  [],
+  ResetPassword:   [],
   Settings:        ["admin"],
   // Client-portal-only pages (handled separately — no sidebar nav)
   ClientPortal:    ["client", "admin"],

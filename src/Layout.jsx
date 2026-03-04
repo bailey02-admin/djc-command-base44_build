@@ -40,7 +40,7 @@ const STAFF_PLANNING_PAGES = new Set([
 // Role-scoped nav — only show items the role can reach
 const NAV_BY_ROLE = {
   admin:            ALL_NAV_ITEMS.map(i => i.page),
-  city_manager:     ["Dashboard","Leads","Events","FinalizerQueue","Contacts","Tasks","Quotes","Contracts","DJRoster","Venues","Payments","MessageTemplates","Reports","ArchivedRecords"],
+  city_manager:     ["Dashboard","Leads","Events","FinalizerQueue","Contacts","Tasks","Quotes","Contracts","DJRoster","Venues","Payments","MessageTemplates","Reports","ArchivedRecords","Users"],
   sales_manager:    ["Dashboard","Leads","Events","Contacts","Tasks","Quotes","Contracts","Venues","Reports"],
   sales_rep:        ["Dashboard","Leads","Events","Contacts","Tasks"],
   office_finalizer: ["Dashboard","Events","FinalizerQueue","Contacts","Tasks","Venues"],
