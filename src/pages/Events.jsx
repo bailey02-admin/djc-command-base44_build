@@ -370,8 +370,9 @@ export default function Events() {
     if (statusFilter !== "all") f.status = statusFilter;
     if (cityFilter !== "all")   f.city = cityFilter;
     if (djFilter === "unassigned") f.assigned_dj_id = "__unassigned__";
+    if (debouncedSearch) f.search = debouncedSearch;
     return f;
-  }, [statusFilter, cityFilter, djFilter]);
+  }, [statusFilter, cityFilter, djFilter, debouncedSearch]);
 
   const serverSort = `${sortDir === "desc" ? "-" : ""}${sortCol === "status_city" ? "status" : sortCol === "staff_combined" ? "assigned_dj" : sortCol}`;
 
