@@ -19,7 +19,6 @@ const PAGE_ACCESS = {
   Contacts:        ["admin", "city_manager", "sales_manager", "sales_rep", "office_finalizer"],
   ContactDetail:   ["admin", "city_manager", "sales_manager", "sales_rep", "office_finalizer"],
   Tasks:           ["admin", "city_manager", "sales_manager", "sales_rep", "dj", "office_finalizer"],
-  Quotes:          ["admin", "city_manager", "sales_manager", "finance"],
   Contracts:       ["admin", "city_manager", "sales_manager", "finance"],
   DJRoster:        ["admin", "city_manager", "sales_manager"],
   DJDetail:        ["admin", "city_manager", "sales_manager"],
