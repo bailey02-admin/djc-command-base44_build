@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { EventAPI, EventOpsAPI } from "../components/api/secureApi";
+import { EventAPI, EventOpsAPI } from "@/components/api/secureApi";
 import { onEventBooked } from "../components/crm/automations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

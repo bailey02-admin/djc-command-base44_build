@@ -17,14 +17,17 @@ const EVENT_READ_DENIED = new Set(["client"]);
 const HARD_CAP = 500;
 
 const LIST_FIELDS = new Set([
-  "id", "event_name", "event_type", "event_date", "start_time", "end_time",
-  "city", "venue_name", "contact_name", "contact_id", "status",
-  "assigned_dj", "assigned_dj_id", "assigned_mc",
+  "id", "event_name", "event_type", "event_date", "start_time", "end_time", "setup_time",
+  "city", "venue_name", "venue_id", "contact_name", "contact_id", "status",
+  "assigned_dj", "assigned_dj_id", "assigned_mc", "assigned_mc_id",
+  "assigned_finalizer", "assigned_city_manager",
   "planning_complete", "timeline_complete", "music_complete",
   "contract_signed", "deposit_paid", "balance_paid", "final_call_completed",
   "dj_briefed", "readiness_score", "is_deleted", "lead_id",
-  "package_price", "guest_count", "planning_lock_at", "planning_submitted_at",
-  "updated_date",
+  "package_name", "package_price", "total_fee",
+  "guest_count", "planning_lock_at", "planning_submitted_at",
+  "updated_date", "booked_date", "lead_source",
+  "client_changed_after_review", "dj_reviewed_at",
 ]);
 
 function projectFields(record, role) {
