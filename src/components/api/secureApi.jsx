@@ -70,6 +70,9 @@ export const EventAPI = {
   markDJReviewed: (id) =>
     invoke("mutateEvent", { action: "mark_dj_reviewed", id }).then(r => r.event),
 
+  assignStaff: (event_id, assigned_dj_id, assigned_mc_id) =>
+    invoke("assignEventStaff", { event_id, assigned_dj_id, assigned_mc_id }).then(r => r.event),
+
   delete: (id) =>
     invoke("mutateEvent", { action: "delete", id }),
 };
