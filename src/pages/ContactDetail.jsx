@@ -179,13 +179,18 @@ export default function ContactDetail() {
                 <MapPin className="w-4 h-4 text-gray-400" />{contact.city}
               </div>
             )}
+            {contact.organization_name && (
+              <div className="flex items-center gap-2 text-sm text-gray-600">
+                <span className="text-gray-600">{contact.organization_name}</span>
+              </div>
+            )}
             {contact.address && (
               <div className="flex items-center gap-2 text-sm text-gray-600">
                 <MapPin className="w-4 h-4 text-gray-400" />{contact.address}
               </div>
             )}
-          </CardContent>
-        </Card>
+            </CardContent>
+            </Card>
 
         {contact.notes && (
           <Card className="border-0 shadow-sm">
