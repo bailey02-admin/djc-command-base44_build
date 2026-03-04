@@ -153,7 +153,7 @@ Deno.serve(async (req) => {
 
     // ── Step 4: Paginate ──────────────────────────────────────────────────
     const paginated = allEvents.slice(skip, skip + limit);
-    const result    = paginated.map(e => projectFields(e, role));
+    const result    = paginated.map(e => computeDerivedFields(projectFields(e, role), role));
 
     console.log(`[getEvents] total=${total} skip=${skip} limit=${limit} returned=${result.length} elapsed=${Date.now() - t0}ms`);
 
