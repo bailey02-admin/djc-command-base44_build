@@ -1,17 +1,17 @@
-import React, { useState } from "react";
+import React, { useState, useMemo } from "react";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { ContactAPI } from "../components/api/secureApi";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
-import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Textarea } from "@/components/ui/textarea";
-import { Loader2, Plus, Search, Mail, Phone, MapPin, User, ExternalLink, Pencil, Trash2 } from "lucide-react";
+import { Loader2, Plus, Search, Mail, Phone, MapPin, User, ExternalLink, Pencil, Trash2, ChevronUp, ChevronDown, ChevronsUpDown, ArrowRight } from "lucide-react";
 
 const ROLES = ["bride", "groom", "couple", "parent", "planner", "corporate_contact", "other"];
 const CONTACT_METHODS = ["phone", "email", "text", "any"];
