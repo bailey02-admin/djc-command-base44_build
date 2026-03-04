@@ -314,6 +314,7 @@ export default function Events() {
     setActiveConfigId(null);
     setActiveViewName("DJEP Default");
     setActiveColumns(canSeeFinance ? DJEP_DEFAULT_COLUMNS : filterColumnsByRole(DJEP_DEFAULT_COLUMNS, user?.role));
+    setLastSaveAt(null);
   };
 
   // ── filters ──────────────────────────────────────────────────────────────
