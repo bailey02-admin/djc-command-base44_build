@@ -409,43 +409,18 @@ export default function Events() {
 
   const hasMore = latestRows.length === PAGE_SIZE;
 
-  // ── client-side filters + sort ────────────────────────────────────────────
+  // ── client-side filters (incomplete flags + balance_due toggle) ───────────
+  // Sorting and search are server-driven; only flag filters remain client-side
   const displayed = useMemo(() => {
     let list = accumulated;
     if (clientFilters.incomplete_flags?.length) {
       list = list.filter(e => clientFilters.incomplete_flags.some(f => !e[f]));
     }
     if (clientFilters.balance_due) {
-      list = list.filter(e => !e.balance_paid);
+      list = list.filter(e => (e.balance_due_amount ?? (e.balance_paid ? 0 : 1)) > 0);
     }
-    if (debouncedSearch) {
-      const q = debouncedSearch.toLowerCase();
-      list = list.filter(e =>
-        e.event_name?.toLowerCase().includes(q) ||
-        e.contact_name?.toLowerCase().includes(q) ||
-        e.venue_name?.toLowerCase().includes(q) ||
-        e.assigned_dj?.toLowerCase().includes(q) ||
-        e.assigned_finalizer?.toLowerCase().includes(q)
-      );
-    }
-    list = [...list].sort((a, b) => {
-      let av, bv;
-      switch (sortCol) {
-        case "event_date":    av = a.event_date || ""; bv = b.event_date || ""; break;
-        case "event_name":    av = a.event_name || ""; bv = b.event_name || ""; break;
-        case "city":          av = a.city || ""; bv = b.city || ""; break;
-        case "status":        av = a.status || ""; bv = b.status || ""; break;
-        case "contact_name":  av = a.contact_name || ""; bv = b.contact_name || ""; break;
-        case "assigned_dj":   av = a.assigned_dj || ""; bv = b.assigned_dj || ""; break;
-        case "readiness":     av = a.readiness_score || 0; bv = b.readiness_score || 0; break;
-        case "total_fee":     av = a.total_fee || a.package_price || 0; bv = b.total_fee || b.package_price || 0; break;
-        default:              av = ""; bv = "";
-      }
-      const cmp = av < bv ? -1 : av > bv ? 1 : 0;
-      return sortDir === "asc" ? cmp : -cmp;
-    });
     return list;
-  }, [accumulated, clientFilters, debouncedSearch, sortCol, sortDir]);
+  }, [accumulated, clientFilters]);
 
   // ── saved views ───────────────────────────────────────────────────────────
   const applyView = (viewValue) => {
