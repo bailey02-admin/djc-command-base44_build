@@ -26,6 +26,10 @@ const ALLOWED_EVENTS_COLUMNS = [
   { key: "total_fee",       default_label: "Total Fee",      value_type: "money", role_min: "finance" },
   { key: "balance_due",     default_label: "Balance Due",    value_type: "money", role_min: "finance" },
   { key: "readiness_score", default_label: "Readiness",      value_type: "text" },
+  { key: "organization_name", default_label: "Organization", value_type: "text" },
+  { key: "salesperson_name", default_label: "Salesperson",   value_type: "text" },
+  { key: "inquiry_source_label", default_label: "Inquiry Source", value_type: "text" },
+  { key: "add_ons_summary", default_label: "Add-ons",        value_type: "text" },
   { key: "view_action",     default_label: "View",           value_type: "action" },
 ];
 
@@ -55,11 +59,11 @@ Deno.serve(async (req) => {
     const sanitized = [];
     for (const col of columns) {
       if (!ALLOWED_KEYS.has(col.key)) {
-        warnings.push(`Unknown column key: ${col.key} — dropped`);
+        warnings.push(`Dropped invalid column key: ${col.key}`);
         continue;
       }
       if (FINANCE_KEYS.has(col.key) && !FINANCE_ROLES.has(role)) {
-        warnings.push(`Column ${col.key} requires finance role — dropped`);
+        warnings.push(`Dropped column ${col.key} (requires finance role)`);
         continue;
       }
       sanitized.push({
@@ -68,6 +72,10 @@ Deno.serve(async (req) => {
         visible: col.visible !== false,
         width: col.width || null,
       });
+    }
+
+    if (sanitized.length === 0) {
+      warnings.push("No valid columns in request");
     }
 
     const payload = {
