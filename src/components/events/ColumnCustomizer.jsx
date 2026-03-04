@@ -30,6 +30,10 @@ export const COLUMN_REGISTRY = [
   { key: "total_fee",         default_label: "Total Fee",    value_type: "money", role_min: "finance" },
   { key: "balance_due",       default_label: "Balance Due",  value_type: "money", role_min: "finance" },
   { key: "readiness_score",   default_label: "Readiness",    value_type: "text" },
+  { key: "organization_name", default_label: "Organization", value_type: "text" },
+  { key: "salesperson_name",  default_label: "Salesperson",  value_type: "text" },
+  { key: "inquiry_source_label", default_label: "Inquiry Source", value_type: "text" },
+  { key: "add_ons_summary",   default_label: "Add-ons",      value_type: "text" },
   { key: "view_action",       default_label: "View",         value_type: "action" },
 ];
 
