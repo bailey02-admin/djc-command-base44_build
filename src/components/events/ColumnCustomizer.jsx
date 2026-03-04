@@ -39,6 +39,7 @@ export default function ColumnCustomizer({ open, onClose, columns, userRole, onS
   const [cols, setCols] = useState(columns);
   const [name, setName] = useState(viewName || "My View");
   const [saveAsDefault, setSaveAsDefault] = useState(false);
+  const [saving, setSaving] = useState(false);
 
   useEffect(() => { setCols(columns); }, [columns]);
   useEffect(() => { setName(viewName || "My View"); }, [viewName]);
