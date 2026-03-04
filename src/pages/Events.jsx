@@ -208,6 +208,28 @@ function EventCell({ colKey, event, canImpersonate, navigate }) {
     }
     case "readiness_score":
       return <ReadinessBar score={event.readiness_score ?? 0} />;
+    case "organization_name":
+      return event.organization_name
+        ? <span className="text-sm text-gray-700 truncate max-w-[140px] block">{event.organization_name}</span>
+        : <span className="text-gray-300">—</span>;
+    case "salesperson_name":
+      return event.salesperson_name
+        ? <span className="text-sm text-gray-700">{event.salesperson_name}</span>
+        : <span className="text-gray-300">—</span>;
+    case "inquiry_source_label":
+      return event.inquiry_source_label
+        ? <span className="text-xs px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium">{event.inquiry_source_label}</span>
+        : <span className="text-gray-300">—</span>;
+    case "add_ons_summary":
+      if (!event.add_ons_count) return <span className="text-gray-300">—</span>;
+      return (
+        <span className="text-xs text-gray-700" title={event.add_ons_summary}>
+          <span className="inline-flex items-center gap-1">
+            <span className="font-semibold text-violet-700">{event.add_ons_count}</span>
+            <span className="text-gray-400">{event.add_ons_count === 1 ? "add-on" : "add-ons"}</span>
+          </span>
+        </span>
+      );
     case "view_action":
       return (
         <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
