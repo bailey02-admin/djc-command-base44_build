@@ -80,11 +80,12 @@ export default function ContactDetail() {
     enabled: !!id,
   });
 
-  const { data: events = [] } = useQuery({
+  const { data: eventsData } = useQuery({
     queryKey: ["events-for-contact", id],
     queryFn: () => EventAPI.list({ contact_id: id }, "-event_date", 20),
     enabled: !!id,
   });
+  const events = eventsData?.events ?? [];
 
   if (loadingContact) return <div className="flex justify-center py-20"><Loader2 className="w-6 h-6 animate-spin text-violet-400" /></div>;
   if (!contact) return <div className="p-8 text-gray-500 text-sm">Contact not found.</div>;
