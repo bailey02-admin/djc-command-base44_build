@@ -7,7 +7,7 @@ import { DragDropContext, Droppable, Draggable } from "@hello-pangea/dnd";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { X, GripVertical, Save, RotateCcw, Plus } from "lucide-react";
+import { X, GripVertical, Save, RotateCcw, Plus, Loader2 } from "lucide-react";
 
 // Full registry — mirrors backend allowlist
 export const COLUMN_REGISTRY = [
