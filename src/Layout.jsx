@@ -57,7 +57,7 @@ export default function Layout({ children, currentPageName }) {
     base44.auth.me().then(setUser).catch(() => {});
   }, []);
 
-  if (currentPageName === "ClientPortal" || currentPageName === "DJView") {
+  if (currentPageName === "ClientPortal" || currentPageName === "DJView" || STAFF_PLANNING_PAGES.has(currentPageName)) {
     return <>{children}</>;
   }
 
