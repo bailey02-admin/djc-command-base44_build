@@ -72,6 +72,12 @@ import Settings from './pages/Settings';
 import Tasks from './pages/Tasks';
 import TimelineBuilder from './pages/TimelineBuilder';
 import Venues from './pages/Venues';
+import StaffPlanningHub from './pages/StaffPlanningHub';
+import StaffMusicManager from './pages/StaffMusicManager';
+import StaffSpecialSongsList from './pages/StaffSpecialSongsList';
+import StaffTimelineManager from './pages/StaffTimelineManager';
+import StaffTimelineView from './pages/StaffTimelineView';
+import StaffPrint from './pages/StaffPrint';
 import __Layout from './Layout.jsx';
 
 
@@ -101,6 +107,12 @@ export const PAGES = {
     "Tasks": Tasks,
     "TimelineBuilder": TimelineBuilder,
     "Venues": Venues,
+    "StaffPlanningHub": StaffPlanningHub,
+    "StaffMusicManager": StaffMusicManager,
+    "StaffSpecialSongsList": StaffSpecialSongsList,
+    "StaffTimelineManager": StaffTimelineManager,
+    "StaffTimelineView": StaffTimelineView,
+    "StaffPrint": StaffPrint,
 }
 
 export const pagesConfig = {
