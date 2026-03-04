@@ -69,15 +69,15 @@ import Payments from './pages/Payments';
 import Quotes from './pages/Quotes';
 import Reports from './pages/Reports';
 import Settings from './pages/Settings';
-import Tasks from './pages/Tasks';
-import TimelineBuilder from './pages/TimelineBuilder';
-import Venues from './pages/Venues';
-import StaffPlanningHub from './pages/StaffPlanningHub';
 import StaffMusicManager from './pages/StaffMusicManager';
+import StaffPlanningHub from './pages/StaffPlanningHub';
+import StaffPrint from './pages/StaffPrint';
 import StaffSpecialSongsList from './pages/StaffSpecialSongsList';
 import StaffTimelineManager from './pages/StaffTimelineManager';
 import StaffTimelineView from './pages/StaffTimelineView';
-import StaffPrint from './pages/StaffPrint';
+import Tasks from './pages/Tasks';
+import TimelineBuilder from './pages/TimelineBuilder';
+import Venues from './pages/Venues';
 import __Layout from './Layout.jsx';
 
 
@@ -104,15 +104,15 @@ export const PAGES = {
     "Quotes": Quotes,
     "Reports": Reports,
     "Settings": Settings,
-    "Tasks": Tasks,
-    "TimelineBuilder": TimelineBuilder,
-    "Venues": Venues,
-    "StaffPlanningHub": StaffPlanningHub,
     "StaffMusicManager": StaffMusicManager,
+    "StaffPlanningHub": StaffPlanningHub,
+    "StaffPrint": StaffPrint,
     "StaffSpecialSongsList": StaffSpecialSongsList,
     "StaffTimelineManager": StaffTimelineManager,
     "StaffTimelineView": StaffTimelineView,
-    "StaffPrint": StaffPrint,
+    "Tasks": Tasks,
+    "TimelineBuilder": TimelineBuilder,
+    "Venues": Venues,
 }
 
 export const pagesConfig = {

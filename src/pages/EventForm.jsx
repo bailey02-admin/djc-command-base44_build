@@ -35,8 +35,8 @@ export default function EventForm() {
 
   useEffect(() => {
     if (editId) {
-      EventAPI.list({}, "-event_date", 200).then(events => {
-        const ev = events.find(e => e.id === editId);
+      EventAPI.getDetailBundle(editId).then(bundle => {
+        const ev = bundle?.event;
         if (ev) setForm(prev => ({
           ...prev, ...ev,
           guest_count: ev.guest_count?.toString() || "",
