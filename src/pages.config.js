@@ -47,6 +47,7 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
+import AcceptInvite from './pages/AcceptInvite';
 import ArchivedRecords from './pages/ArchivedRecords';
 import ClientPortal from './pages/ClientPortal';
 import ContactDetail from './pages/ContactDetail';
@@ -60,6 +61,7 @@ import EventDetail from './pages/EventDetail';
 import EventForm from './pages/EventForm';
 import Events from './pages/Events';
 import FinalizerQueue from './pages/FinalizerQueue';
+import ForgotPassword from './pages/ForgotPassword';
 import LeadDetail from './pages/LeadDetail';
 import LeadForm from './pages/LeadForm';
 import Leads from './pages/Leads';
@@ -68,6 +70,7 @@ import MusicPlanner from './pages/MusicPlanner';
 import Payments from './pages/Payments';
 import Quotes from './pages/Quotes';
 import Reports from './pages/Reports';
+import ResetPassword from './pages/ResetPassword';
 import Settings from './pages/Settings';
 import StaffMusicManager from './pages/StaffMusicManager';
 import StaffPlanningHub from './pages/StaffPlanningHub';
@@ -77,16 +80,14 @@ import StaffTimelineManager from './pages/StaffTimelineManager';
 import StaffTimelineView from './pages/StaffTimelineView';
 import Tasks from './pages/Tasks';
 import TimelineBuilder from './pages/TimelineBuilder';
-import Venues from './pages/Venues';
-import Users from './pages/Users';
 import UserForm from './pages/UserForm';
-import AcceptInvite from './pages/AcceptInvite';
-import ForgotPassword from './pages/ForgotPassword';
-import ResetPassword from './pages/ResetPassword';
+import Users from './pages/Users';
+import Venues from './pages/Venues';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
+    "AcceptInvite": AcceptInvite,
     "ArchivedRecords": ArchivedRecords,
     "ClientPortal": ClientPortal,
     "ContactDetail": ContactDetail,
@@ -100,6 +101,7 @@ export const PAGES = {
     "EventForm": EventForm,
     "Events": Events,
     "FinalizerQueue": FinalizerQueue,
+    "ForgotPassword": ForgotPassword,
     "LeadDetail": LeadDetail,
     "LeadForm": LeadForm,
     "Leads": Leads,
@@ -108,6 +110,7 @@ export const PAGES = {
     "Payments": Payments,
     "Quotes": Quotes,
     "Reports": Reports,
+    "ResetPassword": ResetPassword,
     "Settings": Settings,
     "StaffMusicManager": StaffMusicManager,
     "StaffPlanningHub": StaffPlanningHub,
@@ -117,12 +120,9 @@ export const PAGES = {
     "StaffTimelineView": StaffTimelineView,
     "Tasks": Tasks,
     "TimelineBuilder": TimelineBuilder,
-    "Venues": Venues,
-    "Users": Users,
     "UserForm": UserForm,
-    "AcceptInvite": AcceptInvite,
-    "ForgotPassword": ForgotPassword,
-    "ResetPassword": ResetPassword,
+    "Users": Users,
+    "Venues": Venues,
 }
 
 export const pagesConfig = {

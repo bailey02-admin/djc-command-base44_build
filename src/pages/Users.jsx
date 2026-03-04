@@ -42,7 +42,7 @@ export default function Users() {
     staleTime: 30_000,
   });
 
-  const users = data?.users || [];
+  const users = Array.isArray(data) ? data : (data?.users || []);
 
   const handleAction = async (action, userId) => {
     setLoadingId(userId);
@@ -69,7 +69,7 @@ export default function Users() {
       <div className="flex items-center justify-between gap-4 flex-wrap">
         <div>
           <h1 className="text-2xl font-bold text-gray-900">Users</h1>
-          <p className="text-sm text-gray-500 mt-0.5">{data?.total ?? "—"} total users</p>
+          <p className="text-sm text-gray-500 mt-0.5">{Array.isArray(data) ? data.length : (data?.total ?? "—")} total users</p>
         </div>
         <Link to={createPageUrl("UserForm")}>
           <Button className="bg-violet-600 hover:bg-violet-700 text-white gap-2">
