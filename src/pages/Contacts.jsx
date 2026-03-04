@@ -118,6 +118,7 @@ export default function Contacts() {
                   { col: "city",  label: "City" },
                   { col: "email", label: "Email" },
                   { col: "phone", label: "Phone" },
+                  { col: "organization_name", label: "Organization" },
                   { col: "role",  label: "Role" },
                 ].map(({ col, label }) => (
                   <th key={col} className={thCls} onClick={() => handleSort(col)}>
@@ -139,7 +140,7 @@ export default function Contacts() {
               ) : displayed.length === 0 ? (
                 <tr><td colSpan={6} className="text-center py-16 text-gray-400 text-sm">No contacts found.</td></tr>
               ) : displayed.map(c => (
-                <tr
+               <tr
                   key={c.id}
                   className="border-b border-gray-50 hover:bg-violet-50/40 cursor-pointer transition-colors"
                   onClick={() => window.location.href = createPageUrl("ContactDetail") + `?id=${c.id}`}
@@ -159,26 +160,18 @@ export default function Contacts() {
                   <td className="px-4 py-3 text-gray-600 text-sm whitespace-nowrap">
                     {c.phone ? <a href={`tel:${c.phone}`} onClick={e => e.stopPropagation()} className="hover:text-violet-600">{c.phone}</a> : "—"}
                   </td>
+                  <td className="px-4 py-3 text-gray-600 text-sm max-w-[150px] truncate">{c.organization_name || "—"}</td>
                   <td className="px-4 py-3">
                     {c.role && <Badge variant="secondary" className="text-[10px] capitalize">{c.role.replace(/_/g, " ")}</Badge>}
                   </td>
-                  <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
-                    <div className="flex items-center gap-1">
-                      <Link to={createPageUrl("ContactDetail") + `?id=${c.id}`} onClick={e => e.stopPropagation()}>
-                        <Button size="sm" variant="outline" className="h-7 text-xs px-2 gap-1">Open <ArrowRight className="w-3 h-3" /></Button>
-                      </Link>
-                      <Button variant="ghost" size="icon" className="h-7 w-7" onClick={(e) => openEdit(c, e)}><Pencil className="w-3.5 h-3.5" /></Button>
-                      <Button variant="ghost" size="icon" className="h-7 w-7 text-red-400 hover:text-red-600" onClick={(e) => handleDelete(c.id, e)}><Trash2 className="w-3.5 h-3.5" /></Button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-            </tbody>
-          </table>
-        </div>
-      </div>
+                  </tr>
+                  ))}
+                  </tbody>
+                  </table>
+                  </div>
+                  </div>
 
-      {/* Modal */}
+                  {/* Modal */}
       <Dialog open={showModal} onOpenChange={setShowModal}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -233,16 +226,16 @@ export default function Contacts() {
               <div className="space-y-1">
                 <Label>City</Label>
                 <Input value={form.city} onChange={e => set("city", e.target.value)} placeholder="City" />
-              </div>
-              <div className="space-y-1">
+                </div>
+                <div className="space-y-1">
+                <Label>Organization / Company</Label>
+                <Input value={form.organization_name} onChange={e => set("organization_name", e.target.value)} placeholder="Company or organization name" />
+                </div>
+                </div>
+                <div className="space-y-1">
                 <Label>Address</Label>
                 <Input value={form.address} onChange={e => set("address", e.target.value)} placeholder="Street address" />
-              </div>
-            </div>
-            <div className="space-y-1">
-              <Label>Organization / Company</Label>
-              <Input value={form.organization_name} onChange={e => set("organization_name", e.target.value)} placeholder="Company or organization name" />
-            </div>
+                </div>
             <div className="space-y-1">
               <Label>Notes</Label>
               <Textarea value={form.notes} onChange={e => set("notes", e.target.value)} placeholder="Notes…" rows={3} />

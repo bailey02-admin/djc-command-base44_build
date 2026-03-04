@@ -13,7 +13,7 @@ const BLOCKED_ROLES = new Set(["dj", "client"]);
 // Slim field list for contact list/table views
 const LIST_VIEW_FIELDS = new Set([
   "id", "first_name", "last_name", "email", "phone", "secondary_phone",
-  "role", "city", "preferred_contact_method", "tags",
+  "role", "city", "preferred_contact_method", "tags", "organization_name",
 ]);
 
 function projectFields(record) {
