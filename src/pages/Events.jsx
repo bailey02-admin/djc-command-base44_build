@@ -154,6 +154,8 @@ function EventCell({ colKey, event, canImpersonate, navigate }) {
           {event.city && <div className="text-[10px] text-gray-400 mt-0.5">{event.city}</div>}
         </div>
       );
+    case "setup_time":
+      return <span className="text-sm text-gray-600">{event.setup_time || "—"}</span>;
     case "contact_name":
       return <span className="text-sm text-gray-700 max-w-[130px] truncate block">{event.contact_name || "—"}</span>;
     case "event_name":
