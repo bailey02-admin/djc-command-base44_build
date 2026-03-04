@@ -208,25 +208,7 @@ Deno.serve(async (req) => {
     const userByEmail = {};
     for (const u of allUsers) if (u.email) userByEmail[u.email.toLowerCase()] = u;
 
-    // ── Step 5: Fetch Quotes for the filtered events ───────────────────────
-    // Fetch quotes in one list call, filter in memory
-    const allQuotes = allEvents.length > 0
-      ? await base44.asServiceRole.entities.Quote.list("-updated_date", 1000).catch(() => [])
-      : [];
-
-    const filteredEventIds = new Set(allEvents.map(e => e.id));
-    const quoteMap = {};
-    for (const q of allQuotes) {
-      if (!filteredEventIds.has(q.event_id)) continue;
-      const existing = quoteMap[q.event_id];
-      if (!existing ||
-          (q.status === "accepted" && existing.status !== "accepted") ||
-          (q.status === existing.status && (q.version || 1) > (existing.version || 1))) {
-        quoteMap[q.event_id] = q;
-      }
-    }
-
-    console.log(`[getEvents] enrichment ready: users=${allUsers.length} quotes=${allQuotes.length} repEmails=${repEmails.length}`);
+    console.log(`[getEvents] enrichment ready: users=${allUsers.length} repEmails=${repEmails.length}`);
 
     // ── Step 6: Attach enrichment to each event ───────────────────────────
     for (const e of allEvents) {
@@ -254,9 +236,8 @@ Deno.serve(async (req) => {
       const src = e.lead_source || lead?.lead_source || null;
       e.inquiry_source_label = src ? (LEAD_SOURCE_LABELS[src] || src) : null;
 
-      // add-ons from best quote
-      const quote = quoteMap[e.id];
-      const { summary, count, total_qty } = buildAddOnsSummary(quote?.add_ons);
+      // add-ons from event snapshot (PHASE D: now from event.add_ons, not quote)
+      const { summary, count, total_qty } = buildAddOnsSummary(e.add_ons);
       e.add_ons_count     = count;
       e.add_ons_total_qty = total_qty;
       e.add_ons_summary   = summary;
@@ -286,23 +267,6 @@ Deno.serve(async (req) => {
     });
 
     console.log(`[getEvents] done total=${total} skip=${skip} limit=${limit} returned=${result.length} elapsed=${Date.now() - t0}ms`);
-
-    // TEMP DEBUG: Verify enriched fields are in result
-    if (result.length > 0) {
-      const s = result[0];
-      console.log("[getEvents DEBUG] enriched sample", {
-        id: s.id,
-        contact_id: s.contact_id,
-        contact_name: s.contact_name,
-        lead_id: s.lead_id,
-        organization_name: s.organization_name,
-        salesperson_name: s.salesperson_name,
-        inquiry_source_label: s.inquiry_source_label,
-        add_ons_count: s.add_ons_count,
-        add_ons_total_qty: s.add_ons_total_qty,
-        add_ons_summary: s.add_ons_summary,
-      });
-    }
 
     return Response.json({
       events: result,
