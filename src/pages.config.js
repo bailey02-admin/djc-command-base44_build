@@ -69,7 +69,6 @@ import Leads from './pages/Leads';
 import MessageTemplates from './pages/MessageTemplates';
 import MusicPlanner from './pages/MusicPlanner';
 import Payments from './pages/Payments';
-import Quotes from './pages/Quotes';
 import Reports from './pages/Reports';
 import ResetPassword from './pages/ResetPassword';
 import Settings from './pages/Settings';
@@ -110,7 +109,6 @@ export const PAGES = {
     "MessageTemplates": MessageTemplates,
     "MusicPlanner": MusicPlanner,
     "Payments": Payments,
-    "Quotes": Quotes,
     "Reports": Reports,
     "ResetPassword": ResetPassword,
     "Settings": Settings,
