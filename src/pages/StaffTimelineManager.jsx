@@ -42,8 +42,10 @@ export default function StaffTimelineManager() {
 
   useEffect(() => {
     if (data) {
-      setHeader({ title: data.timeline?.header_title || "", subtitle: data.timeline?.header_subtitle || "" });
-      setRows(data.activities || []);
+      // handle both { timeline, activities } and { bundle: { timeline, activities } }
+      const d = data.bundle ?? data;
+      setHeader({ title: d.timeline?.header_title || "", subtitle: d.timeline?.header_subtitle || "" });
+      setRows(d.activities || []);
       setDirty(false);
     }
   }, [data]);
