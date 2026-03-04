@@ -18,8 +18,8 @@ const EVENT_TYPES = [
   "anniversary","mitzvah","quinceañera","holiday_party","other"
 ];
 const CITIES = ["TUL","DFW","HOU","SAT","KC","STL","INDY","NASH","DEN","ATL"];
-const BOOKED_STATUSES = new Set(["booked_pending","booked","planning_in_progress","finalized"]);
-const STATUS_OPTIONS = [
+// STATUS_OPTIONS will be loaded from EventStatus settings at runtime
+let STATUS_OPTIONS = [
   "booked_pending","booked","planning_in_progress","finalized",
   "completed","cancelled","postponed"
 ];
@@ -72,9 +72,24 @@ export default function EventForm() {
   const params = new URLSearchParams(window.location.search);
   const editId = params.get("id");
   const [form, setForm] = useState(EMPTY_FORM);
+  const [statusOptions, setStatusOptions] = useState(STATUS_OPTIONS);
+  const [bookedStatuses, setBookedStatuses] = useState(new Set(["booked_pending","booked","planning_in_progress","finalized"]));
   const { optionsFor } = useLabels();
 
   useEffect(() => {
+    // Load status settings
+    base44.functions.invoke("getStatusSettings", {}).then(res => {
+      const statuses = res.data?.statuses || [];
+      setStatusOptions(statuses.map(s => s.key));
+
+      // Load official_booked group to determine which statuses trigger booking logic
+      const groups = res.data?.groups || [];
+      const officialBookedGroup = groups.find(g => g.key === "official_booked");
+      if (officialBookedGroup?.statuses) {
+        setBookedStatuses(new Set(officialBookedGroup.statuses));
+      }
+    }).catch(err => console.warn("Failed to load status settings:", err));
+
     if (editId) {
       EventAPI.getDetailBundle(editId).then(bundle => {
         const ev = bundle?.event;
@@ -102,11 +117,11 @@ export default function EventForm() {
     if (editId) {
       await EventAPI.update(editId, data);
     } else {
-      if (BOOKED_STATUSES.has(data.status)) {
+      if (bookedStatuses.has(data.status)) {
         data.booked_date = data.booked_date || new Date().toISOString().split("T")[0];
       }
       const created = await EventAPI.create(data);
-      if (created && BOOKED_STATUSES.has(created.status)) {
+      if (created && bookedStatuses.has(created.status)) {
         await Promise.all([
           onEventBooked(created),
           EventOpsAPI.createPaymentSchedule(created.id),
@@ -167,11 +182,11 @@ export default function EventForm() {
         {/* 3. Booking Information */}
         <Section title="Booking Information">
           <Field label="Status *">
-            <Select value={form.status} onValueChange={v => set("status", v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>{STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
-            </Select>
-          </Field>
+             <Select value={form.status} onValueChange={v => set("status", v)}>
+               <SelectTrigger><SelectValue /></SelectTrigger>
+               <SelectContent>{statusOptions.map(s => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}</SelectContent>
+             </Select>
+           </Field>
           <Field label="Booked Date"><Input type="date" value={form.booked_date} onChange={e => set("booked_date", e.target.value)} /></Field>
           <Field label="Final Call Date"><Input type="date" value={form.final_call_date} onChange={e => set("final_call_date", e.target.value)} /></Field>
           <Field label="Lead ID"><Input value={form.lead_id} onChange={e => set("lead_id", e.target.value)} placeholder="linked lead" /></Field>
