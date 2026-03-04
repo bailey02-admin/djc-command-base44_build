@@ -1,7 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
-import { useQuery } from "@tanstack/react-query";
-import { EventAPI } from "@/components/api/secureApi";
+import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { EventAPI, TableViewConfigAPI } from "@/components/api/secureApi";
 import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
@@ -12,12 +12,14 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { format, differenceInDays, addDays } from "date-fns";
 import {
   Plus, Search, X, ExternalLink, Loader2, ChevronDown,
-  ChevronUp, ChevronsUpDown, ArrowRight, DollarSign
+  ChevronUp, ChevronsUpDown, ArrowRight, DollarSign, Columns
 } from "lucide-react";
+import ColumnCustomizer, { COLUMN_REGISTRY } from "@/components/events/ColumnCustomizer";
 
-// ─── constants ────────────────────────────────────────────────────────────────
+// ─── Constants ────────────────────────────────────────────────────────────────
 const PAGE_SIZE = 50;
 const ALLOWED_IMPERSONATE = new Set(["admin", "city_manager", "office_finalizer"]);
+const FINANCE_ROLES = new Set(["admin", "city_manager", "sales_manager", "finance"]);
 const todayStr = () => new Date().toISOString().split("T")[0];
 
 const STATUS_OPTIONS = [
@@ -47,6 +49,22 @@ const DATE_PRESETS = [
   { label: "Next 7d",  days: 7 },
   { label: "Next 30d", days: 30 },
   { label: "Next 90d", days: 90 },
+];
+
+// Default columns if no config exists yet
+const DJEP_DEFAULT_COLUMNS = [
+  { key: "event_date",    label: "Date",       visible: true },
+  { key: "status_city",   label: "Status – City", visible: true },
+  { key: "contact_name",  label: "Client",     visible: true },
+  { key: "event_name",    label: "Event",      visible: true },
+  { key: "staff_combined",label: "Staff",      visible: true },
+  { key: "venue_name",    label: "Venue",      visible: true },
+  { key: "start_time",    label: "Start",      visible: true },
+  { key: "package_name",  label: "Package",    visible: true },
+  { key: "total_fee",     label: "Total Fee",  visible: true },
+  { key: "balance_due",   label: "Balance Due",visible: true },
+  { key: "readiness_score",label: "Ready",     visible: true },
+  { key: "view_action",   label: "View",       visible: true },
 ];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
@@ -94,23 +112,188 @@ function ViewAsClientBtn({ event }) {
   );
 }
 
-function TableSkeleton() {
+function TableSkeleton({ colCount }) {
   return Array.from({ length: 8 }).map((_, i) => (
     <tr key={i} className="border-b border-gray-100">
-      {Array.from({ length: 11 }).map((__, j) => (
+      {Array.from({ length: colCount }).map((__, j) => (
         <td key={j} className="px-3 py-3"><Skeleton className="h-3.5 w-full" /></td>
       ))}
     </tr>
   ));
 }
 
+// ─── Cell renderer ────────────────────────────────────────────────────────────
+function EventCell({ colKey, event, canImpersonate, navigate }) {
+  const fee = event.total_fee ?? event.package_price ?? null;
+  const hasBalance = !event.balance_paid && fee;
+
+  switch (colKey) {
+    case "event_date": {
+      const days = event.event_date ? differenceInDays(new Date(event.event_date), new Date()) : null;
+      return (
+        <div>
+          <div className="text-sm font-medium text-gray-800">
+            {event.event_date ? format(new Date(event.event_date), "MMM d, yyyy") : "—"}
+          </div>
+          {days !== null && (
+            <div className={`text-[10px] mt-0.5 ${days === 0 ? "text-red-500 font-bold" : days <= 7 ? "text-red-400" : days <= 30 ? "text-amber-500" : "text-gray-400"}`}>
+              {days === 0 ? "Today" : days < 0 ? `${Math.abs(days)}d ago` : `${days}d`}
+            </div>
+          )}
+        </div>
+      );
+    }
+    case "status_city":
+      return (
+        <div>
+          <Badge variant="outline" className={`text-[10px] whitespace-nowrap ${STATUS_COLOR[event.status] || ""}`}>
+            {STATUS_LABEL[event.status] || event.status?.replace(/_/g, " ") || "—"}
+          </Badge>
+          {event.city && <div className="text-[10px] text-gray-400 mt-0.5">{event.city}</div>}
+        </div>
+      );
+    case "contact_name":
+      return <span className="text-sm text-gray-700 max-w-[130px] truncate block">{event.contact_name || "—"}</span>;
+    case "event_name":
+      return (
+        <div>
+          <div className="font-medium text-gray-900 max-w-[180px] truncate">{event.event_name}</div>
+          <div className="text-[10px] text-gray-400 capitalize mt-0.5">{event.event_type?.replace(/_/g, " ")}</div>
+        </div>
+      );
+    case "event_type":
+      return <span className="text-sm text-gray-600 capitalize">{event.event_type?.replace(/_/g, " ") || "—"}</span>;
+    case "staff_combined":
+      return (
+        <div className="text-sm max-w-[140px]">
+          {event.assigned_dj
+            ? <div className="text-gray-700 truncate">{event.assigned_dj}</div>
+            : <span className="text-amber-500 text-xs font-medium">Unassigned</span>}
+          {event.assigned_mc && <div className="text-[10px] text-gray-400 mt-0.5 truncate">MC: {event.assigned_mc}</div>}
+          {event.assigned_finalizer && <div className="text-[10px] text-gray-400 mt-0.5 truncate">FNL: {event.assigned_finalizer}</div>}
+        </div>
+      );
+    case "assigned_dj":
+      return <span className="text-sm text-gray-700 truncate block max-w-[120px]">{event.assigned_dj || <span className="text-amber-500 text-xs">Unassigned</span>}</span>;
+    case "assigned_mc":
+      return <span className="text-sm text-gray-600 truncate block max-w-[120px]">{event.assigned_mc || "—"}</span>;
+    case "assigned_finalizer":
+      return <span className="text-sm text-gray-600 truncate block max-w-[120px]">{event.assigned_finalizer || "—"}</span>;
+    case "venue_name":
+      return <span className="text-sm text-gray-600 truncate block max-w-[130px]">{event.venue_name || "—"}</span>;
+    case "city":
+      return <span className="text-sm text-gray-600">{event.city || "—"}</span>;
+    case "setup_time":
+      return <span className="text-sm text-gray-600">{event.setup_time || "—"}</span>;
+    case "start_time":
+      return <span className="text-sm text-gray-600">{event.start_time || "—"}</span>;
+    case "end_time":
+      return <span className="text-sm text-gray-600">{event.end_time || "—"}</span>;
+    case "lead_source":
+      return <span className="text-sm text-gray-600 capitalize">{event.lead_source?.replace(/_/g, " ") || "—"}</span>;
+    case "package_name":
+      return <span className="text-sm text-gray-700">{event.package_name || <span className="text-gray-300 italic text-xs">Not quoted</span>}</span>;
+    case "total_fee":
+      return fee != null
+        ? <span className="text-sm text-gray-700">${fee.toLocaleString()}</span>
+        : <span className="text-gray-300">—</span>;
+    case "balance_due":
+      if (!fee) return <span className="text-gray-300">—</span>;
+      return hasBalance
+        ? <span className="text-rose-600 font-semibold text-sm">${fee.toLocaleString()} <span className="text-[10px] block text-rose-400">due</span></span>
+        : <span className="text-emerald-600 text-xs">Paid</span>;
+    case "readiness_score":
+      return <ReadinessBar score={event.readiness_score ?? 0} />;
+    case "view_action":
+      return (
+        <div className="flex items-center gap-1.5" onClick={e => e.stopPropagation()}>
+          <Link to={createPageUrl("EventDetail") + `?id=${event.id}`} onClick={e => e.stopPropagation()}>
+            <Button size="sm" variant="outline" className="h-7 text-xs px-2 gap-1">
+              Open <ArrowRight className="w-3 h-3" />
+            </Button>
+          </Link>
+          {canImpersonate && event.contact_id && <ViewAsClientBtn event={event} />}
+        </div>
+      );
+    default:
+      return <span className="text-gray-300">—</span>;
+  }
+}
+
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Events() {
   const navigate = useNavigate();
+  const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
   useEffect(() => { base44.auth.me().then(setUser).catch(() => {}); }, []);
   const canImpersonate = user && ALLOWED_IMPERSONATE.has(user.role);
-  const showFinance = user && ["admin","city_manager","sales_manager","finance"].includes(user.role);
+  const canSeeFinance  = user && FINANCE_ROLES.has(user.role);
+
+  // ── column config state ───────────────────────────────────────────────────
+  const [customizerOpen, setCustomizerOpen] = useState(false);
+  const [activeConfigId, setActiveConfigId] = useState(null);
+  const [activeColumns, setActiveColumns] = useState(DJEP_DEFAULT_COLUMNS);
+  const [activeViewName, setActiveViewName] = useState("DJEP Default");
+
+  // Load user's saved configs
+  const { data: savedConfigs = [] } = useQuery({
+    queryKey: ["table-view-configs", "events"],
+    queryFn: () => TableViewConfigAPI.list("events"),
+    enabled: !!user,
+    staleTime: 60_000,
+  });
+
+  // On load: apply user's default or fall back to global default
+  useEffect(() => {
+    if (!savedConfigs.length) return;
+    const userDefault = savedConfigs.find(c => !c.is_global && c.is_default);
+    const globalDefault = savedConfigs.find(c => c.is_global && c.is_default);
+    const toApply = userDefault || globalDefault;
+    if (toApply) {
+      setActiveConfigId(toApply.id);
+      setActiveViewName(toApply.name);
+      setActiveColumns(filterColumnsByRole(toApply.columns || [], user?.role));
+    }
+  }, [savedConfigs, user]);
+
+  function filterColumnsByRole(cols, role) {
+    if (!role) return cols;
+    if (FINANCE_ROLES.has(role)) return cols;
+    // Strip finance-only columns for non-finance roles
+    const financeKeys = new Set(
+      COLUMN_REGISTRY.filter(r => r.role_min === "finance").map(r => r.key)
+    );
+    return cols.filter(c => !financeKeys.has(c.key));
+  }
+
+  const visibleColumns = useMemo(() =>
+    activeColumns.filter(c => c.visible !== false),
+    [activeColumns]
+  );
+
+  const handleSaveConfig = async ({ name, columns, is_default }) => {
+    const sanitized = filterColumnsByRole(columns, user?.role);
+    const payload = { entity_key: "events", name, columns: sanitized, is_default };
+    if (activeConfigId) {
+      const cfg = savedConfigs.find(c => c.id === activeConfigId);
+      if (cfg && !cfg.is_global) payload.id = activeConfigId;
+    }
+    const res = await TableViewConfigAPI.save(payload);
+    const saved = res?.data?.config || res?.config;
+    if (saved) {
+      setActiveConfigId(saved.id);
+      setActiveViewName(saved.name);
+      setActiveColumns(filterColumnsByRole(saved.columns, user?.role));
+    }
+    queryClient.invalidateQueries({ queryKey: ["table-view-configs", "events"] });
+    setCustomizerOpen(false);
+  };
+
+  const handleReset = () => {
+    setActiveConfigId(null);
+    setActiveViewName("DJEP Default");
+    setActiveColumns(canSeeFinance ? DJEP_DEFAULT_COLUMNS : filterColumnsByRole(DJEP_DEFAULT_COLUMNS, user?.role));
+  };
 
   // ── filters ──────────────────────────────────────────────────────────────
   const [dateFrom, setDateFrom] = useState(todayStr());
@@ -118,7 +301,7 @@ export default function Events() {
   const [statusFilter, setStatus] = useState("all");
   const [cityFilter, setCity]     = useState("all");
   const [djFilter, setDj]         = useState("any");
-  const [activeView, setActiveView] = useState("all_upcoming");
+  const [activeSavedView, setActiveSavedView] = useState("all_upcoming");
   const [clientFilters, setClientFilters] = useState({});
 
   // ── search ───────────────────────────────────────────────────────────────
@@ -161,7 +344,6 @@ export default function Events() {
     }
   }, [filterKey]);
 
-  // ── query ─────────────────────────────────────────────────────────────────
   const { data: rawData, isFetching, isLoading } = useQuery({
     queryKey: ["events-v2", filterKey, skip],
     queryFn: () => EventAPI.list(serverFilters, "event_date", PAGE_SIZE, skip, dateFrom || null, dateTo || null),
@@ -228,7 +410,7 @@ export default function Events() {
   const applyView = (viewValue) => {
     const view = SAVED_VIEWS.find(v => v.value === viewValue);
     if (!view) return;
-    setActiveView(viewValue);
+    setActiveSavedView(viewValue);
     setStatus(view.filters.status || "all");
     setCity(view.filters.city || "all");
     setDj(view.filters.assigned_dj_id === "__unassigned__" ? "unassigned" : "any");
@@ -246,15 +428,18 @@ export default function Events() {
   const clearFilters = () => {
     setDateFrom(todayStr()); setDateTo(""); setStatus("all"); setCity("all");
     setDj("any"); setClientFilters({}); setSearch(""); setDebounced("");
-    setActiveView("all_upcoming"); setSkip(0); setAccumulated([]);
+    setActiveSavedView("all_upcoming"); setSkip(0); setAccumulated([]);
   };
 
   const hasActiveFilters = statusFilter !== "all" || cityFilter !== "all" || djFilter !== "any"
     || dateTo !== "" || debouncedSearch || Object.keys(clientFilters).length > 0;
 
-  const thCls = `px-3 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide cursor-pointer select-none hover:text-gray-800 whitespace-nowrap`;
+  const thCls = `px-3 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap`;
+  const thSortCls = thCls + " cursor-pointer select-none hover:text-gray-800";
 
-  // ── render ────────────────────────────────────────────────────────────────
+  const SORTABLE_KEYS = new Set(["event_date","event_name","city","status","contact_name","assigned_dj","readiness_score","total_fee"]);
+  const SORT_KEY_MAP = { "status_city": "status", "staff_combined": "assigned_dj", "readiness_score": "readiness" };
+
   return (
     <div className="p-4 lg:p-6 space-y-4 max-w-[1600px] mx-auto">
 
@@ -267,11 +452,38 @@ export default function Events() {
             {displayed.length !== accumulated.length ? ` · ${displayed.length} shown` : ""}
           </p>
         </div>
-        <Link to={createPageUrl("EventForm")}>
-          <Button className="bg-gradient-to-r from-violet-600 to-indigo-600 text-sm h-9">
-            <Plus className="w-4 h-4 mr-1.5" /> New Event
+        <div className="flex items-center gap-2">
+          {/* View selector */}
+          {savedConfigs.length > 1 && (
+            <Select value={activeConfigId || "__default__"} onValueChange={id => {
+              if (id === "__default__") { handleReset(); return; }
+              const cfg = savedConfigs.find(c => c.id === id);
+              if (cfg) {
+                setActiveConfigId(cfg.id);
+                setActiveViewName(cfg.name);
+                setActiveColumns(filterColumnsByRole(cfg.columns || [], user?.role));
+              }
+            }}>
+              <SelectTrigger className="h-9 text-sm w-40">
+                <SelectValue placeholder={activeViewName} />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="__default__">DJEP Default</SelectItem>
+                {savedConfigs.filter(c => !c.is_global).map(c => (
+                  <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          )}
+          <Button variant="outline" size="sm" className="h-9 gap-1.5 text-sm" onClick={() => setCustomizerOpen(true)}>
+            <Columns className="w-4 h-4" /> Columns
           </Button>
-        </Link>
+          <Link to={createPageUrl("EventForm")}>
+            <Button className="bg-gradient-to-r from-violet-600 to-indigo-600 text-sm h-9">
+              <Plus className="w-4 h-4 mr-1.5" /> New Event
+            </Button>
+          </Link>
+        </div>
       </div>
 
       {/* Saved Views */}
@@ -279,7 +491,7 @@ export default function Events() {
         {SAVED_VIEWS.map(v => (
           <button key={v.value} onClick={() => applyView(v.value)}
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
-              activeView === v.value
+              activeSavedView === v.value
                 ? "bg-violet-600 text-white border-violet-600"
                 : "bg-white text-gray-600 border-gray-200 hover:border-violet-300 hover:text-violet-700"
             }`}>
@@ -291,13 +503,10 @@ export default function Events() {
       {/* Filter bar */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 space-y-2">
         <div className="flex flex-wrap gap-2 items-center">
-          {/* Search */}
           <div className="relative flex-1 min-w-[160px] max-w-xs">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
             <Input placeholder="Search events…" value={search} onChange={e => handleSearch(e.target.value)} className="pl-8 h-8 text-sm" />
           </div>
-
-          {/* Date presets */}
           <div className="flex gap-1">
             {DATE_PRESETS.map(p => (
               <button key={p.days} onClick={() => applyDatePreset(p.days)}
@@ -306,38 +515,32 @@ export default function Events() {
               </button>
             ))}
           </div>
-
           <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setSkip(0); setAccumulated([]); }}
             className="h-8 rounded-md border border-input px-2 text-sm bg-white text-gray-700" title="From" />
           <span className="text-gray-400 text-xs">–</span>
           <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setSkip(0); setAccumulated([]); }}
             className="h-8 rounded-md border border-input px-2 text-sm bg-white text-gray-700" title="To" />
-
-          <Select value={statusFilter} onValueChange={v => { setStatus(v); setActiveView(""); }}>
+          <Select value={statusFilter} onValueChange={v => { setStatus(v); setActiveSavedView(""); }}>
             <SelectTrigger className="w-44 h-8 text-sm"><SelectValue placeholder="All Statuses" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Statuses</SelectItem>
               {STATUS_OPTIONS.map(s => <SelectItem key={s.value} value={s.value}>{s.label}</SelectItem>)}
             </SelectContent>
           </Select>
-
-          <Select value={cityFilter} onValueChange={v => { setCity(v); setActiveView(""); }}>
+          <Select value={cityFilter} onValueChange={v => { setCity(v); setActiveSavedView(""); }}>
             <SelectTrigger className="w-32 h-8 text-sm"><SelectValue placeholder="All Cities" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Cities</SelectItem>
               {CITY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
             </SelectContent>
           </Select>
-
-          <Select value={djFilter} onValueChange={v => { setDj(v); setActiveView(""); }}>
+          <Select value={djFilter} onValueChange={v => { setDj(v); setActiveSavedView(""); }}>
             <SelectTrigger className="w-36 h-8 text-sm"><SelectValue placeholder="Any DJ" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="any">Any DJ</SelectItem>
               <SelectItem value="unassigned">Unassigned DJ</SelectItem>
             </SelectContent>
           </Select>
-
-          {/* Balance Due toggle */}
           <button
             onClick={() => setClientFilters(f => f.balance_due ? {} : { ...f, balance_due: true })}
             className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-md border transition-colors ${
@@ -347,7 +550,6 @@ export default function Events() {
             }`}>
             <DollarSign className="w-3 h-3" /> Balance Due
           </button>
-
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" className="h-8 text-xs text-gray-400 gap-1" onClick={clearFilters}>
               <X className="w-3.5 h-3.5" /> Clear
@@ -362,29 +564,28 @@ export default function Events() {
           <table className="w-full text-sm">
             <thead className="bg-gray-50 border-b border-gray-100">
               <tr>
-                {[
-                  { col: "event_date",   label: "Date" },
-                  { col: "status",       label: "Status – City" },
-                  { col: "contact_name", label: "Client" },
-                  { col: "event_name",   label: "Event" },
-                  { col: "assigned_dj",  label: "DJ / Staff" },
-                  { col: "venue_name",   label: "Venue" },
-                  { col: "readiness",    label: "Ready" },
-                  ...(showFinance ? [{ col: "total_fee", label: "Fee" }] : []),
-                ].map(({ col, label }) => (
-                  <th key={col} className={thCls} onClick={() => handleSort(col)}>
-                    <span className="flex items-center gap-1">
-                      {label} <SortIcon col={col} sortCol={sortCol} sortDir={sortDir} />
-                    </span>
-                  </th>
-                ))}
-                <th className="px-3 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+                {visibleColumns.map(col => {
+                  const sortKey = SORT_KEY_MAP[col.key] || col.key;
+                  const isSortable = SORTABLE_KEYS.has(sortKey);
+                  return (
+                    <th key={col.key}
+                      className={isSortable ? thSortCls : thCls}
+                      onClick={isSortable ? () => handleSort(sortKey) : undefined}>
+                      <span className="flex items-center gap-1">
+                        {col.label}
+                        {isSortable && <SortIcon col={sortKey} sortCol={sortCol} sortDir={sortDir} />}
+                      </span>
+                    </th>
+                  );
+                })}
               </tr>
             </thead>
             <tbody>
-              {isLoading ? <TableSkeleton /> : displayed.length === 0 ? (
+              {isLoading ? (
+                <TableSkeleton colCount={visibleColumns.length} />
+              ) : displayed.length === 0 ? (
                 <tr>
-                  <td colSpan={showFinance ? 9 : 8} className="text-center py-16 text-gray-400 text-sm">
+                  <td colSpan={visibleColumns.length} className="text-center py-16 text-gray-400 text-sm">
                     {accumulated.length === 0 ? "No upcoming events." : "No events match your filters."}
                     {accumulated.length > 0 && (
                       <div className="mt-2">
@@ -393,82 +594,21 @@ export default function Events() {
                     )}
                   </td>
                 </tr>
-              ) : displayed.map(event => {
-                const days = event.event_date ? differenceInDays(new Date(event.event_date), new Date()) : null;
-                const fee = event.total_fee ?? event.package_price ?? null;
-                const hasBalance = !event.balance_paid && fee;
-                return (
-                  <tr key={event.id}
-                    onClick={() => navigate(createPageUrl("EventDetail") + `?id=${event.id}`)}
-                    className="border-b border-gray-50 hover:bg-violet-50/40 cursor-pointer transition-colors">
-                    {/* Date */}
-                    <td className="px-3 py-3 whitespace-nowrap">
-                      <div className="text-sm font-medium text-gray-800">
-                        {event.event_date ? format(new Date(event.event_date), "MMM d, yyyy") : "—"}
-                      </div>
-                      {days !== null && (
-                        <div className={`text-[10px] mt-0.5 ${days === 0 ? "text-red-500 font-bold" : days <= 7 ? "text-red-400" : days <= 30 ? "text-amber-500" : "text-gray-400"}`}>
-                          {days === 0 ? "Today" : days < 0 ? `${Math.abs(days)}d ago` : `${days}d`}
-                        </div>
-                      )}
+              ) : displayed.map(event => (
+                <tr key={event.id}
+                  onClick={() => navigate(createPageUrl("EventDetail") + `?id=${event.id}`)}
+                  className="border-b border-gray-50 hover:bg-violet-50/40 cursor-pointer transition-colors">
+                  {visibleColumns.map(col => (
+                    <td key={col.key} className="px-3 py-3">
+                      <EventCell colKey={col.key} event={event} canImpersonate={canImpersonate} navigate={navigate} />
                     </td>
-                    {/* Status – City (display only; stored separately) */}
-                    <td className="px-3 py-3">
-                      <Badge variant="outline" className={`text-[10px] whitespace-nowrap ${STATUS_COLOR[event.status] || ""}`}>
-                        {STATUS_LABEL[event.status] || event.status?.replace(/_/g, " ") || "—"}
-                      </Badge>
-                      {event.city && <div className="text-[10px] text-gray-400 mt-0.5">{event.city}</div>}
-                    </td>
-                    {/* Client */}
-                    <td className="px-3 py-3 text-sm text-gray-700 max-w-[130px] truncate">{event.contact_name || "—"}</td>
-                    {/* Event name + type */}
-                    <td className="px-3 py-3">
-                      <div className="font-medium text-gray-900 max-w-[180px] truncate">{event.event_name}</div>
-                      <div className="text-[10px] text-gray-400 capitalize mt-0.5">{event.event_type?.replace(/_/g, " ")}</div>
-                    </td>
-                    {/* DJ / Staff */}
-                    <td className="px-3 py-3 text-sm max-w-[130px]">
-                      {event.assigned_dj
-                        ? <div className="text-gray-700 truncate">{event.assigned_dj}</div>
-                        : <span className="text-amber-500 text-xs font-medium">Unassigned</span>}
-                      {event.assigned_finalizer && <div className="text-[10px] text-gray-400 mt-0.5 truncate">FNL: {event.assigned_finalizer}</div>}
-                    </td>
-                    {/* Venue */}
-                    <td className="px-3 py-3 text-sm text-gray-600 max-w-[130px] truncate">{event.venue_name || "—"}</td>
-                    {/* Readiness */}
-                    <td className="px-3 py-3">
-                      <ReadinessBar score={event.readiness_score ?? 0} />
-                    </td>
-                    {/* Fee (finance-gated) */}
-                    {showFinance && (
-                      <td className="px-3 py-3 text-sm whitespace-nowrap">
-                        {fee != null
-                          ? <span className={hasBalance ? "text-rose-600 font-semibold" : "text-gray-700"}>
-                              ${fee.toLocaleString()}
-                              {hasBalance && <span className="text-[10px] block text-rose-400">bal due</span>}
-                            </span>
-                          : <span className="text-gray-300">—</span>}
-                      </td>
-                    )}
-                    {/* Actions */}
-                    <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
-                      <div className="flex items-center gap-1.5">
-                        <Link to={createPageUrl("EventDetail") + `?id=${event.id}`} onClick={e => e.stopPropagation()}>
-                          <Button size="sm" variant="outline" className="h-7 text-xs px-2 gap-1">
-                            Open <ArrowRight className="w-3 h-3" />
-                          </Button>
-                        </Link>
-                        {canImpersonate && event.contact_id && <ViewAsClientBtn event={event} />}
-                      </div>
-                    </td>
-                  </tr>
-                );
-              })}
+                  ))}
+                </tr>
+              ))}
             </tbody>
           </table>
         </div>
 
-        {/* Load more */}
         {!isLoading && hasMore && (
           <div className="flex justify-center py-4 border-t border-gray-100">
             <Button variant="outline" size="sm" onClick={() => setSkip(s => s + PAGE_SIZE)} disabled={isFetching}>
@@ -477,6 +617,18 @@ export default function Events() {
           </div>
         )}
       </div>
+
+      {/* Column Customizer panel */}
+      <ColumnCustomizer
+        open={customizerOpen}
+        onClose={() => setCustomizerOpen(false)}
+        columns={activeColumns}
+        userRole={user?.role}
+        onSave={handleSaveConfig}
+        onReset={handleReset}
+        viewName={activeViewName}
+        onViewNameChange={setActiveViewName}
+      />
     </div>
   );
 }
