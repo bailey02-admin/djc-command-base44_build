@@ -54,18 +54,19 @@ const DATE_PRESETS = [
 
 // Default columns if no config exists yet
 const DJEP_DEFAULT_COLUMNS = [
-  { key: "event_date",    label: "Date",       visible: true },
-  { key: "status_city",   label: "Status – City", visible: true },
-  { key: "contact_name",  label: "Client",     visible: true },
-  { key: "event_name",    label: "Event",      visible: true },
-  { key: "staff_combined",label: "Staff",      visible: true },
-  { key: "venue_name",    label: "Venue",      visible: true },
-  { key: "start_time",    label: "Start",      visible: true },
-  { key: "package_name",  label: "Package",    visible: true },
-  { key: "total_fee",     label: "Total Fee",  visible: true },
-  { key: "balance_due",   label: "Balance Due",visible: true },
-  { key: "readiness_score",label: "Ready",     visible: true },
-  { key: "view_action",   label: "View",       visible: true },
+  { key: "event_date",     label: "Event Date",  visible: true },
+  { key: "status_city",    label: "Status",      visible: true },
+  { key: "contact_name",   label: "Client",      visible: true },
+  { key: "event_name",     label: "Event",       visible: true },
+  { key: "venue_name",     label: "Venue",       visible: true },
+  { key: "setup_time",     label: "Setup",       visible: true },
+  { key: "start_time",     label: "Start",       visible: true },
+  { key: "end_time",       label: "End",         visible: true },
+  { key: "event_type",     label: "Event Type",  visible: true },
+  { key: "assigned_dj",    label: "DJ",          visible: true },
+  { key: "total_fee",      label: "Total Fee",   visible: true },
+  { key: "balance_due",    label: "Balance Due", visible: true },
+  { key: "view_action",    label: "View",        visible: true },
 ];
 
 // ─── Sub-components ───────────────────────────────────────────────────────────
