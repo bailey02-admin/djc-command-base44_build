@@ -373,7 +373,9 @@ export default function Events() {
     return f;
   }, [statusFilter, cityFilter, djFilter]);
 
-  const filterKey = JSON.stringify({ serverFilters, dateFrom, dateTo });
+  const serverSort = `${sortDir === "desc" ? "-" : ""}${sortCol === "status_city" ? "status" : sortCol === "staff_combined" ? "assigned_dj" : sortCol}`;
+
+  const filterKey = JSON.stringify({ serverFilters, dateFrom, dateTo, serverSort });
   const prevFilterKey = useRef(filterKey);
   useEffect(() => {
     if (prevFilterKey.current !== filterKey) {
@@ -385,7 +387,7 @@ export default function Events() {
 
   const { data: rawData, isFetching, isLoading } = useQuery({
     queryKey: ["events-v2", filterKey, skip],
-    queryFn: () => EventAPI.list(serverFilters, "event_date", PAGE_SIZE, skip, dateFrom || null, dateTo || null),
+    queryFn: () => EventAPI.list(serverFilters, serverSort, PAGE_SIZE, skip, dateFrom || null, dateTo || null),
     staleTime: 45_000,
     placeholderData: (prev) => prev,
   });
