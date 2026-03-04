@@ -26,10 +26,11 @@ export default function Dashboard() {
     queryFn: () => LeadAPI.list({}, "-created_date", 50),
   });
 
-  const { data: events = [] } = useQuery({
+  const { data: eventsData } = useQuery({
     queryKey: ["events"],
-    queryFn: () => EventAPI.list({}, "-event_date", 50).then(r => Array.isArray(r) ? r : (r?.events ?? [])),
+    queryFn: () => EventAPI.list({}, "-event_date", 50),
   });
+  const events = eventsData?.events ?? [];
 
   const { data: tasks = [] } = useQuery({
     queryKey: ["tasks"],
