@@ -3,10 +3,10 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { base44 } from "@/api/base44Client";
 import {
-  LayoutDashboard, Users, CalendarDays, ClipboardList,
+  LayoutDashboard, CalendarDays, ClipboardList,
   FileText, MessageSquare, DollarSign, Building2, ChevronLeft,
   ChevronRight, LogOut, Menu, Disc3, UserCircle, Settings,
-  Layers, Music2, FileSignature, Archive, ScrollText
+  Layers, Music2, FileSignature, Archive, ScrollText, Users, Shield
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import GlobalSearch from "./components/layout/GlobalSearch";
@@ -14,7 +14,7 @@ import RouteGuard from "./components/layout/RouteGuard";
 
 const ALL_NAV_ITEMS = [
   { name: "Dashboard",       icon: LayoutDashboard, page: "Dashboard" },
-  { name: "Leads",           icon: Users,           page: "Leads" },
+  { name: "Leads",           icon: UserCircle,      page: "Leads" },
   { name: "Events",          icon: CalendarDays,    page: "Events" },
   { name: "Finalizer Queue", icon: Layers,          page: "FinalizerQueue" },
   { name: "Contacts",        icon: UserCircle,      page: "Contacts" },
@@ -27,6 +27,7 @@ const ALL_NAV_ITEMS = [
   { name: "Templates",       icon: MessageSquare,   page: "MessageTemplates" },
   { name: "Reports",         icon: FileText,        page: "Reports" },
   { name: "Archive",         icon: Archive,         page: "ArchivedRecords" },
+  { name: "Users",           icon: Users,           page: "Users" },
   { name: "Settings",        icon: Settings,        page: "Settings" },
 ];
 
