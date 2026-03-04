@@ -201,11 +201,12 @@ function EventCell({ colKey, event, canImpersonate, navigate }) {
       return fee != null
         ? <span className="text-sm text-gray-700">${fee.toLocaleString()}</span>
         : <span className="text-gray-300">—</span>;
-    case "balance_due":
-      if (!fee) return <span className="text-gray-300">—</span>;
-      return hasBalance
-        ? <span className="text-rose-600 font-semibold text-sm">${fee.toLocaleString()} <span className="text-[10px] block text-rose-400">due</span></span>
-        : <span className="text-emerald-600 text-xs">Paid</span>;
+    case "balance_due": {
+      const bdAmt = event.balance_due_amount;
+      if (bdAmt == null) return <span className="text-gray-300">—</span>;
+      if (bdAmt === 0) return <span className="text-emerald-600 text-xs">Paid</span>;
+      return <span className="text-rose-600 font-semibold text-sm">${bdAmt.toLocaleString()} <span className="text-[10px] block text-rose-400">due</span></span>;
+    }
     case "readiness_score":
       return <ReadinessBar score={event.readiness_score ?? 0} />;
     case "view_action":
