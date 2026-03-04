@@ -70,7 +70,8 @@ const CLIENT_SAFE_FIELDS = [
   "id", "event_name", "event_type", "event_date", "start_time", "end_time",
   "venue_name", "guest_count", "status", "contract_signed", "deposit_paid",
   "balance_paid", "planning_complete", "timeline_complete", "music_complete",
-  "final_call_completed", "city", "package_name",
+  "final_call_completed", "city", "package_name", "package_price", "total_fee",
+  "add_ons", "discount_amount", "tax_amount",
   "planning_lock_at", "planning_submitted_at",
 ];
 
@@ -124,12 +125,14 @@ Deno.serve(async (req) => {
         return Response.json({ error: "Forbidden: not your event" }, { status: 403 });
       }
 
-      const [musicSelections, timeline, rawPayments, planning, links] = await Promise.all([
+      const [musicSelections, timeline, rawPayments, planning, links, leadRows, quoteRes] = await Promise.all([
         base44.asServiceRole.entities.MusicSelection.filter({ event_id: id }, "category", 100),
         base44.asServiceRole.entities.TimelineItem.filter({ event_id: id }, "order", 50),
         base44.asServiceRole.entities.Payment.filter({ event_id: id }, "-created_date", 50),
         base44.asServiceRole.entities.EventPlanning.filter({ event_id: id }).then(r => r[0] || null),
         fetchLinks(base44, event),
+        event.lead_id ? base44.asServiceRole.entities.Lead.filter({ id: event.lead_id }) : Promise.resolve([]),
+        event.lead_id ? base44.asServiceRole.functions.invoke("getQuotes", { lead_id: event.lead_id }).catch(() => ({ quotes: [] })) : Promise.resolve({ quotes: [] }),
       ]);
 
       const { amount_paid_total, remaining_balance } = computePaymentSummary(rawPayments, event);
@@ -138,9 +141,25 @@ Deno.serve(async (req) => {
         if (event[f] !== undefined) safeEvent[f] = event[f];
       }
 
+      const lead = leadRows[0] || null;
+      const quoteData = quoteRes.quotes && quoteRes.quotes[0] ? {
+        id: quoteRes.quotes[0].id,
+        status: quoteRes.quotes[0].status,
+        total_amount: quoteRes.quotes[0].total_amount,
+        valid_until: quoteRes.quotes[0].valid_until,
+      } : null;
+
       return Response.json({
         event: { ...safeEvent, event_id: event.id, amount_paid_total, remaining_balance,
           payment_link: links.payment_link, finalizer_call_link: links.finalizer_call_link },
+        lead_summary: lead ? {
+          id: lead.id,
+          client_name: `${lead.client_first_name} ${lead.client_last_name || ""}`.trim(),
+          assigned_rep: lead.assigned_rep,
+          lead_source: lead.lead_source,
+          inquiry_date: lead.inquiry_date,
+        } : null,
+        quote_summary: quoteData,
         timeline, musicSelections, planning, contact: null, activities: [], tasks: [], payments: [],
       });
     }
