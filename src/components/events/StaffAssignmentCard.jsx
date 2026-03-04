@@ -1,6 +1,6 @@
 import React, { useState } from "react";
 import { useQuery } from "@tanstack/react-query";
-import { UserAPI, EventAPI } from "../api/secureApi";
+import { UserAPI, EventAPI } from "@/components/api/secureApi";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Button } from "@/components/ui/button";
@@ -19,7 +19,7 @@ export default function StaffAssignmentCard({ event, onSaved }) {
     staleTime: 60_000,
   });
 
-  const djUsers = usersData?.users || [];
+  const djUsers = Array.isArray(usersData) ? usersData : (usersData?.users || []);
 
   const handleSave = async () => {
     setSaving(true);
