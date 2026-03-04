@@ -194,10 +194,12 @@ function EventCell({ colKey, event, canImpersonate, navigate }) {
       return <span className="text-sm text-gray-600 capitalize">{event.lead_source?.replace(/_/g, " ") || "—"}</span>;
     case "package_name":
       return <span className="text-sm text-gray-700">{event.package_name || <span className="text-gray-300 italic text-xs">Not quoted</span>}</span>;
-    case "total_fee":
+    case "total_fee": {
+      const fee = event.total_fee ?? event.package_price ?? null;
       return fee != null
         ? <span className="text-sm text-gray-700">${fee.toLocaleString()}</span>
         : <span className="text-gray-300">—</span>;
+    }
     case "balance_due": {
       const bdAmt = event.balance_due_amount;
       if (bdAmt == null) return <span className="text-gray-300">—</span>;
