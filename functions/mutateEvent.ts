@@ -93,6 +93,10 @@ Deno.serve(async (req) => {
         await logDenial(base44, user, "create_event", null, "role denied");
         return Response.json({ error: "Forbidden: your role cannot create events" }, { status: 403 });
       }
+      // PHASE C: lead_id is REQUIRED
+      if (!data.lead_id) {
+        return Response.json({ error: "LEAD_ID_REQUIRED", details: "All new events must be linked to a lead" }, { status: 422 });
+      }
       const event = await base44.asServiceRole.entities.Event.create(data);
       return Response.json({ event });
     }
@@ -201,23 +205,34 @@ Deno.serve(async (req) => {
         }).catch(() => {});
       }
 
+      // ── PHASE D: Snapshot quote on Booked (fallback if not yet snapshotted) ─
+      if (cleaned.status === "booked" && preUpdateEvent.lead_id) {
+       const needsSnapshot = !preUpdateEvent.package_name || !preUpdateEvent.total_fee;
+       if (needsSnapshot) {
+         base44.asServiceRole.functions.invoke("snapshotQuoteToEvent", {
+           event_id: id,
+           lead_id: preUpdateEvent.lead_id,
+         }).catch(() => {});
+       }
+      }
+
       // ── Post-event automation triggers (server-side, idempotent) ─
       if (cleaned.status === "completed") {
-        base44.asServiceRole.functions.invoke("postEventAutomation", {
-          action: "event_completed",
-          event_id: id,
-        }).catch(() => {});
+       base44.asServiceRole.functions.invoke("postEventAutomation", {
+         action: "event_completed",
+         event_id: id,
+       }).catch(() => {});
       }
 
       if (cleaned.survey_score !== undefined && cleaned.survey_score !== null) {
-        const hadScoreBefore = preUpdateEvent.survey_score !== undefined && preUpdateEvent.survey_score !== null;
-        if (!hadScoreBefore) {
-          base44.asServiceRole.functions.invoke("postEventAutomation", {
-            action: "survey_received",
-            event_id: id,
-            survey_score: cleaned.survey_score,
-          }).catch(() => {});
-        }
+       const hadScoreBefore = preUpdateEvent.survey_score !== undefined && preUpdateEvent.survey_score !== null;
+       if (!hadScoreBefore) {
+         base44.asServiceRole.functions.invoke("postEventAutomation", {
+           action: "survey_received",
+           event_id: id,
+           survey_score: cleaned.survey_score,
+         }).catch(() => {});
+       }
       }
 
       return Response.json({ event: updated });
