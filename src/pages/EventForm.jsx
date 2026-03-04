@@ -1,6 +1,7 @@
 import React, { useState, useEffect } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
+import { base44 } from "@/api/base44Client";
 import { EventAPI, EventOpsAPI } from "@/components/api/secureApi";
 import { onEventBooked } from "@/components/crm/automations";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
