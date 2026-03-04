@@ -454,8 +454,8 @@ export default function Events() {
   const thCls = `px-3 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap`;
   const thSortCls = thCls + " cursor-pointer select-none hover:text-gray-800";
 
-  const SORTABLE_KEYS = new Set(["event_date","event_name","city","status","contact_name","assigned_dj","readiness_score","total_fee"]);
-  const SORT_KEY_MAP = { "status_city": "status", "staff_combined": "assigned_dj", "readiness_score": "readiness" };
+  const SORTABLE_KEYS = new Set(["event_date","event_name","city","status","contact_name","assigned_dj","readiness_score","total_fee","setup_time","start_time","end_time","venue_name"]);
+  const SORT_KEY_MAP = { "status_city": "status", "staff_combined": "assigned_dj" };
 
   return (
     <div className="p-4 lg:p-6 space-y-4 max-w-[1600px] mx-auto">
