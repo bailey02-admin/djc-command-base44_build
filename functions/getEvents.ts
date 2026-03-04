@@ -97,8 +97,11 @@ Deno.serve(async (req) => {
     const tDb = Date.now();
     let allEvents = await base44.asServiceRole.entities.Event.filter(dbFilter, sort, HARD_CAP);
     console.log(`[getEvents] DB fetch: ${Date.now() - tDb}ms, raw=${allEvents.length}`);
+    console.log(`[getEvents] is_deleted sample (first 10):`, allEvents.slice(0, 10).map(e => e.is_deleted));
 
     // ── Step 2: In-memory filters (applied to full set, before pagination) ──
+    allEvents = allEvents.filter(e => !e.is_deleted);
+
     if (filterUnassignedDj) {
       allEvents = allEvents.filter(e => !e.assigned_dj_id);
     }
