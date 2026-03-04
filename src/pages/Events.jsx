@@ -365,39 +365,6 @@ export default function Events() {
             </SelectContent>
           </Select>
 
-          <Popover>
-            <PopoverTrigger asChild>
-              <Button variant="outline" size="sm" className="h-8 text-sm gap-1">
-                <Filter className="w-3.5 h-3.5" /> Completion
-                {Object.keys(completionFilter).length > 0 && (
-                  <Badge className="ml-1 h-4 px-1 text-[10px] bg-violet-600">{Object.keys(completionFilter).length}</Badge>
-                )}
-                <ChevronDown className="w-3 h-3 text-gray-400" />
-              </Button>
-            </PopoverTrigger>
-            <PopoverContent className="w-72 p-3 space-y-2">
-              <p className="text-xs font-semibold text-gray-600 mb-1">Completion filters</p>
-              {COMPLETION_FLAGS.map(f => (
-                <div key={f.key} className="flex items-center justify-between">
-                  <span className="text-xs text-gray-700">{f.label}</span>
-                  <Select
-                    value={completionFilter[f.key] || "any"}
-                    onValueChange={v => {
-                      if (v === "any") { const { [f.key]: _, ...rest } = completionFilter; setCompletion(rest); }
-                      else setCompletion(prev => ({ ...prev, [f.key]: v }));
-                    }}
-                  >
-                    <SelectTrigger className="w-28 h-7 text-xs"><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="any">Any</SelectItem>
-                      <SelectItem value="complete">Complete</SelectItem>
-                      <SelectItem value="incomplete">Incomplete</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-              ))}
-            </PopoverContent>
-          </Popover>
 
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" className="h-8 text-xs text-gray-400 gap-1" onClick={clearFilters}>
