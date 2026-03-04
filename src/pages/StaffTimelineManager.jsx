@@ -120,7 +120,7 @@ export default function StaffTimelineManager() {
           <Link to={createPageUrl("StaffTimelineView") + `?event_id=${eventId}&type=${timelineType}`}>
             <Button variant="outline" size="sm" className="gap-1"><Eye className="w-3.5 h-3.5" /> Preview</Button>
           </Link>
-          {data?.template && rows.length === 0 && (
+          {(data?.bundle ?? data)?.template && rows.length === 0 && (
             <Button variant="outline" size="sm" className="gap-1 text-indigo-600 border-indigo-200" onClick={loadTemplate}>
               Load Template
             </Button>
