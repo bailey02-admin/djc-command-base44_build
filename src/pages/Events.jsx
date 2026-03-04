@@ -276,13 +276,25 @@ export default function Events() {
     [activeColumns]
   );
 
+  const ADMIN_SAVE_LIMIT = 6;
+
   const handleSaveConfig = async ({ name, columns, is_default }) => {
+    if (user?.role !== "admin") return;
+
     const sanitized = filterColumnsByRole(columns, user?.role);
     const payload = { entity_key: "events", name, columns: sanitized, is_default };
-    // Only pass id if we're updating an existing non-global config
-    if (activeConfigId) {
-      const cfg = savedConfigs.find(c => c.id === activeConfigId);
-      if (cfg && !cfg.is_global) payload.id = activeConfigId;
+
+    // Determine if this is an update (editing an existing saved config)
+    const isUpdate = activeConfigId && savedConfigs.find(c => c.id === activeConfigId && !c.is_global);
+    if (isUpdate) {
+      payload.id = activeConfigId;
+    } else {
+      // New view — enforce limit
+      const userOwnedCount = savedConfigs.filter(c => !c.is_global).length;
+      if (userOwnedCount >= ADMIN_SAVE_LIMIT) {
+        toast.error(`You can only save up to ${ADMIN_SAVE_LIMIT} column views. Delete one first.`);
+        return;
+      }
     }
     try {
       // invoke() in secureApi already unwraps r.data — so res = { config, warnings }
