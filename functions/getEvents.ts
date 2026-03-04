@@ -287,11 +287,21 @@ Deno.serve(async (req) => {
 
     console.log(`[getEvents] done total=${total} skip=${skip} limit=${limit} returned=${result.length} elapsed=${Date.now() - t0}ms`);
 
-    // Debug: log first row keys to confirm enriched fields are present
+    // TEMP DEBUG: Verify enriched fields are in result
     if (result.length > 0) {
-      const sample = result[0];
-      console.log(`[getEvents] sample row keys: ${Object.keys(sample).join(", ")}`);
-      console.log(`[getEvents] sample enriched: org=${sample.organization_name} rep=${sample.salesperson_name} src=${sample.inquiry_source_label} addons=${sample.add_ons_summary}`);
+      const s = result[0];
+      console.log("[getEvents DEBUG] enriched sample", {
+        id: s.id,
+        contact_id: s.contact_id,
+        contact_name: s.contact_name,
+        lead_id: s.lead_id,
+        organization_name: s.organization_name,
+        salesperson_name: s.salesperson_name,
+        inquiry_source_label: s.inquiry_source_label,
+        add_ons_count: s.add_ons_count,
+        add_ons_total_qty: s.add_ons_total_qty,
+        add_ons_summary: s.add_ons_summary,
+      });
     }
 
     return Response.json({
