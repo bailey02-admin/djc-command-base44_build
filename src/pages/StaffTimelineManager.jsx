@@ -95,8 +95,9 @@ export default function StaffTimelineManager() {
   };
 
   const loadTemplate = () => {
-    if (!data?.template) return;
-    setRows(data.template.map((t, i) => ({ ...t, sort_order: i })));
+    const d = data?.bundle ?? data;
+    if (!d?.template) return;
+    setRows(d.template.map((t, i) => ({ ...t, sort_order: i })));
     setDirty(true);
   };
 
