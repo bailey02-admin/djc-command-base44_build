@@ -10,8 +10,6 @@
  *   add_ons_summary      – "Name x2, Name x1, +2 more" from best Quote
  *   add_ons_count        – count of distinct add-on line items
  *   add_ons_total_qty    – sum of all qty values
- *
- * Response: { events: [...], total: N, page: { skip, limit, returned }, _timing_ms }
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
@@ -84,48 +82,32 @@ function computeBaseFields(record, role) {
   return record;
 }
 
-// Normalize add-on: support both old {name, price} and new {name, qty, amount} schemas
+// Normalize add-on: support legacy {name, price} and new {name, qty, amount}
 function normalizeAddOn(a) {
   return {
-    name: a.name || "",
-    qty: a.qty ?? 1,
-    amount: a.amount ?? a.price ?? 0,
+    name:   a.name || "",
+    qty:    Number(a.qty)  || 1,
+    amount: Number(a.amount ?? a.price) || 0,
   };
 }
 
-// Build add-ons summary string: "Name x2, Name x1, +2 more"
-function buildAddOnsSummary(addOns) {
-  const normalized = addOns.filter(a => a.name).map(normalizeAddOn);
-  const count = normalized.length;
+function buildAddOnsSummary(rawAddOns) {
+  const addOns = (rawAddOns || []).filter(a => a.name).map(normalizeAddOn);
+  const count   = addOns.length;
   if (count === 0) return { summary: null, count: 0, total_qty: 0 };
 
-  const totalQty = normalized.reduce((s, a) => s + (a.qty || 1), 0);
-  const MAX_SHOWN = 3;
-  const shown = normalized.slice(0, MAX_SHOWN);
-  let parts = shown.map(a => a.qty > 1 ? `${a.name} x${a.qty}` : a.name);
-  if (count > MAX_SHOWN) parts.push(`+${count - MAX_SHOWN} more`);
-
-  return { summary: parts.join(", "), count, total_qty: totalQty };
+  const total_qty = addOns.reduce((s, a) => s + a.qty, 0);
+  const MAX = 3;
+  const shown = addOns.slice(0, MAX);
+  const parts = shown.map(a => a.qty > 1 ? `${a.name} x${a.qty}` : a.name);
+  if (count > MAX) parts.push(`+${count - MAX} more`);
+  return { summary: parts.join(", "), count, total_qty };
 }
 
-// Batch fetch by iterating unique values — avoids $in operator which SDK may not support
-async function batchFetchByField(sdk, entityName, field, values) {
-  if (!values.length) return [];
-  // Fetch in chunks to avoid overly large payloads; use filter per unique value
-  // Group fetch: filter returns all matching records for ANY of the values via individual calls
-  const unique = [...new Set(values)];
-  const chunks = [];
-  for (let i = 0; i < unique.length; i += 20) chunks.push(unique.slice(i, i + 20));
-
-  const results = [];
-  for (const chunk of chunks) {
-    // Use parallel per-value fetches — each returns array, we flatten
-    const fetched = await Promise.all(
-      chunk.map(val => sdk.entities[entityName].filter({ [field]: val }, null, 10).catch(() => []))
-    );
-    for (const arr of fetched) results.push(...arr);
-  }
-  return results;
+// Fetch ALL records for a given entity up to cap — used for small reference tables (Contacts, Leads, Users)
+// Since the SDK doesn't support $in, we overfetch and filter in memory.
+async function fetchAll(sdk, entityName, cap = 1000) {
+  return sdk.entities[entityName].list("-updated_date", cap).catch(() => []);
 }
 
 Deno.serve(async (req) => {
@@ -158,7 +140,6 @@ Deno.serve(async (req) => {
     for (const key of ["status", "city", "event_type", "contact_id", "venue_id"]) {
       if (filters[key] && filters[key] !== "all") dbFilter[key] = filters[key];
     }
-
     if (filters.inquiry_source && filters.inquiry_source !== "all") {
       dbFilter.lead_source = filters.inquiry_source;
     }
@@ -167,7 +148,7 @@ Deno.serve(async (req) => {
     const filterUnassignedDj = filters.assigned_dj_id === "__unassigned__";
     const filterDjId = (!filterUnassignedDj && filters.assigned_dj_id && filters.assigned_dj_id !== "any")
       ? filters.assigned_dj_id : null;
-    const filterSalesperson  = filters.salesperson ? filters.salesperson.toLowerCase() : null;
+    const filterSalesperson   = filters.salesperson ? filters.salesperson.toLowerCase() : null;
     const filterAddOnsPresent = filters.add_ons_present === true;
 
     if (role === "dj") dbFilter.assigned_dj = user.email;
@@ -176,13 +157,24 @@ Deno.serve(async (req) => {
     const fromDate = (date_from !== undefined && date_from !== null && date_from !== "") ? date_from : today;
     const toDate   = (date_to   !== undefined && date_to   !== null && date_to   !== "") ? date_to   : null;
 
-    // ── Step 1: Fetch events ───────────────────────────────────────────────
+    // ── Step 1: Fetch events + reference tables in parallel ────────────────
     const tDb = Date.now();
-    let allEvents = await base44.asServiceRole.entities.Event.filter(dbFilter, sort, HARD_CAP);
-    console.log(`[getEvents] DB fetch: ${Date.now() - tDb}ms, raw=${allEvents.length}`);
+    const [allEventsRaw, allContacts, allLeads] = await Promise.all([
+      base44.asServiceRole.entities.Event.filter(dbFilter, sort, HARD_CAP),
+      fetchAll(base44.asServiceRole, "Contact", 2000),
+      fetchAll(base44.asServiceRole, "Lead", 2000),
+    ]);
+    console.log(`[getEvents] parallel fetch: ${Date.now() - tDb}ms events=${allEventsRaw.length} contacts=${allContacts.length} leads=${allLeads.length}`);
 
-    // ── Step 2: In-memory filters ─────────────────────────────────────────
-    allEvents = allEvents.filter(e => !e.is_deleted);
+    // ── Step 2: Build lookup maps ─────────────────────────────────────────
+    const contactMap = {};
+    for (const c of allContacts) if (c.id) contactMap[c.id] = c;
+
+    const leadMap = {};
+    for (const l of allLeads) if (l.id) leadMap[l.id] = l;
+
+    // ── Step 3: In-memory filters ─────────────────────────────────────────
+    let allEvents = allEventsRaw.filter(e => !e.is_deleted);
     if (filterUnassignedDj) allEvents = allEvents.filter(e => !e.assigned_dj_id);
     if (filterDjId)         allEvents = allEvents.filter(e => e.assigned_dj_id === filterDjId);
     if (filterVenueName)    allEvents = allEvents.filter(e => (e.venue_name || "").toLowerCase().includes(filterVenueName));
@@ -203,34 +195,29 @@ Deno.serve(async (req) => {
       return true;
     });
 
-    // ── Step 3: Batch-fetch enrichment data ───────────────────────────────
-    const tEnrich = Date.now();
+    // ── Step 4: Collect rep emails → batch fetch Users ─────────────────────
+    const relevantLeadIds = new Set(allEvents.map(e => e.lead_id).filter(Boolean));
+    const repEmails = [...new Set(
+      allLeads.filter(l => relevantLeadIds.has(l.id) && l.assigned_rep).map(l => l.assigned_rep)
+    )];
 
-    const contactIds  = [...new Set(allEvents.map(e => e.contact_id).filter(Boolean))];
-    const leadIds     = [...new Set(allEvents.map(e => e.lead_id).filter(Boolean))];
-    const eventIds    = allEvents.map(e => e.id);
+    const allUsers = repEmails.length > 0
+      ? await fetchAll(base44.asServiceRole, "User", 500)
+      : [];
 
-    // Fetch contacts and leads via individual filter calls (SDK doesn't support $in)
-    // Fetch quotes per event using event_id filter
-    const [contactsRaw, leadsRaw] = await Promise.all([
-      batchFetchByField(base44.asServiceRole, "Contact", "id", contactIds),
-      batchFetchByField(base44.asServiceRole, "Lead", "id", leadIds),
-    ]);
+    const userByEmail = {};
+    for (const u of allUsers) if (u.email) userByEmail[u.email.toLowerCase()] = u;
 
-    // Quotes: filter by event_id individually for events in page (not entire filtered set to save calls)
-    const pageEventIds = allEvents.slice(skip, skip + limit).map(e => e.id);
-    const quotesRaw = await batchFetchByField(base44.asServiceRole, "Quote", "event_id", pageEventIds);
+    // ── Step 5: Fetch Quotes for the filtered events ───────────────────────
+    // Fetch quotes in one list call, filter in memory
+    const allQuotes = allEvents.length > 0
+      ? await base44.asServiceRole.entities.Quote.list("-updated_date", 1000).catch(() => [])
+      : [];
 
-    // Build contact and lead lookup maps
-    const contactMap = {};
-    for (const c of contactsRaw) contactMap[c.id] = c;
-
-    const leadMap = {};
-    for (const l of leadsRaw) leadMap[l.id] = l;
-
-    // Quote map: event_id → best quote (accepted first, then highest version)
+    const filteredEventIds = new Set(allEvents.map(e => e.id));
     const quoteMap = {};
-    for (const q of quotesRaw) {
+    for (const q of allQuotes) {
+      if (!filteredEventIds.has(q.event_id)) continue;
       const existing = quoteMap[q.event_id];
       if (!existing ||
           (q.status === "accepted" && existing.status !== "accepted") ||
@@ -239,18 +226,9 @@ Deno.serve(async (req) => {
       }
     }
 
-    // Collect unique rep emails for User lookup (salesperson mapping)
-    const repEmails = [...new Set(leadsRaw.map(l => l.assigned_rep).filter(Boolean))];
-    const usersRaw = repEmails.length > 0
-      ? await batchFetchByField(base44.asServiceRole, "User", "email", repEmails)
-      : [];
+    console.log(`[getEvents] enrichment ready: users=${allUsers.length} quotes=${allQuotes.length} repEmails=${repEmails.length}`);
 
-    const userByEmail = {};
-    for (const u of usersRaw) if (u.email) userByEmail[u.email] = u;
-
-    console.log(`[getEvents] enrichment: ${Date.now() - tEnrich}ms contacts=${contactsRaw.length} leads=${leadsRaw.length} quotes=${quotesRaw.length} users=${usersRaw.length}`);
-
-    // ── Step 4: Attach enrichment to each event ───────────────────────────
+    // ── Step 6: Attach enrichment to each event ───────────────────────────
     for (const e of allEvents) {
       const contact = contactMap[e.contact_id];
       const lead    = leadMap[e.lead_id];
@@ -258,50 +236,37 @@ Deno.serve(async (req) => {
       // organization_name from Contact
       e.organization_name = contact?.organization_name || null;
 
-      // salesperson_name: Lead.assigned_rep → User.full_name fallback to formatted email
+      // salesperson_name: Lead.assigned_rep → User.full_name
       if (lead?.assigned_rep) {
         const repEmail = lead.assigned_rep;
-        const repUser  = userByEmail[repEmail];
+        const repUser  = userByEmail[repEmail.toLowerCase()];
         if (repUser?.full_name) {
           e.salesperson_name = repUser.full_name;
         } else {
-          // Format email: "john.doe@domain.com" → "John Doe"
-          const localPart = repEmail.split("@")[0];
+          const localPart = repEmail.includes("@") ? repEmail.split("@")[0] : repEmail;
           e.salesperson_name = localPart.replace(/[._-]/g, " ").replace(/\b\w/g, c => c.toUpperCase());
         }
       } else {
         e.salesperson_name = null;
       }
 
-      // inquiry_source_label from event.lead_source or lead.lead_source
+      // inquiry_source_label
       const src = e.lead_source || lead?.lead_source || null;
       e.inquiry_source_label = src ? (LEAD_SOURCE_LABELS[src] || src) : null;
 
       // add-ons from best quote
       const quote = quoteMap[e.id];
-      if (quote?.add_ons?.length > 0) {
-        const { summary, count, total_qty } = buildAddOnsSummary(quote.add_ons);
-        e.add_ons_count     = count;
-        e.add_ons_total_qty = total_qty;
-        e.add_ons_summary   = summary;
-      } else {
-        e.add_ons_count     = 0;
-        e.add_ons_total_qty = 0;
-        e.add_ons_summary   = null;
-      }
+      const { summary, count, total_qty } = buildAddOnsSummary(quote?.add_ons);
+      e.add_ons_count     = count;
+      e.add_ons_total_qty = total_qty;
+      e.add_ons_summary   = summary;
     }
 
-    // add_ons_present filter (post-enrichment, only on page slice — approximate)
-    if (filterAddOnsPresent) {
-      allEvents = allEvents.filter(e => e.add_ons_count > 0);
-    }
+    // Post-enrichment filters
+    if (filterAddOnsPresent) allEvents = allEvents.filter(e => e.add_ons_count > 0);
+    if (filterSalesperson)   allEvents = allEvents.filter(e => (e.salesperson_name || "").toLowerCase().includes(filterSalesperson));
 
-    // salesperson filter (post-enrichment)
-    if (filterSalesperson) {
-      allEvents = allEvents.filter(e => (e.salesperson_name || "").toLowerCase().includes(filterSalesperson));
-    }
-
-    // ── Step 5: Total + paginate + project ────────────────────────────────
+    // ── Step 7: Total + paginate + project ────────────────────────────────
     const total     = allEvents.length;
     const paginated = allEvents.slice(skip, skip + limit);
 
@@ -320,7 +285,14 @@ Deno.serve(async (req) => {
       return projected;
     });
 
-    console.log(`[getEvents] total=${total} skip=${skip} limit=${limit} returned=${result.length} elapsed=${Date.now() - t0}ms`);
+    console.log(`[getEvents] done total=${total} skip=${skip} limit=${limit} returned=${result.length} elapsed=${Date.now() - t0}ms`);
+
+    // Debug: log first row keys to confirm enriched fields are present
+    if (result.length > 0) {
+      const sample = result[0];
+      console.log(`[getEvents] sample row keys: ${Object.keys(sample).join(", ")}`);
+      console.log(`[getEvents] sample enriched: org=${sample.organization_name} rep=${sample.salesperson_name} src=${sample.inquiry_source_label} addons=${sample.add_ons_summary}`);
+    }
 
     return Response.json({
       events: result,
