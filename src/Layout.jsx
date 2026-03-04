@@ -30,6 +30,12 @@ const ALL_NAV_ITEMS = [
   { name: "Settings",        icon: Settings,        page: "Settings" },
 ];
 
+// Staff planning pages — not in sidebar nav, accessible via EventDetail
+const STAFF_PLANNING_PAGES = new Set([
+  "StaffPlanningHub","StaffMusicManager","StaffSpecialSongsList",
+  "StaffTimelineManager","StaffTimelineView","StaffPrint"
+]);
+
 // Role-scoped nav — only show items the role can reach
 const NAV_BY_ROLE = {
   admin:            ALL_NAV_ITEMS.map(i => i.page),
