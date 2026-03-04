@@ -18,7 +18,7 @@ const CONTACT_METHODS = ["phone", "email", "text", "any"];
 
 const EMPTY = {
   first_name: "", last_name: "", email: "", phone: "", secondary_phone: "",
-  role: "", preferred_contact_method: "any", city: "", address: "", notes: "", tags: [],
+  organization_name: "", role: "", preferred_contact_method: "any", city: "", address: "", notes: "", tags: [],
 };
 
 function SortIcon({ col, sortCol, sortDir }) {
