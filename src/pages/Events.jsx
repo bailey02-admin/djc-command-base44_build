@@ -337,7 +337,9 @@ export default function Events() {
       });
       setCustomizerOpen(false);
       toast.success(`View "${saved.name}" saved`);
-      if (res.warnings?.length) console.warn("[ColumnCustomizer] warnings:", res.warnings);
+      if (res.warnings?.length > 0) {
+        res.warnings.forEach(w => toast.warning(`⚠️ ${w}`));
+      }
     } catch (err) {
       console.error("[handleSaveConfig] failed:", err);
       toast.error(`Save failed: ${err.message}`);
@@ -479,14 +481,15 @@ export default function Events() {
     <div className="p-4 lg:p-6 space-y-4 max-w-[1600px] mx-auto">
 
       {/* Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Events</h1>
-          <p className="text-sm text-gray-400 mt-0.5">
-            {serverTotal !== null ? `${serverTotal} total` : `${accumulated.length} loaded`}
-            {displayed.length !== accumulated.length ? ` · ${displayed.length} shown` : ""}
-          </p>
-        </div>
+       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
+         <div>
+           <h1 className="text-2xl font-bold text-gray-900 tracking-tight">Events</h1>
+           <p className="text-sm text-gray-400 mt-0.5">
+             {serverTotal !== null ? `${serverTotal} total` : `${accumulated.length} loaded`}
+             {displayed.length !== accumulated.length ? ` · ${displayed.length} shown` : ""}
+           </p>
+           <p className="text-xs text-gray-500 mt-1">DEBUG: Active columns: {visibleColumns.map(c => c.key).join(", ") || "none"}</p>
+         </div>
         <div className="flex items-center gap-2">
           {/* View selector */}
           {savedConfigs.length > 1 && (
