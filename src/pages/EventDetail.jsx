@@ -1,8 +1,8 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
-import { EventAPI, ActivityAPI, TaskEngineAPI } from "@/components/api/secureApi";
-import { Link } from "react-router-dom";
+import { EventAPI } from "@/components/api/secureApi";
+import { Link, useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -12,19 +12,51 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { format, differenceInDays } from "date-fns";
 import {
   ArrowLeft, Edit, CalendarDays, MapPin, Music, Clock,
-  DollarSign, Loader2, AlertTriangle, Send, History, ExternalLink, Layers
+  DollarSign, Loader2, AlertTriangle, Send, History, ExternalLink,
+  Layers, Phone, Mail, User, Building2, CheckCircle2, XCircle,
+  FileText, Printer, Plus
 } from "lucide-react";
-import ReadinessPanel from "../components/events/ReadinessPanel";
-import FinalizationChecklist from "../components/events/FinalizationChecklist";
-import StaffAssignmentCard from "../components/events/StaffAssignmentCard";
-import ChangeHistoryPanel from "../components/events/ChangeHistoryPanel";
-import EventNextBestAction from "../components/events/EventNextBestAction";
-import ActivityFeed from "../components/leads/ActivityFeed";
-import SendMessageModal from "../components/communication/SendMessageModal";
-import { calculateReadinessScore } from "../components/crm/pipeline";
-import { trackEventChanges } from "../components/crm/changeTracker";
+import ReadinessPanel from "@/components/events/ReadinessPanel";
+import FinalizationChecklist from "@/components/events/FinalizationChecklist";
+import StaffAssignmentCard from "@/components/events/StaffAssignmentCard";
+import ChangeHistoryPanel from "@/components/events/ChangeHistoryPanel";
+import EventNextBestAction from "@/components/events/EventNextBestAction";
+import ActivityFeed from "@/components/leads/ActivityFeed";
+import SendMessageModal from "@/components/communication/SendMessageModal";
+import { calculateReadinessScore } from "@/components/crm/pipeline";
+import { trackEventChanges } from "@/components/crm/changeTracker";
 
 const STATUS_OPTIONS = ["booked_pending","booked","planning_in_progress","finalized","completed","cancelled","postponed"];
+const STATUS_COLOR = {
+  booked_pending:       "bg-sky-50 text-sky-700 border-sky-200",
+  booked:               "bg-blue-50 text-blue-700 border-blue-200",
+  planning_in_progress: "bg-violet-50 text-violet-700 border-violet-200",
+  finalized:            "bg-purple-50 text-purple-700 border-purple-200",
+  completed:            "bg-green-50 text-green-700 border-green-200",
+  cancelled:            "bg-red-50 text-red-700 border-red-200",
+  postponed:            "bg-amber-50 text-amber-700 border-amber-200",
+};
+
+function InfoRow({ label, value, mono, className }) {
+  if (!value && value !== 0) return null;
+  return (
+    <div className={className}>
+      <span className="text-gray-400 text-xs block">{label}</span>
+      <p className={`font-medium mt-0.5 text-sm ${mono ? "font-mono text-[11px] text-gray-500 select-all" : ""}`}>{value}</p>
+    </div>
+  );
+}
+
+function BoolBadge({ label, value }) {
+  return (
+    <div className="flex items-center gap-1.5 text-xs">
+      {value
+        ? <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
+        : <XCircle className="w-3.5 h-3.5 text-gray-200" />}
+      <span className={value ? "text-emerald-700" : "text-gray-400"}>{label}</span>
+    </div>
+  );
+}
 
 export default function EventDetail() {
   const params = new URLSearchParams(window.location.search);
@@ -36,23 +68,19 @@ export default function EventDetail() {
   const [impersonateError, setImpersonateError] = useState(null);
   React.useEffect(() => { base44.auth.me().then(setUser).catch(() => {}); }, []);
 
-  const canImpersonate = user && ["admin", "city_manager", "office_finalizer"].includes(user.role);
+  const canImpersonate = user && ["admin","city_manager","office_finalizer"].includes(user.role);
+  const canSeeFinance = user && ["admin","city_manager","sales_manager","finance"].includes(user.role);
+  const canEditEvent = user && ["admin","city_manager","sales_manager","office_finalizer"].includes(user.role);
+  const canManageStaff = user && ["admin","city_manager","sales_manager"].includes(user.role);
 
   const handleViewAsClient = async () => {
-    setImpersonating(true);
-    setImpersonateError(null);
+    setImpersonating(true); setImpersonateError(null);
     try {
       const res = await base44.functions.invoke("createImpersonationSession", { event_id: id });
-      if (res.data?.ok && res.data?.redirect_url) {
-        window.open(res.data.redirect_url, "_blank");
-      } else {
-        setImpersonateError(res.data?.error || "Failed to create session");
-      }
-    } catch (e) {
-      setImpersonateError(e?.response?.data?.error || "Not authorized");
-    } finally {
-      setImpersonating(false);
-    }
+      if (res.data?.ok && res.data?.redirect_url) window.open(res.data.redirect_url, "_blank");
+      else setImpersonateError(res.data?.error || "Failed to create session");
+    } catch (e) { setImpersonateError(e?.response?.data?.error || "Not authorized"); }
+    finally { setImpersonating(false); }
   };
 
   const { data: bundle, isLoading } = useQuery({
@@ -68,15 +96,19 @@ export default function EventDetail() {
   const timeline = bundle?.timeline || [];
   const payments = bundle?.payments || [];
   const tasks = bundle?.tasks || [];
+  const paymentsSummary = bundle?.payments_summary || null;
+
+  // Compute balance from payments or summary
+  const totalFee = event?.total_fee ?? event?.package_price ?? 0;
+  const amountPaid = paymentsSummary?.amount_paid_total
+    ?? payments.filter(p => p.status === "paid").reduce((s, p) => s + (p.amount || 0), 0);
+  const balanceDue = Math.max(0, totalFee - amountPaid);
 
   const updateEvent = async (field, value) => {
     await trackEventChanges(event, { [field]: value }, user?.email || "");
     await EventAPI.update(id, { [field]: value });
     queryClient.invalidateQueries(["event-bundle", id]);
     queryClient.invalidateQueries(["change-history", id]);
-
-    // Note: post-event automation triggers (event_completed, survey_received)
-    // are now fired server-side in mutateEvent — no need to call from UI.
   };
 
   const updateReadinessItem = async (key, value) => {
@@ -101,181 +133,357 @@ export default function EventDetail() {
   const readiness = calculateReadinessScore(event);
 
   return (
-    <div className="p-4 lg:p-8 max-w-6xl mx-auto space-y-6">
+    <div className="p-4 lg:p-6 max-w-7xl mx-auto space-y-5">
       <Link to={createPageUrl("Events")} className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-gray-700">
         <ArrowLeft className="w-4 h-4" /> Back to Events
       </Link>
 
-      {/* Client-changed-after-review warning banner */}
+      {/* Warning banner */}
       {event.client_changed_after_review && (
         <div className="flex items-center gap-3 bg-amber-50 border border-amber-300 rounded-xl px-4 py-3 text-sm text-amber-800">
           <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
           <span className="font-medium">Client edited details after DJ review.</span>
-          <span className="text-amber-700">Re-brief the DJ and confirm all changes are accounted for.</span>
+          <span className="text-amber-700">Re-brief the DJ and confirm all changes.</span>
           <Button size="sm" variant="outline" onClick={markDJReviewed} className="ml-auto border-amber-400 text-amber-700 hover:bg-amber-100 text-xs">
             Mark Reviewed Again
           </Button>
         </div>
       )}
 
-      <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
-        <div>
-          <h1 className="text-2xl font-bold text-gray-900">{event.event_name}</h1>
-          <div className="flex items-center gap-3 mt-2 text-sm text-gray-500 flex-wrap">
-            {event.event_date && <span className="flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5" />{format(new Date(event.event_date), "EEEE, MMMM d, yyyy")}</span>}
-            {event.venue_name && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{event.venue_name}</span>}
-          </div>
-          <div className="flex gap-2 mt-2 flex-wrap">
-            <Badge variant="secondary" className="text-xs capitalize">{event.status?.replace(/_/g, " ")}</Badge>
-            <Badge variant="outline" className={`text-xs ${readiness >= 80 ? "border-emerald-200 text-emerald-700" : readiness >= 50 ? "border-amber-200 text-amber-700" : "border-red-200 text-red-600"}`}>
-              {readiness}% Ready
-            </Badge>
-            {daysUntil !== null && (
-              <Badge variant="outline" className={`text-xs ${daysUntil <= 7 ? "border-red-200 text-red-600" : daysUntil <= 30 ? "border-amber-200 text-amber-700" : ""}`}>
-                {daysUntil <= 0 ? "Today!" : `${daysUntil} days`}
+      {/* ─── Sticky Header ─── */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+        <div className="flex flex-col sm:flex-row sm:items-start justify-between gap-4">
+          <div>
+            <div className="flex items-center gap-3 flex-wrap">
+              <h1 className="text-xl font-bold text-gray-900">{event.event_name}</h1>
+              <Badge variant="outline" className={`text-xs ${STATUS_COLOR[event.status] || ""}`}>
+                {event.status?.replace(/_/g, " ")}
+                {event.city ? ` – ${event.city}` : ""}
               </Badge>
-            )}
-            {daysUntil !== null && daysUntil <= 14 && readiness < 80 && (
-              <Badge className="bg-red-100 text-red-700 text-xs gap-1">
-                <AlertTriangle className="w-3 h-3" /> Action Needed
+              {daysUntil !== null && (
+                <Badge variant="outline" className={`text-xs ${daysUntil <= 7 ? "border-red-200 text-red-600" : daysUntil <= 30 ? "border-amber-200 text-amber-700" : "border-gray-200 text-gray-500"}`}>
+                  {daysUntil === 0 ? "Today!" : daysUntil < 0 ? `${Math.abs(daysUntil)}d ago` : `${daysUntil}d`}
+                </Badge>
+              )}
+              <Badge variant="outline" className={`text-xs ${readiness >= 80 ? "border-emerald-200 text-emerald-700" : readiness >= 50 ? "border-amber-200 text-amber-700" : "border-red-200 text-red-600"}`}>
+                {readiness}% Ready
               </Badge>
-            )}
+            </div>
+            <div className="flex items-center gap-4 mt-1.5 text-sm text-gray-500 flex-wrap">
+              {event.event_date && <span className="flex items-center gap-1"><CalendarDays className="w-3.5 h-3.5" />{format(new Date(event.event_date), "EEEE, MMMM d, yyyy")}</span>}
+              {event.venue_name && <span className="flex items-center gap-1"><MapPin className="w-3.5 h-3.5" />{event.venue_name}</span>}
+              {event.start_time && <span className="flex items-center gap-1"><Clock className="w-3.5 h-3.5" />{event.start_time}{event.end_time ? ` – ${event.end_time}` : ""}</span>}
+            </div>
           </div>
-        </div>
-        <div className="flex gap-2 flex-wrap">
-          <Link to={createPageUrl("EventForm") + `?id=${event.id}`}>
-            <Button variant="outline" size="sm"><Edit className="w-4 h-4 mr-1" />Edit</Button>
-          </Link>
-          <Button variant="outline" size="sm" onClick={() => setSendMsgOpen(true)}>
-            <Send className="w-4 h-4 mr-1" />Send Message
-          </Button>
-          {!event.client_changed_after_review && (
-            <Button variant="outline" size="sm" onClick={markDJReviewed} className="border-violet-200 text-violet-700 hover:bg-violet-50 text-xs">
-              ✅ Mark DJ Reviewed
+
+          {/* CTAs */}
+          <div className="flex gap-2 flex-wrap shrink-0">
+            {canEditEvent && (
+              <Link to={createPageUrl("EventForm") + `?id=${event.id}`}>
+                <Button variant="outline" size="sm"><Edit className="w-4 h-4 mr-1" />Edit</Button>
+              </Link>
+            )}
+            <Button variant="outline" size="sm" onClick={() => setSendMsgOpen(true)}>
+              <Send className="w-4 h-4 mr-1" />Message
             </Button>
-          )}
-          {canImpersonate && event.contact_id && (
-            <Button
-              variant="outline" size="sm"
-              onClick={handleViewAsClient}
-              disabled={impersonating}
-              className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs gap-1"
-            >
-              {impersonating
-                ? <Loader2 className="w-3.5 h-3.5 animate-spin" />
-                : <ExternalLink className="w-3.5 h-3.5" />}
-              View as Client
-            </Button>
-          )}
-          {impersonateError && (
-            <span className="text-xs text-red-600 self-center">⚠ {impersonateError}</span>
-          )}
-          <Link to={createPageUrl("StaffPlanningHub") + `?event_id=${id}`}>
-            <Button variant="outline" size="sm" className="border-violet-200 text-violet-700 hover:bg-violet-50 gap-1">
-              <Layers className="w-3.5 h-3.5" /> Staff Planning
-            </Button>
-          </Link>
-          <Select value={event.status} onValueChange={v => updateEvent("status", v)}>
-            <SelectTrigger className="w-44 h-9 text-sm"><SelectValue /></SelectTrigger>
-            <SelectContent>
-              {STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
-            </SelectContent>
-          </Select>
+            <Link to={createPageUrl("StaffPlanningHub") + `?event_id=${id}`}>
+              <Button variant="outline" size="sm" className="border-violet-200 text-violet-700 hover:bg-violet-50">
+                <Layers className="w-3.5 h-3.5 mr-1" /> Planning
+              </Button>
+            </Link>
+            {!event.client_changed_after_review && (
+              <Button variant="outline" size="sm" onClick={markDJReviewed} className="border-violet-200 text-violet-700 hover:bg-violet-50 text-xs">
+                ✅ DJ Reviewed
+              </Button>
+            )}
+            {canImpersonate && event.contact_id && (
+              <Button variant="outline" size="sm" onClick={handleViewAsClient} disabled={impersonating}
+                className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs gap-1">
+                {impersonating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                View as Client
+              </Button>
+            )}
+            {impersonateError && <span className="text-xs text-red-600 self-center">⚠ {impersonateError}</span>}
+            {/* Status quick-change */}
+            <Select value={event.status} onValueChange={v => updateEvent("status", v)}>
+              <SelectTrigger className="w-48 h-9 text-sm"><SelectValue /></SelectTrigger>
+              <SelectContent>
+                {STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
+              </SelectContent>
+            </Select>
+          </div>
         </div>
       </div>
 
-      <Tabs defaultValue="overview" className="space-y-6">
-        <TabsList className="bg-white border flex-wrap">
+      {/* ─── Tabs ─── */}
+      <Tabs defaultValue="overview" className="space-y-4">
+        <TabsList className="bg-white border flex-wrap h-auto gap-1 p-1">
           <TabsTrigger value="overview">Overview</TabsTrigger>
+          <TabsTrigger value="client">Client</TabsTrigger>
+          <TabsTrigger value="financial">Financial</TabsTrigger>
           <TabsTrigger value="finalization">Finalization</TabsTrigger>
           <TabsTrigger value="music">Music ({musicSelections.length})</TabsTrigger>
           <TabsTrigger value="timeline">Timeline ({timeline.length})</TabsTrigger>
-          <TabsTrigger value="payments">Payments ({payments.length})</TabsTrigger>
           <TabsTrigger value="activity">Activity ({activities.length})</TabsTrigger>
           <TabsTrigger value="history"><History className="w-3 h-3 mr-1" />Changes</TabsTrigger>
         </TabsList>
 
+        {/* ─── Overview ─── */}
         <TabsContent value="overview">
-          <div className="grid lg:grid-cols-3 gap-6">
+          <div className="grid lg:grid-cols-3 gap-5">
             <div className="lg:col-span-2 space-y-4">
+
+              {/* A) Event Summary */}
               <Card className="border-0 shadow-sm">
-                <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Event Details</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold flex items-center gap-2"><CalendarDays className="w-4 h-4 text-violet-500" />Event Summary</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-y-4 gap-x-6 text-sm">
-                    <div><span className="text-gray-400 text-xs">Event ID</span><p className="font-mono text-[10px] text-gray-500 mt-0.5 select-all">{event.event_id || event.id}</p></div>
-                    <div><span className="text-gray-400 text-xs">Lead ID</span><p className="font-mono text-[10px] text-gray-500 mt-0.5 select-all">{event.lead_id || "—"}</p></div>
-                    <div><span className="text-gray-400 text-xs">Type</span><p className="font-medium capitalize mt-0.5">{event.event_type?.replace(/_/g, " ")}</p></div>
-                    <div><span className="text-gray-400 text-xs">Time</span><p className="font-medium mt-0.5">{event.start_time || "TBD"} – {event.end_time || "TBD"}</p></div>
-                    <div><span className="text-gray-400 text-xs">Guests</span><p className="font-medium mt-0.5">{event.guest_count || "TBD"}</p></div>
-                    <div><span className="text-gray-400 text-xs">City</span><p className="font-medium mt-0.5">{event.city || "TBD"}</p></div>
-                    <div><span className="text-gray-400 text-xs">Package</span><p className="font-medium mt-0.5">{event.package_name || "TBD"}</p></div>
-                    <div><span className="text-gray-400 text-xs">Price</span><p className="font-medium mt-0.5">{event.package_price ? `$${event.package_price.toLocaleString()}` : "TBD"}</p></div>
-                    <div><span className="text-gray-400 text-xs">DJ</span><p className="font-medium mt-0.5">{event.assigned_dj || "Unassigned"}</p></div>
-                    <div><span className="text-gray-400 text-xs">Finalizer</span><p className="font-medium mt-0.5">{event.assigned_finalizer || "—"}</p></div>
-                    <div><span className="text-gray-400 text-xs">Setup Time</span><p className="font-medium mt-0.5">{event.setup_time || "TBD"}</p></div>
-                    <div><span className="text-gray-400 text-xs">Final Call</span><p className="font-medium mt-0.5">{event.final_call_date || "Not scheduled"}</p></div>
+                  <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+                    <InfoRow label="Event ID" value={event.event_id || event.id} mono />
+                    <InfoRow label="Lead ID" value={event.lead_id} mono />
+                    <InfoRow label="Type" value={event.event_type?.replace(/_/g, " ")} className="capitalize" />
+                    <InfoRow label="Date" value={event.event_date ? format(new Date(event.event_date), "MMM d, yyyy") : null} />
+                    <InfoRow label="Setup Time" value={event.setup_time} />
+                    <InfoRow label="Start Time" value={event.start_time} />
+                    <InfoRow label="End Time" value={event.end_time} />
+                    <InfoRow label="Guest Count" value={event.guest_count} />
+                    <InfoRow label="City" value={event.city} />
+                    <InfoRow label="Package" value={event.package_name} />
+                    <InfoRow label="Final Call Date" value={event.final_call_date} />
+                    <InfoRow label="Booked Date" value={event.booked_date} />
                   </div>
                 </CardContent>
               </Card>
+
+              {/* C) Venue */}
               <Card className="border-0 shadow-sm">
-                <CardHeader className="pb-2">
-                  <CardTitle className="text-sm font-semibold flex items-center gap-2">
-                    Client Contact
-                    {contact && <span className="text-[10px] font-normal text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded">Contact Record Linked</span>}
-                  </CardTitle>
-                </CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Building2 className="w-4 h-4 text-violet-500" />Venue</CardTitle></CardHeader>
                 <CardContent>
-                  <div className="grid grid-cols-2 gap-4 text-sm">
-                    <div><span className="text-gray-400 text-xs">Name</span>
-                      <p className="font-medium mt-0.5">{contact ? `${contact.first_name} ${contact.last_name}` : (event.contact_name || "—")}</p>
-                    </div>
-                    <div><span className="text-gray-400 text-xs">Email</span>
-                      <p className="font-medium mt-0.5">{contact?.email || event.contact_email || "—"}</p>
-                    </div>
-                    <div><span className="text-gray-400 text-xs">Phone</span>
-                      <p className="font-medium mt-0.5">{contact?.phone || event.contact_phone || "—"}</p>
-                    </div>
-                    {contact?.preferred_contact_method && (
-                      <div><span className="text-gray-400 text-xs">Preferred Contact</span>
-                        <p className="font-medium mt-0.5 capitalize">{contact.preferred_contact_method}</p>
-                      </div>
-                    )}
-                    {contact?.id && (
-                      <div className="col-span-2">
-                        <span className="text-gray-400 text-xs">Contact ID</span>
-                        <p className="font-mono text-[10px] text-gray-400 mt-0.5 select-all">{contact.id}</p>
-                      </div>
-                    )}
+                  <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm">
+                    <InfoRow label="Reception Venue" value={event.venue_name} />
+                    <InfoRow label="Ceremony Venue" value={event.ceremony_venue} />
+                    <InfoRow label="Load-in Notes" value={event.load_in_notes} />
+                    <InfoRow label="Equipment Notes" value={event.equipment_notes} />
                   </div>
+                  {event.venue_name && (
+                    <a href={`https://maps.google.com/?q=${encodeURIComponent(event.venue_name)}`}
+                      target="_blank" rel="noopener noreferrer"
+                      className="mt-3 inline-flex items-center gap-1 text-xs text-indigo-600 hover:underline">
+                      <MapPin className="w-3 h-3" /> Directions
+                    </a>
+                  )}
                 </CardContent>
               </Card>
-              {event.internal_notes && (
-                <Card className="border-0 shadow-sm border-l-4 border-l-amber-400">
-                  <CardContent className="p-4">
-                    <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-1">Internal Notes</p>
-                    <p className="text-sm text-gray-700">{event.internal_notes}</p>
+
+              {/* G) Notes */}
+              {(event.internal_notes || event.client_notes) && (
+                <Card className="border-0 shadow-sm">
+                  <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Notes</CardTitle></CardHeader>
+                  <CardContent className="space-y-3">
+                    {event.internal_notes && (
+                      <div className="bg-amber-50 rounded-lg p-3 border-l-4 border-amber-400">
+                        <p className="text-xs font-semibold text-amber-600 uppercase tracking-wider mb-1">Internal Notes</p>
+                        <p className="text-sm text-gray-700">{event.internal_notes}</p>
+                      </div>
+                    )}
+                    {event.client_notes && (
+                      <div>
+                        <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider mb-1">Client Notes</p>
+                        <p className="text-sm text-gray-700">{event.client_notes}</p>
+                      </div>
+                    )}
                   </CardContent>
                 </Card>
               )}
+
+              {/* I) Planning Hub links */}
+              <Card className="border-0 shadow-sm">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold flex items-center gap-2"><Layers className="w-4 h-4 text-violet-500" />Planning Hub</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="flex flex-wrap gap-2">
+                    <Link to={createPageUrl("StaffPlanningHub") + `?event_id=${id}`}>
+                      <Button variant="outline" size="sm" className="text-xs">Planning Hub</Button>
+                    </Link>
+                    <Link to={createPageUrl("StaffMusicManager") + `?event_id=${id}`}>
+                      <Button variant="outline" size="sm" className="text-xs">Music Manager</Button>
+                    </Link>
+                    <Link to={createPageUrl("StaffTimelineManager") + `?event_id=${id}`}>
+                      <Button variant="outline" size="sm" className="text-xs">Timeline Manager</Button>
+                    </Link>
+                    <Link to={createPageUrl("StaffPrint") + `?event_id=${id}`}>
+                      <Button variant="outline" size="sm" className="text-xs gap-1"><Printer className="w-3 h-3" />Print Sheet</Button>
+                    </Link>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
+
+            {/* Right sidebar */}
             <div className="space-y-4">
               <EventNextBestAction event={event} tasks={tasks} />
-              {["admin","city_manager","office_finalizer"].includes(user?.role) && (
-                <StaffAssignmentCard
-                  event={event}
-                  onSaved={() => queryClient.invalidateQueries(["event-bundle", id])}
-                />
+              {canManageStaff && (
+                <StaffAssignmentCard event={event} onSaved={() => queryClient.invalidateQueries(["event-bundle", id])} />
               )}
               <Card className="border-0 shadow-sm">
-                <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Event Readiness</CardTitle></CardHeader>
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Readiness</CardTitle></CardHeader>
                 <CardContent>
                   <ReadinessPanel event={event} onToggle={updateReadinessItem} />
+                </CardContent>
+              </Card>
+              {/* Checklist booleans quick-view */}
+              <Card className="border-0 shadow-sm">
+                <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Checklist</CardTitle></CardHeader>
+                <CardContent>
+                  <div className="grid grid-cols-2 gap-1.5">
+                    {[
+                      ["Contract Signed", event.contract_signed],
+                      ["Deposit Paid", event.deposit_paid],
+                      ["Balance Paid", event.balance_paid],
+                      ["Planning Done", event.planning_complete],
+                      ["Timeline Done", event.timeline_complete],
+                      ["Music Done", event.music_complete],
+                      ["Final Call", event.final_call_completed],
+                      ["DJ Briefed", event.dj_briefed],
+                    ].map(([label, val]) => <BoolBadge key={label} label={label} value={val} />)}
+                  </div>
                 </CardContent>
               </Card>
             </div>
           </div>
         </TabsContent>
 
+        {/* ─── Client Tab ─── */}
+        <TabsContent value="client">
+          <Card className="border-0 shadow-sm">
+            <CardHeader className="pb-2">
+              <CardTitle className="text-sm font-semibold flex items-center gap-2">
+                <User className="w-4 h-4 text-violet-500" />Client / Contact
+                {contact && <span className="text-[10px] font-normal text-violet-600 bg-violet-50 px-1.5 py-0.5 rounded">Contact Linked</span>}
+              </CardTitle>
+            </CardHeader>
+            <CardContent>
+              <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-4 text-sm">
+                <InfoRow label="Name" value={contact ? `${contact.first_name} ${contact.last_name}` : (event.contact_name || null)} />
+                <InfoRow label="Email" value={contact?.email || event.contact_email} />
+                <InfoRow label="Phone" value={contact?.phone || event.contact_phone} />
+                <InfoRow label="Secondary Phone" value={contact?.secondary_phone} />
+                <InfoRow label="Preferred Contact" value={contact?.preferred_contact_method} />
+                {contact?.id && <InfoRow label="Contact ID" value={contact.id} mono />}
+              </div>
+              {contact?.email && (
+                <div className="flex gap-2 mt-4">
+                  <a href={`mailto:${contact.email}`}>
+                    <Button variant="outline" size="sm" className="text-xs gap-1"><Mail className="w-3 h-3" />Email</Button>
+                  </a>
+                  {(contact?.phone || event.contact_phone) && (
+                    <a href={`tel:${contact?.phone || event.contact_phone}`}>
+                      <Button variant="outline" size="sm" className="text-xs gap-1"><Phone className="w-3 h-3" />Call</Button>
+                    </a>
+                  )}
+                </div>
+              )}
+              {canImpersonate && event.contact_id && (
+                <div className="mt-4 pt-4 border-t border-gray-100">
+                  <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Client Portal</p>
+                  <Button variant="outline" size="sm" onClick={handleViewAsClient} disabled={impersonating}
+                    className="border-indigo-200 text-indigo-700 hover:bg-indigo-50 text-xs gap-1">
+                    {impersonating ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <ExternalLink className="w-3.5 h-3.5" />}
+                    View as Client
+                  </Button>
+                </div>
+              )}
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ─── Financial Tab ─── */}
+        <TabsContent value="financial">
+          <div className="space-y-4">
+            {canSeeFinance ? (
+              <>
+                {/* Summary card */}
+                <Card className="border-0 shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2"><DollarSign className="w-4 h-4 text-violet-500" />Financial Summary</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-xs text-gray-400 mb-1">Package Price</p>
+                        <p className="text-lg font-bold text-gray-900">{totalFee ? `$${totalFee.toLocaleString()}` : "—"}</p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-xs text-gray-400 mb-1">Amount Paid</p>
+                        <p className="text-lg font-bold text-emerald-700">${amountPaid.toLocaleString()}</p>
+                      </div>
+                      <div className={`rounded-lg p-3 ${balanceDue > 0 ? "bg-rose-50" : "bg-emerald-50"}`}>
+                        <p className="text-xs text-gray-400 mb-1">Balance Due</p>
+                        <p className={`text-lg font-bold ${balanceDue > 0 ? "text-rose-700" : "text-emerald-700"}`}>
+                          ${balanceDue.toLocaleString()}
+                        </p>
+                      </div>
+                      <div className="bg-gray-50 rounded-lg p-3">
+                        <p className="text-xs text-gray-400 mb-1">Package</p>
+                        <p className="text-sm font-semibold text-gray-700">{event.package_name || "—"}</p>
+                      </div>
+                    </div>
+                    {/* Payment ledger */}
+                    {payments.length > 0 ? (
+                      <table className="w-full text-sm">
+                        <thead><tr className="text-left text-xs text-gray-400 border-b">
+                          <th className="pb-2 font-medium">Type</th>
+                          <th className="pb-2 font-medium">Amount</th>
+                          <th className="pb-2 font-medium">Due</th>
+                          <th className="pb-2 font-medium">Paid</th>
+                          <th className="pb-2 font-medium">Status</th>
+                          <th className="pb-2 font-medium">Method</th>
+                        </tr></thead>
+                        <tbody className="divide-y divide-gray-50">
+                          {payments.map(p => (
+                            <tr key={p.id}>
+                              <td className="py-2.5 capitalize text-gray-700">{p.payment_type?.replace(/_/g, " ")}</td>
+                              <td className="py-2.5 font-semibold">${p.amount?.toLocaleString()}</td>
+                              <td className="py-2.5 text-gray-400 text-xs">{p.due_date ? format(new Date(p.due_date), "MMM d, yy") : "—"}</td>
+                              <td className="py-2.5 text-gray-400 text-xs">{p.paid_date ? format(new Date(p.paid_date), "MMM d, yy") : "—"}</td>
+                              <td className="py-2.5">
+                                <Badge variant="secondary" className={`text-[10px] ${
+                                  p.status === "paid" ? "bg-emerald-50 text-emerald-700" :
+                                  p.status === "overdue" ? "bg-red-50 text-red-700" : "bg-amber-50 text-amber-700"}`}>
+                                  {p.status}
+                                </Badge>
+                              </td>
+                              <td className="py-2.5 text-gray-400 text-xs capitalize">{p.payment_method?.replace(/_/g, " ") || "—"}</td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    ) : paymentsSummary ? (
+                      <p className="text-xs text-gray-400 text-center py-4">Payment summary only (access-limited)</p>
+                    ) : (
+                      <p className="text-center py-6 text-gray-400 text-sm">No payments recorded.</p>
+                    )}
+                  </CardContent>
+                </Card>
+              </>
+            ) : (
+              <Card className="border-0 shadow-sm">
+                <CardContent className="py-12 text-center text-gray-400 text-sm">
+                  Financial details are restricted for your role.
+                </CardContent>
+              </Card>
+            )}
+          </div>
+        </TabsContent>
+
+        {/* ─── Finalization Tab ─── */}
+        <TabsContent value="finalization">
+          <Card className="border-0 shadow-sm">
+            <CardContent className="p-6">
+              <FinalizationChecklist event={event} onToggle={updateReadinessItem} />
+            </CardContent>
+          </Card>
+        </TabsContent>
+
+        {/* ─── Music Tab ─── */}
         <TabsContent value="music">
           <Card className="border-0 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -301,6 +509,7 @@ export default function EventDetail() {
           </Card>
         </TabsContent>
 
+        {/* ─── Timeline Tab ─── */}
         <TabsContent value="timeline">
           <Card className="border-0 shadow-sm">
             <CardHeader className="flex flex-row items-center justify-between pb-2">
@@ -311,7 +520,7 @@ export default function EventDetail() {
             </CardHeader>
             <CardContent>
               {timeline.length > 0 ? (
-                <div className="space-y-1">
+                <div className="space-y-0">
                   {timeline.map(item => (
                     <div key={item.id} className="flex gap-3 py-2.5 border-b border-gray-100 last:border-0 text-sm">
                       <span className="text-xs font-mono text-violet-600 w-16 flex-shrink-0 pt-0.5">{item.time}</span>
@@ -331,36 +540,7 @@ export default function EventDetail() {
           </Card>
         </TabsContent>
 
-        <TabsContent value="payments">
-          <Card className="border-0 shadow-sm">
-            <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Payments</CardTitle></CardHeader>
-            <CardContent>
-              {payments.length > 0 ? payments.map(p => (
-                <div key={p.id} className="flex items-center justify-between py-3 border-b last:border-0 text-sm">
-                  <div>
-                    <p className="font-medium capitalize">{p.payment_type?.replace(/_/g, " ")}</p>
-                    {p.due_date && <p className="text-xs text-gray-400">Due: {format(new Date(p.due_date), "MMM d, yyyy")}</p>}
-                  </div>
-                  <div className="text-right">
-                    <p className="font-bold">${p.amount?.toLocaleString()}</p>
-                    <Badge variant="secondary" className={`text-[10px] ${p.status === "paid" ? "bg-emerald-50 text-emerald-700" : p.status === "overdue" ? "bg-red-50 text-red-700" : "bg-yellow-50 text-yellow-700"}`}>
-                      {p.status}
-                    </Badge>
-                  </div>
-                </div>
-              )) : <p className="text-center py-8 text-gray-400 text-sm">No payments recorded.</p>}
-            </CardContent>
-          </Card>
-        </TabsContent>
-
-        <TabsContent value="finalization">
-          <Card className="border-0 shadow-sm">
-            <CardContent className="p-6">
-              <FinalizationChecklist event={event} onToggle={updateReadinessItem} />
-            </CardContent>
-          </Card>
-        </TabsContent>
-
+        {/* ─── Activity Tab ─── */}
         <TabsContent value="activity">
           <ActivityFeed
             activities={activities}
@@ -371,12 +551,11 @@ export default function EventDetail() {
           />
         </TabsContent>
 
+        {/* ─── Change History Tab ─── */}
         <TabsContent value="history">
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Change History</CardTitle></CardHeader>
-            <CardContent>
-              <ChangeHistoryPanel eventId={id} />
-            </CardContent>
+            <CardContent><ChangeHistoryPanel eventId={id} /></CardContent>
           </Card>
         </TabsContent>
       </Tabs>
