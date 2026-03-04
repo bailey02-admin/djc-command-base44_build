@@ -251,7 +251,7 @@ export const ConversionAPI = {
     invoke("convertLeadToEvent", { lead_id }),
 };
 
-// ─── USERS ────────────────────────────────────────────────────────────────────
+// ─── USERS ─────────────────────────────────────────────────────────────────
 export const UserAPI = {
   list: (filters = {}, limit = 50, skip = 0) =>
     invoke("getUsers", { filters, limit, skip }),
