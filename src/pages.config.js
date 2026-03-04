@@ -83,6 +83,7 @@ import TimelineBuilder from './pages/TimelineBuilder';
 import UserForm from './pages/UserForm';
 import Users from './pages/Users';
 import Venues from './pages/Venues';
+import StatusSettings from './pages/StatusSettings';
 import __Layout from './Layout.jsx';
 
 
@@ -123,6 +124,7 @@ export const PAGES = {
     "UserForm": UserForm,
     "Users": Users,
     "Venues": Venues,
+    "StatusSettings": StatusSettings,
 }
 
 export const pagesConfig = {
