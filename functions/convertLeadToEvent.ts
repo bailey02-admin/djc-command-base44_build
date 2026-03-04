@@ -117,6 +117,34 @@ Deno.serve(async (req) => {
       }
     }
 
+    // ── 3. Snapshot Quote financials ──────────────────────────────
+    // PHASE D: snapshot quote data onto event fields
+    let quoteSnapshot = {
+      add_ons: [],
+      discount_amount: 0,
+      discount_reason: "",
+      tax_amount: 0,
+      total_fee: 0,
+    };
+    try {
+      // Load quote via forLead
+      const quoteRes = await base44.asServiceRole.functions.invoke("getQuotes", { lead_id: lead.id });
+      const quotes = quoteRes.quotes || [];
+      if (quotes.length > 0) {
+        const quote = quotes[0];
+        quoteSnapshot = {
+          add_ons: quote.add_ons || [],
+          discount_amount: quote.discount_amount || 0,
+          discount_reason: quote.discount_reason || "",
+          tax_amount: quote.tax_amount || 0,
+          total_fee: quote.total_amount || 0,
+        };
+      }
+    } catch (e) {
+      // Quote fetch failed — log but don't block conversion
+      console.warn(`[convertLeadToEvent] quote snapshot failed for lead ${lead.id}:`, e.message);
+    }
+
     // ── 3. Create Event ───────────────────────────────────────────
     const bookedDate = lead.booked_date
       ? (typeof lead.booked_date === "string" ? lead.booked_date.split("T")[0] : lead.booked_date)
@@ -146,6 +174,12 @@ Deno.serve(async (req) => {
       package_price: lead.total_fee || lead.quote_amount,
       status: "booked",
       booked_date: bookedDate,
+      // PHASE D: snapshot quote financials
+      add_ons: quoteSnapshot.add_ons,
+      discount_amount: quoteSnapshot.discount_amount,
+      discount_reason: quoteSnapshot.discount_reason,
+      tax_amount: quoteSnapshot.tax_amount,
+      total_fee: quoteSnapshot.total_fee,
     });
 
     // ── 4. Update Lead ────────────────────────────────────────────
