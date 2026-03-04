@@ -237,20 +237,25 @@ export default function Events() {
   const [activeViewName, setActiveViewName] = useState("DJEP Default");
 
   // Load user's saved configs
-  const { data: savedConfigs = [] } = useQuery({
+  const { data: savedConfigs = [], refetch: refetchConfigs } = useQuery({
     queryKey: ["table-view-configs", "events"],
     queryFn: () => TableViewConfigAPI.list("events"),
     enabled: !!user,
     staleTime: 60_000,
   });
 
-  // On load: apply user's default or fall back to global default
+  // Track last save timestamp for debug bar
+  const [lastSaveAt, setLastSaveAt] = useState(null);
+
+  // On load: apply user's default or fall back to global default (only once)
+  const defaultApplied = useRef(false);
   useEffect(() => {
-    if (!savedConfigs.length) return;
+    if (!savedConfigs.length || defaultApplied.current) return;
     const userDefault = savedConfigs.find(c => !c.is_global && c.is_default);
     const globalDefault = savedConfigs.find(c => c.is_global && c.is_default);
     const toApply = userDefault || globalDefault;
     if (toApply) {
+      defaultApplied.current = true;
       setActiveConfigId(toApply.id);
       setActiveViewName(toApply.name);
       setActiveColumns(filterColumnsByRole(toApply.columns || [], user?.role));
@@ -260,7 +265,6 @@ export default function Events() {
   function filterColumnsByRole(cols, role) {
     if (!role) return cols;
     if (FINANCE_ROLES.has(role)) return cols;
-    // Strip finance-only columns for non-finance roles
     const financeKeys = new Set(
       COLUMN_REGISTRY.filter(r => r.role_min === "finance").map(r => r.key)
     );
@@ -275,19 +279,35 @@ export default function Events() {
   const handleSaveConfig = async ({ name, columns, is_default }) => {
     const sanitized = filterColumnsByRole(columns, user?.role);
     const payload = { entity_key: "events", name, columns: sanitized, is_default };
+    // Only pass id if we're updating an existing non-global config
     if (activeConfigId) {
       const cfg = savedConfigs.find(c => c.id === activeConfigId);
       if (cfg && !cfg.is_global) payload.id = activeConfigId;
     }
-    const res = await TableViewConfigAPI.save(payload);
-    const saved = res?.data?.config || res?.config;
-    if (saved) {
+    try {
+      // invoke() in secureApi already unwraps r.data — so res = { config, warnings }
+      const res = await TableViewConfigAPI.save(payload);
+      const saved = res?.config;
+      if (!saved || !saved.id) {
+        throw new Error(res?.error || "Server returned no config");
+      }
+      // Update local state immediately — no wait for refetch
       setActiveConfigId(saved.id);
       setActiveViewName(saved.name);
-      setActiveColumns(filterColumnsByRole(saved.columns, user?.role));
+      setActiveColumns(filterColumnsByRole(saved.columns || [], user?.role));
+      setLastSaveAt(new Date().toLocaleTimeString());
+      // Update cached configs list
+      queryClient.setQueryData(["table-view-configs", "events"], (old = []) => {
+        const without = old.filter(c => c.id !== saved.id);
+        return [...without, saved];
+      });
+      setCustomizerOpen(false);
+      toast.success(`View "${saved.name}" saved`);
+      if (res.warnings?.length) console.warn("[ColumnCustomizer] warnings:", res.warnings);
+    } catch (err) {
+      console.error("[handleSaveConfig] failed:", err);
+      toast.error(`Save failed: ${err.message}`);
     }
-    queryClient.invalidateQueries({ queryKey: ["table-view-configs", "events"] });
-    setCustomizerOpen(false);
   };
 
   const handleReset = () => {
