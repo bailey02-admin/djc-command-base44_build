@@ -124,6 +124,22 @@ Deno.serve(async (req) => {
     if (filterUnassignedDj) {
       allEvents = allEvents.filter(e => !e.assigned_dj_id);
     }
+    if (filterDjId) {
+      allEvents = allEvents.filter(e => e.assigned_dj_id === filterDjId);
+    }
+    if (filterVenueName) {
+      allEvents = allEvents.filter(e => (e.venue_name || "").toLowerCase().includes(filterVenueName));
+    }
+
+    // Search filter (event_name, contact_name, venue_name)
+    const searchQ = filters.search ? filters.search.toLowerCase() : null;
+    if (searchQ) {
+      allEvents = allEvents.filter(e =>
+        (e.event_name || "").toLowerCase().includes(searchQ) ||
+        (e.contact_name || "").toLowerCase().includes(searchQ) ||
+        (e.venue_name || "").toLowerCase().includes(searchQ)
+      );
+    }
 
     allEvents = allEvents.filter(e => {
       if (!e.event_date) return false;
