@@ -37,6 +37,8 @@ const STAFF_PLANNING_PAGES = new Set([
   "StaffTimelineManager","StaffTimelineView","StaffPrint"
 ]);
 
+const AUTH_PAGES = new Set(["AcceptInvite","ForgotPassword","ResetPassword"]);
+
 // Role-scoped nav — only show items the role can reach
 const NAV_BY_ROLE = {
   admin:            ALL_NAV_ITEMS.map(i => i.page),
@@ -58,7 +60,8 @@ export default function Layout({ children, currentPageName }) {
     base44.auth.me().then(setUser).catch(() => {});
   }, []);
 
-  if (currentPageName === "ClientPortal" || currentPageName === "DJView" || STAFF_PLANNING_PAGES.has(currentPageName)) {
+  if (currentPageName === "ClientPortal" || currentPageName === "DJView" ||
+      STAFF_PLANNING_PAGES.has(currentPageName) || AUTH_PAGES.has(currentPageName)) {
     return <>{children}</>;
   }
 

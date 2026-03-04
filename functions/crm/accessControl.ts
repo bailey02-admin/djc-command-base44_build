@@ -90,7 +90,9 @@ export function canAccessEvent(user, event) {
       return true;
 
     case "dj":
-      return event.assigned_dj === user.email;
+      // Match by ID (preferred) or email fallback for legacy records
+      return event.assigned_dj_id === user.id || event.assigned_dj === user.email ||
+             event.assigned_mc_id === user.id || event.assigned_mc === user.email;
 
     default:
       return false;
