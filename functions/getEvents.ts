@@ -1,5 +1,6 @@
 /**
  * getEvents — secure, paginated event list for internal staff.
+ * v2 — redeploy trigger
  *
  * Server-side filters:  status, city, assigned_dj_id, event_type, contact_id
  *                       date_from ($gte), date_to ($lte), assigned_unassigned
