@@ -174,7 +174,7 @@ Deno.serve(async (req) => {
           .then(r => safeContactSummary(r[0] || null, role))
       : Promise.resolve(null);
 
-    const [rawActivities, tasks, rawPayments, musicSelections, timeline, planningArr, contact] = await Promise.all([
+    const [rawActivities, tasks, rawPayments, musicSelections, timeline, planningArr, contact, leadRows, quoteRes] = await Promise.all([
       base44.asServiceRole.entities.Activity.filter({ related_id: id }, "-created_date", 50),
       base44.asServiceRole.entities.Task.filter({ related_id: id }, "-due_date", 20),
       base44.asServiceRole.entities.Payment.filter({ event_id: id }, "-created_date", 50),
@@ -182,6 +182,8 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.TimelineItem.filter({ event_id: id }, "order", 50),
       base44.asServiceRole.entities.EventPlanning.filter({ event_id: id }),
       contactPromise,
+      event.lead_id ? base44.asServiceRole.entities.Lead.filter({ id: event.lead_id }) : Promise.resolve([]),
+      event.lead_id ? base44.asServiceRole.functions.invoke("getQuotes", { lead_id: event.lead_id }).catch(() => ({ quotes: [] })) : Promise.resolve({ quotes: [] }),
     ]);
 
     let activities;
@@ -195,11 +197,29 @@ Deno.serve(async (req) => {
 
     const redacted = redactEvent(event, role);
 
+    // PHASE D: Prepare lead + quote summaries
+    const lead = leadRows[0] || null;
+    const quoteData = quoteRes.quotes && quoteRes.quotes[0] ? {
+      id: quoteRes.quotes[0].id,
+      status: quoteRes.quotes[0].status,
+      total_amount: quoteRes.quotes[0].total_amount,
+      valid_until: quoteRes.quotes[0].valid_until,
+    } : null;
+    const leadSummary = lead ? {
+      id: lead.id,
+      client_name: `${lead.client_first_name} ${lead.client_last_name || ""}`.trim(),
+      assigned_rep: lead.assigned_rep,
+      lead_source: lead.lead_source,
+      inquiry_date: lead.inquiry_date,
+    } : null;
+
     if (role === "office_finalizer") {
       const { amount_paid_total, remaining_balance } = computePaymentSummary(rawPayments, event);
       const links = await fetchLinks(base44, event);
       return Response.json({
         event: { ...redacted, event_id: event.id },
+        lead_summary: leadSummary,
+        quote_summary: quoteData,
         contact, activities, tasks,
         payments_summary: { amount_paid_total, remaining_balance,
           payment_link: links.payment_link, finalizer_call_link: links.finalizer_call_link },
@@ -208,9 +228,12 @@ Deno.serve(async (req) => {
     }
 
     const payments = ["admin", "city_manager", "sales_manager", "finance"].includes(role) ? rawPayments : [];
+    const { amount_paid_total, remaining_balance } = computePaymentSummary(rawPayments, event);
 
     return Response.json({
-      event: { ...redacted, event_id: event.id },
+      event: { ...redacted, event_id: event.id, amount_paid_total, remaining_balance },
+      lead_summary: leadSummary,
+      quote_summary: quoteData,
       contact, activities, tasks, payments, musicSelections, timeline,
       planning: planningArr[0] || null,
     });
