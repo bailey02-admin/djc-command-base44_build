@@ -191,12 +191,8 @@ export default function Events() {
     placeholderData: (prev) => prev,
   });
 
-  const latestRows = useMemo(() => {
-    if (!rawData) return [];
-    return Array.isArray(rawData) ? rawData : (rawData?.events ?? []);
-  }, [rawData]);
-
-  const serverTotal = Array.isArray(rawData) ? null : (rawData?.total ?? null);
+  const latestRows = useMemo(() => rawData?.events ?? [], [rawData]);
+  const serverTotal = rawData?.total ?? null;
 
   useEffect(() => {
     if (skip === 0) {
