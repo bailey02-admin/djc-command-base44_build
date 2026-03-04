@@ -78,6 +78,11 @@ import StaffTimelineView from './pages/StaffTimelineView';
 import Tasks from './pages/Tasks';
 import TimelineBuilder from './pages/TimelineBuilder';
 import Venues from './pages/Venues';
+import Users from './pages/Users';
+import UserForm from './pages/UserForm';
+import AcceptInvite from './pages/AcceptInvite';
+import ForgotPassword from './pages/ForgotPassword';
+import ResetPassword from './pages/ResetPassword';
 import __Layout from './Layout.jsx';
 
 
@@ -113,6 +118,11 @@ export const PAGES = {
     "Tasks": Tasks,
     "TimelineBuilder": TimelineBuilder,
     "Venues": Venues,
+    "Users": Users,
+    "UserForm": UserForm,
+    "AcceptInvite": AcceptInvite,
+    "ForgotPassword": ForgotPassword,
+    "ResetPassword": ResetPassword,
 }
 
 export const pagesConfig = {
