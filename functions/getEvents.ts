@@ -91,13 +91,18 @@ Deno.serve(async (req) => {
     // ── Build DB filter (no is_deleted — handle in-memory) ────────────────
     const dbFilter = {};
 
-    for (const key of ["status", "city", "event_type", "contact_id"]) {
+    for (const key of ["status", "city", "event_type", "contact_id", "venue_id"]) {
       if (filters[key] && filters[key] !== "all") {
         dbFilter[key] = filters[key];
       }
     }
 
+    // venue_name filter (in-memory, since it's a text field not a FK on all records)
+    const filterVenueName = filters.venue_name ? filters.venue_name.toLowerCase() : null;
+
     const filterUnassignedDj = filters.assigned_dj_id === "__unassigned__";
+    const filterDjId = (!filterUnassignedDj && filters.assigned_dj_id && filters.assigned_dj_id !== "any")
+      ? filters.assigned_dj_id : null;
 
     if (role === "dj") {
       dbFilter.assigned_dj = user.email;
