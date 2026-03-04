@@ -61,8 +61,10 @@ export default function StaffMusicManager() {
   });
 
   useEffect(() => {
-    if (requestData?.rows) {
-      setRows(buildBlankRows(requestData.rows));
+    // Normalize: server returns { rows } directly
+    const rawRows = requestData?.rows ?? (Array.isArray(requestData) ? requestData : null);
+    if (rawRows) {
+      setRows(buildBlankRows(rawRows));
       setDirty(false);
     }
   }, [requestData]);
