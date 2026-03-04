@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import ReadinessPanel from "../components/events/ReadinessPanel";
 import FinalizationChecklist from "../components/events/FinalizationChecklist";
+import StaffAssignmentCard from "../components/events/StaffAssignmentCard";
 import ChangeHistoryPanel from "../components/events/ChangeHistoryPanel";
 import EventNextBestAction from "../components/events/EventNextBestAction";
 import ActivityFeed from "../components/leads/ActivityFeed";
@@ -259,6 +260,12 @@ export default function EventDetail() {
             </div>
             <div className="space-y-4">
               <EventNextBestAction event={event} tasks={tasks} />
+              {["admin","city_manager","office_finalizer"].includes(user?.role) && (
+                <StaffAssignmentCard
+                  event={event}
+                  onSaved={() => queryClient.invalidateQueries(["event-bundle", id])}
+                />
+              )}
               <Card className="border-0 shadow-sm">
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Event Readiness</CardTitle></CardHeader>
                 <CardContent>
