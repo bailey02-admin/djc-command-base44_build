@@ -97,6 +97,8 @@ export default function EventDetail() {
   const payments = bundle?.payments || [];
   const tasks = bundle?.tasks || [];
   const paymentsSummary = bundle?.payments_summary || null;
+  const leadSummary = bundle?.lead_summary || null;
+  const quoteSummary = bundle?.quote_summary || null;
 
   // Compute balance from payments or summary
   const totalFee = event?.total_fee ?? event?.package_price ?? 0;
@@ -229,12 +231,41 @@ export default function EventDetail() {
         </TabsList>
 
         {/* ─── Overview ─── */}
-        <TabsContent value="overview">
-          <div className="grid lg:grid-cols-3 gap-5">
-            <div className="lg:col-span-2 space-y-4">
+         <TabsContent value="overview">
+           <div className="grid lg:grid-cols-3 gap-5">
+             <div className="lg:col-span-2 space-y-4">
 
-              {/* A) Event Summary */}
-              <Card className="border-0 shadow-sm">
+               {/* Lead & Salesperson */}
+               {leadSummary && (
+                 <Card className="border-0 shadow-sm">
+                   <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold flex items-center gap-2"><User className="w-4 h-4 text-violet-500" />Lead & Salesperson</CardTitle></CardHeader>
+                   <CardContent>
+                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+                       <InfoRow label="Client" value={leadSummary.client_name} />
+                       <InfoRow label="Salesperson" value={leadSummary.assigned_rep ? (leadSummary.assigned_rep.includes("@") ? leadSummary.assigned_rep.split("@")[0] : leadSummary.assigned_rep) : "—"} />
+                       <InfoRow label="Inquiry Source" value={leadSummary.lead_source ? leadSummary.lead_source.replace(/_/g, " ") : "—"} className="capitalize" />
+                       <InfoRow label="Inquiry Date" value={leadSummary.inquiry_date ? format(new Date(leadSummary.inquiry_date), "MMM d, yyyy") : "—"} />
+                     </div>
+                   </CardContent>
+                 </Card>
+               )}
+
+               {/* Quote Summary */}
+               {quoteSummary && (
+                 <Card className="border-0 shadow-sm">
+                   <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold flex items-center gap-2"><FileText className="w-4 h-4 text-violet-500" />Quote Summary</CardTitle></CardHeader>
+                   <CardContent>
+                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
+                       <InfoRow label="Status" value={quoteSummary.status?.replace(/_/g, " ")} className="capitalize" />
+                       <InfoRow label="Total Amount" value={quoteSummary.total_amount ? `$${quoteSummary.total_amount.toLocaleString()}` : "—"} />
+                       <InfoRow label="Valid Until" value={quoteSummary.valid_until ? format(new Date(quoteSummary.valid_until), "MMM d, yyyy") : "—"} />
+                     </div>
+                   </CardContent>
+                 </Card>
+               )}
+
+               {/* A) Event Summary */}
+               <Card className="border-0 shadow-sm">
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold flex items-center gap-2"><CalendarDays className="w-4 h-4 text-violet-500" />Event Summary</CardTitle></CardHeader>
                 <CardContent>
                   <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
@@ -400,15 +431,50 @@ export default function EventDetail() {
           <div className="space-y-4">
             {canSeeFinance ? (
               <>
+                {/* Financial Snapshot Card */}
+                <Card className="border-0 shadow-sm">
+                  <CardHeader className="pb-2">
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2"><DollarSign className="w-4 h-4 text-violet-500" />Financial Snapshot</CardTitle>
+                  </CardHeader>
+                  <CardContent>
+                    <div className="grid grid-cols-2 gap-x-6 gap-y-3 text-sm mb-4">
+                      <InfoRow label="Package Name" value={event.package_name} />
+                      <InfoRow label="Total Fee" value={event.total_fee ? `$${event.total_fee.toLocaleString()}` : "—"} />
+                      <InfoRow label="Discount Amount" value={event.discount_amount ? `$${event.discount_amount.toLocaleString()}` : "—"} />
+                      <InfoRow label="Discount Reason" value={event.discount_reason} />
+                      <InfoRow label="Tax Amount" value={event.tax_amount ? `$${event.tax_amount.toLocaleString()}` : "—"} />
+                      {event.add_ons && event.add_ons.length > 0 && (
+                        <InfoRow label="Add-ons" value={`${event.add_ons.length} item(s)`} />
+                      )}
+                    </div>
+                    {event.add_ons && event.add_ons.length > 0 && (
+                      <div className="mt-4 pt-4 border-t">
+                        <p className="text-xs font-semibold text-gray-400 uppercase mb-2">Add-ons</p>
+                        <div className="space-y-1">
+                          {event.add_ons.map((addon, idx) => (
+                            <div key={idx} className="text-xs text-gray-600 flex justify-between">
+                              <span>{addon.name}</span>
+                              <span className="text-gray-400">
+                                {addon.qty ? `x${addon.qty}` : ""} 
+                                {addon.amount ? ` – $${(addon.amount * (addon.qty || 1)).toLocaleString()}` : ""}
+                              </span>
+                            </div>
+                          ))}
+                        </div>
+                      </div>
+                    )}
+                  </CardContent>
+                </Card>
+
                 {/* Summary card */}
                 <Card className="border-0 shadow-sm">
                   <CardHeader className="pb-2">
-                    <CardTitle className="text-sm font-semibold flex items-center gap-2"><DollarSign className="w-4 h-4 text-violet-500" />Financial Summary</CardTitle>
+                    <CardTitle className="text-sm font-semibold flex items-center gap-2"><DollarSign className="w-4 h-4 text-violet-500" />Payment Summary</CardTitle>
                   </CardHeader>
                   <CardContent>
                     <div className="grid grid-cols-2 sm:grid-cols-4 gap-4 mb-4">
                       <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-xs text-gray-400 mb-1">Package Price</p>
+                        <p className="text-xs text-gray-400 mb-1">Total Fee</p>
                         <p className="text-lg font-bold text-gray-900">{totalFee ? `$${totalFee.toLocaleString()}` : "—"}</p>
                       </div>
                       <div className="bg-gray-50 rounded-lg p-3">
@@ -420,10 +486,6 @@ export default function EventDetail() {
                         <p className={`text-lg font-bold ${balanceDue > 0 ? "text-rose-700" : "text-emerald-700"}`}>
                           ${balanceDue.toLocaleString()}
                         </p>
-                      </div>
-                      <div className="bg-gray-50 rounded-lg p-3">
-                        <p className="text-xs text-gray-400 mb-1">Package</p>
-                        <p className="text-sm font-semibold text-gray-700">{event.package_name || "—"}</p>
                       </div>
                     </div>
                     {/* Payment ledger */}
