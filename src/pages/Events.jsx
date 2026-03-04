@@ -223,11 +223,8 @@ function EventCell({ colKey, event, canImpersonate, navigate }) {
     case "add_ons_summary":
       if (!event.add_ons_count) return <span className="text-gray-300">—</span>;
       return (
-        <span className="text-xs text-gray-700" title={event.add_ons_summary}>
-          <span className="inline-flex items-center gap-1">
-            <span className="font-semibold text-violet-700">{event.add_ons_count}</span>
-            <span className="text-gray-400">{event.add_ons_count === 1 ? "add-on" : "add-ons"}</span>
-          </span>
+        <span className="text-xs text-gray-700 max-w-[180px] block truncate" title={event.add_ons_summary}>
+          {event.add_ons_summary || `${event.add_ons_count} add-on${event.add_ons_count !== 1 ? "s" : ""}`}
         </span>
       );
     case "view_action":
