@@ -88,9 +88,9 @@ export default function ColumnCustomizer({ open, onClose, columns, userRole, onS
       console.log("[ColumnCustomizer] Saving config:", { name, colCount: cols.length, saveAsDefault });
       await onSave({ name, columns: cols, is_default: saveAsDefault });
       console.log("[ColumnCustomizer] Save completed successfully");
+      // Don't close here — let onSave (in Events page) close the panel
     } catch (err) {
       console.error("[ColumnCustomizer] Save failed:", err);
-    } finally {
       setSaving(false);
     }
   };
