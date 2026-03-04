@@ -281,6 +281,18 @@ export const UserAPI = {
     invoke("mutateUser", { action: "reactivate", id }),
 };
 
+// ─── TABLE VIEW CONFIGS ───────────────────────────────────────────────────
+export const TableViewConfigAPI = {
+  list: (entity_key = "events") =>
+    invoke("getTableViewConfigs", { entity_key }).then(r => r.configs || []),
+
+  save: (payload) =>
+    invoke("saveTableViewConfig", payload),
+
+  delete: (id) =>
+    invoke("deleteTableViewConfig", { id }),
+};
+
 // ─── ADMIN OPS ────────────────────────────────────────────────────────────
 export const AdminAPI = {
   resetDemoData: () =>
