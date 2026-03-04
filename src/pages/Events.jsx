@@ -557,15 +557,17 @@ export default function Events() {
               <SelectItem value="unassigned">Unassigned DJ</SelectItem>
             </SelectContent>
           </Select>
-          <button
-            onClick={() => setClientFilters(f => f.balance_due ? {} : { ...f, balance_due: true })}
-            className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-md border transition-colors ${
-              clientFilters.balance_due
-                ? "bg-rose-50 text-rose-700 border-rose-300"
-                : "bg-white text-gray-600 border-gray-200 hover:border-rose-300"
-            }`}>
-            <DollarSign className="w-3 h-3" /> Balance Due
-          </button>
+          {canSeeFinance && (
+            <button
+              onClick={() => setClientFilters(f => f.balance_due ? {} : { ...f, balance_due: true })}
+              className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-md border transition-colors ${
+                clientFilters.balance_due
+                  ? "bg-rose-50 text-rose-700 border-rose-300"
+                  : "bg-white text-gray-600 border-gray-200 hover:border-rose-300"
+              }`}>
+              <DollarSign className="w-3 h-3" /> Balance Due
+            </button>
+          )}
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" className="h-8 text-xs text-gray-400 gap-1" onClick={clearFilters}>
               <X className="w-3.5 h-3.5" /> Clear
