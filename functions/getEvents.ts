@@ -13,6 +13,7 @@
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 import { redactEvent } from './crm/accessControl.js';
+// force redeploy 2
 
 const EVENT_READ_DENIED = new Set(["client"]);
 const HARD_CAP = 500;
