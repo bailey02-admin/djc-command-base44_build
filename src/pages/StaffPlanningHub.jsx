@@ -59,11 +59,13 @@ export default function StaffPlanningHub() {
 
   useEffect(() => { base44.auth.me().then(setUser).catch(() => {}); }, []);
 
-  const { data, isLoading } = useQuery({
+  const { data, isLoading, error: bundleError } = useQuery({
     queryKey: ["planning-bundle", eventId],
     queryFn: async () => {
       const r = await base44.functions.invoke("getPlanningBundle", { event_id: eventId });
-      return r.data;
+      // r.data is the bundle object directly
+      const d = r.data ?? {};
+      return d;
     },
     enabled: !!eventId,
   });
