@@ -175,8 +175,9 @@ export default function ColumnCustomizer({ open, onClose, columns, userRole, onS
 
         {/* Footer */}
         <div className="px-4 py-3 border-t border-gray-100 flex items-center gap-2">
-          <Button onClick={handleSave} className="flex-1 h-8 text-xs bg-violet-600 hover:bg-violet-700 text-white gap-1">
-            <Save className="w-3.5 h-3.5" /> Save View
+          <Button onClick={handleSave} disabled={saving} className="flex-1 h-8 text-xs bg-violet-600 hover:bg-violet-700 text-white gap-1">
+            {saving ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
+            {saving ? "Saving…" : "Save View"}
           </Button>
           <Button variant="outline" size="sm" onClick={onReset} className="h-8 text-xs gap-1">
             <RotateCcw className="w-3.5 h-3.5" /> Reset
