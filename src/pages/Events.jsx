@@ -1,26 +1,24 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery } from "@tanstack/react-query";
-import { EventAPI } from "../components/api/secureApi";
-import { useNavigate } from "react-router-dom";
-import { Link } from "react-router-dom";
+import { EventAPI } from "@/components/api/secureApi";
+import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import { format, differenceInDays } from "date-fns";
+import { format, differenceInDays, addDays } from "date-fns";
 import {
-  Plus, Search, Filter, X, ExternalLink, Loader2, ChevronDown,
-  ChevronUp, ChevronsUpDown, ArrowRight
+  Plus, Search, X, ExternalLink, Loader2, ChevronDown,
+  ChevronUp, ChevronsUpDown, ArrowRight, DollarSign
 } from "lucide-react";
 
 // ─── constants ────────────────────────────────────────────────────────────────
-const todayStr = () => new Date().toISOString().split("T")[0];
 const PAGE_SIZE = 50;
 const ALLOWED_IMPERSONATE = new Set(["admin", "city_manager", "office_finalizer"]);
+const todayStr = () => new Date().toISOString().split("T")[0];
 
 const STATUS_OPTIONS = [
   { value: "booked_pending",       label: "Booked Pending",       color: "bg-sky-50 text-sky-700 border-sky-200" },
@@ -33,45 +31,38 @@ const STATUS_OPTIONS = [
 ];
 const STATUS_COLOR = Object.fromEntries(STATUS_OPTIONS.map(s => [s.value, s.color]));
 const STATUS_LABEL = Object.fromEntries(STATUS_OPTIONS.map(s => [s.value, s.label]));
-
 const CITY_OPTIONS = ["TUL","DFW","HOU","SAT","KC","STL","INDY","NASH","DEN","ATL"];
-
-const COMPLETION_FLAGS = [
-  { key: "planning_complete",    label: "Planning" },
-  { key: "timeline_complete",    label: "Timeline" },
-  { key: "music_complete",       label: "Music" },
-  { key: "contract_signed",      label: "Contract" },
-  { key: "deposit_paid",         label: "Deposit" },
-  { key: "balance_paid",         label: "Balance" },
-  { key: "final_call_completed", label: "Final Call" },
-  { key: "dj_briefed",           label: "DJ Briefed" },
-];
 
 const SAVED_VIEWS = [
   { label: "All Upcoming",        value: "all_upcoming",        filters: {},                                clientFilters: {} },
-  { label: "Needs DJ Assigned",   value: "needs_dj",            filters: { assigned_dj_id: "__unassigned__" }, clientFilters: {} },
+  { label: "Needs DJ",            value: "needs_dj",            filters: { assigned_dj_id: "__unassigned__" }, clientFilters: {} },
   { label: "Incomplete Planning", value: "incomplete_planning", filters: {},                                clientFilters: { incomplete_flags: ["planning_complete","timeline_complete","music_complete"] } },
-  { label: "Payment Issues",      value: "payment_issues",      filters: {},                                clientFilters: { incomplete_flags: ["deposit_paid","balance_paid"] } },
+  { label: "Balance Due",         value: "balance_due",         filters: {},                                clientFilters: { balance_due: true } },
   { label: "Finalization Needed", value: "finalization_needed", filters: {},                                clientFilters: { incomplete_flags: ["final_call_completed","dj_briefed"] } },
   { label: "Cancelled",           value: "cancelled",           filters: { status: "cancelled" },           clientFilters: {} },
   { label: "Completed",           value: "completed",           filters: { status: "completed" },           clientFilters: {} },
 ];
 
-// ─── Readiness bar ────────────────────────────────────────────────────────────
+const DATE_PRESETS = [
+  { label: "Next 7d",  days: 7 },
+  { label: "Next 30d", days: 30 },
+  { label: "Next 90d", days: 90 },
+];
+
+// ─── Sub-components ───────────────────────────────────────────────────────────
 function ReadinessBar({ score }) {
   const pct = score ?? 0;
   const color = pct >= 80 ? "bg-emerald-500" : pct >= 50 ? "bg-amber-400" : "bg-red-400";
   return (
-    <div className="flex items-center gap-1.5 min-w-[80px]">
+    <div className="flex items-center gap-1.5 min-w-[72px]">
       <div className="flex-1 h-1.5 bg-gray-100 rounded-full overflow-hidden">
         <div className={`h-full rounded-full ${color}`} style={{ width: `${pct}%` }} />
       </div>
-      <span className="text-xs tabular-nums text-gray-500 w-8 text-right">{pct}%</span>
+      <span className="text-xs tabular-nums text-gray-500 w-7 text-right">{pct}%</span>
     </div>
   );
 }
 
-// ─── Sort icon ────────────────────────────────────────────────────────────────
 function SortIcon({ col, sortCol, sortDir }) {
   if (sortCol !== col) return <ChevronsUpDown className="w-3 h-3 text-gray-300" />;
   return sortDir === "asc"
@@ -79,47 +70,35 @@ function SortIcon({ col, sortCol, sortDir }) {
     : <ChevronDown className="w-3 h-3 text-violet-500" />;
 }
 
-// ─── ViewAsClient button ──────────────────────────────────────────────────────
 function ViewAsClientBtn({ event }) {
   const [loading, setLoading] = useState(false);
   const [err, setErr] = useState(null);
-
   const handle = async (e) => {
     e.stopPropagation();
     if (!event.contact_id) { setErr("No contact"); return; }
     setLoading(true); setErr(null);
     try {
       const res = await base44.functions.invoke("createImpersonationSession", { event_id: event.id });
-      if (res.data?.ok && res.data?.redirect_url) {
-        window.open(res.data.redirect_url, "_blank", "noopener,noreferrer");
-      } else {
-        setErr(res.data?.error || "Failed");
-      }
-    } catch (ex) {
-      setErr(ex?.response?.data?.error || "Error");
-    } finally { setLoading(false); }
+      if (res.data?.ok && res.data?.redirect_url) window.open(res.data.redirect_url, "_blank", "noopener,noreferrer");
+      else setErr(res.data?.error || "Failed");
+    } catch (ex) { setErr(ex?.response?.data?.error || "Error"); }
+    finally { setLoading(false); }
   };
-
   return (
-    <button
-      onClick={handle}
-      disabled={loading}
-      title={err || "View as Client"}
+    <button onClick={handle} disabled={loading} title={err || "View as Client"}
       className={`inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded border transition-colors
-        ${err ? "border-red-200 text-red-500" : "border-indigo-100 text-indigo-500 hover:border-indigo-300 hover:text-indigo-700"}`}
-    >
+        ${err ? "border-red-200 text-red-500" : "border-indigo-100 text-indigo-500 hover:border-indigo-300 hover:text-indigo-700"}`}>
       {loading ? <Loader2 className="w-3 h-3 animate-spin" /> : <ExternalLink className="w-3 h-3" />}
       {err || "Client"}
     </button>
   );
 }
 
-// ─── Table skeleton ───────────────────────────────────────────────────────────
 function TableSkeleton() {
   return Array.from({ length: 8 }).map((_, i) => (
     <tr key={i} className="border-b border-gray-100">
-      {Array.from({ length: 8 }).map((__, j) => (
-        <td key={j} className="px-4 py-3"><Skeleton className="h-3.5 w-full" /></td>
+      {Array.from({ length: 11 }).map((__, j) => (
+        <td key={j} className="px-3 py-3"><Skeleton className="h-3.5 w-full" /></td>
       ))}
     </tr>
   ));
@@ -131,20 +110,19 @@ export default function Events() {
   const [user, setUser] = useState(null);
   useEffect(() => { base44.auth.me().then(setUser).catch(() => {}); }, []);
   const canImpersonate = user && ALLOWED_IMPERSONATE.has(user.role);
+  const showFinance = user && ["admin","city_manager","sales_manager","finance"].includes(user.role);
 
   // ── filters ──────────────────────────────────────────────────────────────
-  const [dateFrom, setDateFrom]           = useState(todayStr());
-  const [dateTo, setDateTo]               = useState("");
-  const [statusFilter, setStatus]         = useState("all");
-  const [cityFilter, setCity]             = useState("all");
-  const [djFilter, setDj]                 = useState("any");
-  const [completionFilter, setCompletion] = useState({});
-  const [readinessFilter, setReadiness]   = useState("any");
-  const [activeView, setActiveView]       = useState("all_upcoming");
+  const [dateFrom, setDateFrom] = useState(todayStr());
+  const [dateTo, setDateTo]     = useState("");
+  const [statusFilter, setStatus] = useState("all");
+  const [cityFilter, setCity]     = useState("all");
+  const [djFilter, setDj]         = useState("any");
+  const [activeView, setActiveView] = useState("all_upcoming");
   const [clientFilters, setClientFilters] = useState({});
 
   // ── search ───────────────────────────────────────────────────────────────
-  const [search, setSearch]             = useState("");
+  const [search, setSearch] = useState("");
   const [debouncedSearch, setDebounced] = useState("");
   const debounceTimer = useRef(null);
   const handleSearch = useCallback((val) => {
@@ -162,14 +140,14 @@ export default function Events() {
   };
 
   // ── pagination ───────────────────────────────────────────────────────────
-  const [skip, setSkip]               = useState(0);
+  const [skip, setSkip] = useState(0);
   const [accumulated, setAccumulated] = useState([]);
 
   const serverFilters = useMemo(() => {
     const f = {};
-    if (statusFilter !== "all")        f.status = statusFilter;
-    if (cityFilter !== "all")          f.city = cityFilter;
-    if (djFilter === "unassigned")     f.assigned_dj_id = "__unassigned__";
+    if (statusFilter !== "all") f.status = statusFilter;
+    if (cityFilter !== "all")   f.city = cityFilter;
+    if (djFilter === "unassigned") f.assigned_dj_id = "__unassigned__";
     return f;
   }, [statusFilter, cityFilter, djFilter]);
 
@@ -211,28 +189,22 @@ export default function Events() {
   // ── client-side filters + sort ────────────────────────────────────────────
   const displayed = useMemo(() => {
     let list = accumulated;
-
-    for (const [key, val] of Object.entries(completionFilter)) {
-      if (val === "complete")   list = list.filter(e => e[key] === true);
-      if (val === "incomplete") list = list.filter(e => !e[key]);
-    }
     if (clientFilters.incomplete_flags?.length) {
       list = list.filter(e => clientFilters.incomplete_flags.some(f => !e[f]));
     }
-    if (readinessFilter === "lt60")  list = list.filter(e => (e.readiness_score || 0) < 60);
-    if (readinessFilter === "lt80")  list = list.filter(e => (e.readiness_score || 0) < 80);
-    if (readinessFilter === "gte80") list = list.filter(e => (e.readiness_score || 0) >= 80);
+    if (clientFilters.balance_due) {
+      list = list.filter(e => !e.balance_paid);
+    }
     if (debouncedSearch) {
       const q = debouncedSearch.toLowerCase();
       list = list.filter(e =>
         e.event_name?.toLowerCase().includes(q) ||
         e.contact_name?.toLowerCase().includes(q) ||
         e.venue_name?.toLowerCase().includes(q) ||
-        e.assigned_dj?.toLowerCase().includes(q)
+        e.assigned_dj?.toLowerCase().includes(q) ||
+        e.assigned_finalizer?.toLowerCase().includes(q)
       );
     }
-
-    // Sort
     list = [...list].sort((a, b) => {
       let av, bv;
       switch (sortCol) {
@@ -243,14 +215,14 @@ export default function Events() {
         case "contact_name":  av = a.contact_name || ""; bv = b.contact_name || ""; break;
         case "assigned_dj":   av = a.assigned_dj || ""; bv = b.assigned_dj || ""; break;
         case "readiness":     av = a.readiness_score || 0; bv = b.readiness_score || 0; break;
+        case "total_fee":     av = a.total_fee || a.package_price || 0; bv = b.total_fee || b.package_price || 0; break;
         default:              av = ""; bv = "";
       }
       const cmp = av < bv ? -1 : av > bv ? 1 : 0;
       return sortDir === "asc" ? cmp : -cmp;
     });
-
     return list;
-  }, [accumulated, completionFilter, clientFilters, readinessFilter, debouncedSearch, sortCol, sortDir]);
+  }, [accumulated, clientFilters, debouncedSearch, sortCol, sortDir]);
 
   // ── saved views ───────────────────────────────────────────────────────────
   const applyView = (viewValue) => {
@@ -261,28 +233,30 @@ export default function Events() {
     setCity(view.filters.city || "all");
     setDj(view.filters.assigned_dj_id === "__unassigned__" ? "unassigned" : "any");
     setClientFilters(view.clientFilters || {});
-    setCompletion({});
-    setSkip(0);
-    setAccumulated([]);
+    setSkip(0); setAccumulated([]);
+  };
+
+  const applyDatePreset = (days) => {
+    const from = todayStr();
+    const to = format(addDays(new Date(), days), "yyyy-MM-dd");
+    setDateFrom(from); setDateTo(to);
+    setSkip(0); setAccumulated([]);
   };
 
   const clearFilters = () => {
     setDateFrom(todayStr()); setDateTo(""); setStatus("all"); setCity("all");
-    setDj("any"); setCompletion({}); setClientFilters({}); setReadiness("any");
-    setSearch(""); setDebounced(""); setActiveView("all_upcoming");
-    setSkip(0); setAccumulated([]);
+    setDj("any"); setClientFilters({}); setSearch(""); setDebounced("");
+    setActiveView("all_upcoming"); setSkip(0); setAccumulated([]);
   };
 
   const hasActiveFilters = statusFilter !== "all" || cityFilter !== "all" || djFilter !== "any"
-    || dateTo !== "" || Object.keys(completionFilter).length > 0 || debouncedSearch
-    || readinessFilter !== "any" || Object.keys(clientFilters).length > 0;
+    || dateTo !== "" || debouncedSearch || Object.keys(clientFilters).length > 0;
 
-  const thCls = (col) =>
-    `px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide cursor-pointer select-none hover:text-gray-800 whitespace-nowrap`;
+  const thCls = `px-3 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide cursor-pointer select-none hover:text-gray-800 whitespace-nowrap`;
 
   // ── render ────────────────────────────────────────────────────────────────
   return (
-    <div className="p-4 lg:p-8 space-y-5 max-w-[1400px] mx-auto">
+    <div className="p-4 lg:p-6 space-y-4 max-w-[1600px] mx-auto">
 
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
@@ -303,33 +277,41 @@ export default function Events() {
       {/* Saved Views */}
       <div className="flex flex-wrap gap-1.5">
         {SAVED_VIEWS.map(v => (
-          <button
-            key={v.value}
-            onClick={() => applyView(v.value)}
+          <button key={v.value} onClick={() => applyView(v.value)}
             className={`px-3 py-1 rounded-full text-xs font-medium transition-colors border ${
               activeView === v.value
                 ? "bg-violet-600 text-white border-violet-600"
                 : "bg-white text-gray-600 border-gray-200 hover:border-violet-300 hover:text-violet-700"
-            }`}
-          >
+            }`}>
             {v.label}
           </button>
         ))}
       </div>
 
       {/* Filter bar */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3">
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 space-y-2">
         <div className="flex flex-wrap gap-2 items-center">
-          <div className="relative flex-1 min-w-[180px] max-w-xs">
+          {/* Search */}
+          <div className="relative flex-1 min-w-[160px] max-w-xs">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
-            <Input placeholder="Search…" value={search} onChange={e => handleSearch(e.target.value)} className="pl-8 h-8 text-sm" />
+            <Input placeholder="Search events…" value={search} onChange={e => handleSearch(e.target.value)} className="pl-8 h-8 text-sm" />
           </div>
 
-          <input type="date" value={dateFrom} onChange={e => setDateFrom(e.target.value)}
+          {/* Date presets */}
+          <div className="flex gap-1">
+            {DATE_PRESETS.map(p => (
+              <button key={p.days} onClick={() => applyDatePreset(p.days)}
+                className="px-2 py-1 text-xs rounded border border-gray-200 text-gray-600 hover:border-violet-300 hover:text-violet-700 transition-colors bg-white">
+                {p.label}
+              </button>
+            ))}
+          </div>
+
+          <input type="date" value={dateFrom} onChange={e => { setDateFrom(e.target.value); setSkip(0); setAccumulated([]); }}
             className="h-8 rounded-md border border-input px-2 text-sm bg-white text-gray-700" title="From" />
-          <span className="text-gray-400 text-xs">to</span>
-          <input type="date" value={dateTo} onChange={e => setDateTo(e.target.value)}
-            className="h-8 rounded-md border border-input px-2 text-sm bg-white text-gray-700" title="To (optional)" />
+          <span className="text-gray-400 text-xs">–</span>
+          <input type="date" value={dateTo} onChange={e => { setDateTo(e.target.value); setSkip(0); setAccumulated([]); }}
+            className="h-8 rounded-md border border-input px-2 text-sm bg-white text-gray-700" title="To" />
 
           <Select value={statusFilter} onValueChange={v => { setStatus(v); setActiveView(""); }}>
             <SelectTrigger className="w-44 h-8 text-sm"><SelectValue placeholder="All Statuses" /></SelectTrigger>
@@ -340,7 +322,7 @@ export default function Events() {
           </Select>
 
           <Select value={cityFilter} onValueChange={v => { setCity(v); setActiveView(""); }}>
-            <SelectTrigger className="w-36 h-8 text-sm"><SelectValue placeholder="All Cities" /></SelectTrigger>
+            <SelectTrigger className="w-32 h-8 text-sm"><SelectValue placeholder="All Cities" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="all">All Cities</SelectItem>
               {CITY_OPTIONS.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
@@ -348,23 +330,23 @@ export default function Events() {
           </Select>
 
           <Select value={djFilter} onValueChange={v => { setDj(v); setActiveView(""); }}>
-            <SelectTrigger className="w-40 h-8 text-sm"><SelectValue placeholder="Any DJ" /></SelectTrigger>
+            <SelectTrigger className="w-36 h-8 text-sm"><SelectValue placeholder="Any DJ" /></SelectTrigger>
             <SelectContent>
               <SelectItem value="any">Any DJ</SelectItem>
-              <SelectItem value="unassigned">Unassigned</SelectItem>
+              <SelectItem value="unassigned">Unassigned DJ</SelectItem>
             </SelectContent>
           </Select>
 
-          <Select value={readinessFilter} onValueChange={setReadiness}>
-            <SelectTrigger className="w-36 h-8 text-sm"><SelectValue placeholder="Any Readiness" /></SelectTrigger>
-            <SelectContent>
-              <SelectItem value="any">Any Readiness</SelectItem>
-              <SelectItem value="gte80">≥ 80%</SelectItem>
-              <SelectItem value="lt80">&lt; 80%</SelectItem>
-              <SelectItem value="lt60">&lt; 60%</SelectItem>
-            </SelectContent>
-          </Select>
-
+          {/* Balance Due toggle */}
+          <button
+            onClick={() => setClientFilters(f => f.balance_due ? {} : { ...f, balance_due: true })}
+            className={`flex items-center gap-1 px-2.5 py-1 text-xs rounded-md border transition-colors ${
+              clientFilters.balance_due
+                ? "bg-rose-50 text-rose-700 border-rose-300"
+                : "bg-white text-gray-600 border-gray-200 hover:border-rose-300"
+            }`}>
+            <DollarSign className="w-3 h-3" /> Balance Due
+          </button>
 
           {hasActiveFilters && (
             <Button variant="ghost" size="sm" className="h-8 text-xs text-gray-400 gap-1" onClick={clearFilters}>
@@ -382,28 +364,27 @@ export default function Events() {
               <tr>
                 {[
                   { col: "event_date",   label: "Date" },
+                  { col: "status",       label: "Status – City" },
+                  { col: "contact_name", label: "Client" },
                   { col: "event_name",   label: "Event" },
-                  { col: "city",         label: "City" },
-                  { col: "status",       label: "Status" },
-                  { col: "contact_name", label: "Contact" },
-                  { col: "assigned_dj",  label: "DJ" },
-                  { col: "readiness",    label: "Readiness" },
+                  { col: "assigned_dj",  label: "DJ / Staff" },
+                  { col: "venue_name",   label: "Venue" },
+                  { col: "readiness",    label: "Ready" },
+                  ...(showFinance ? [{ col: "total_fee", label: "Fee" }] : []),
                 ].map(({ col, label }) => (
-                  <th key={col} className={thCls(col)} onClick={() => handleSort(col)}>
+                  <th key={col} className={thCls} onClick={() => handleSort(col)}>
                     <span className="flex items-center gap-1">
                       {label} <SortIcon col={col} sortCol={sortCol} sortDir={sortDir} />
                     </span>
                   </th>
                 ))}
-                <th className="px-4 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
+                <th className="px-3 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide">Actions</th>
               </tr>
             </thead>
             <tbody>
-              {isLoading ? (
-                <TableSkeleton />
-              ) : displayed.length === 0 ? (
+              {isLoading ? <TableSkeleton /> : displayed.length === 0 ? (
                 <tr>
-                  <td colSpan={8} className="text-center py-16 text-gray-400 text-sm">
+                  <td colSpan={showFinance ? 9 : 8} className="text-center py-16 text-gray-400 text-sm">
                     {accumulated.length === 0 ? "No upcoming events." : "No events match your filters."}
                     {accumulated.length > 0 && (
                       <div className="mt-2">
@@ -414,13 +395,14 @@ export default function Events() {
                 </tr>
               ) : displayed.map(event => {
                 const days = event.event_date ? differenceInDays(new Date(event.event_date), new Date()) : null;
+                const fee = event.total_fee ?? event.package_price ?? null;
+                const hasBalance = !event.balance_paid && fee;
                 return (
-                  <tr
-                    key={event.id}
+                  <tr key={event.id}
                     onClick={() => navigate(createPageUrl("EventDetail") + `?id=${event.id}`)}
-                    className="border-b border-gray-50 hover:bg-violet-50/40 cursor-pointer transition-colors"
-                  >
-                    <td className="px-4 py-3 whitespace-nowrap">
+                    className="border-b border-gray-50 hover:bg-violet-50/40 cursor-pointer transition-colors">
+                    {/* Date */}
+                    <td className="px-3 py-3 whitespace-nowrap">
                       <div className="text-sm font-medium text-gray-800">
                         {event.event_date ? format(new Date(event.event_date), "MMM d, yyyy") : "—"}
                       </div>
@@ -430,22 +412,46 @@ export default function Events() {
                         </div>
                       )}
                     </td>
-                    <td className="px-4 py-3">
-                      <div className="font-medium text-gray-900 max-w-[200px] truncate">{event.event_name}</div>
-                      <div className="text-[10px] text-gray-400 capitalize mt-0.5">{event.event_type?.replace(/_/g, " ")}</div>
-                    </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 whitespace-nowrap">{event.city || "—"}</td>
-                    <td className="px-4 py-3">
+                    {/* Status – City (display only; stored separately) */}
+                    <td className="px-3 py-3">
                       <Badge variant="outline" className={`text-[10px] whitespace-nowrap ${STATUS_COLOR[event.status] || ""}`}>
                         {STATUS_LABEL[event.status] || event.status?.replace(/_/g, " ") || "—"}
                       </Badge>
+                      {event.city && <div className="text-[10px] text-gray-400 mt-0.5">{event.city}</div>}
                     </td>
-                    <td className="px-4 py-3 text-sm text-gray-600 max-w-[140px] truncate">{event.contact_name || "—"}</td>
-                    <td className="px-4 py-3 text-sm text-gray-600 max-w-[120px] truncate">{event.assigned_dj || <span className="text-amber-500 text-xs">Unassigned</span>}</td>
-                    <td className="px-4 py-3">
+                    {/* Client */}
+                    <td className="px-3 py-3 text-sm text-gray-700 max-w-[130px] truncate">{event.contact_name || "—"}</td>
+                    {/* Event name + type */}
+                    <td className="px-3 py-3">
+                      <div className="font-medium text-gray-900 max-w-[180px] truncate">{event.event_name}</div>
+                      <div className="text-[10px] text-gray-400 capitalize mt-0.5">{event.event_type?.replace(/_/g, " ")}</div>
+                    </td>
+                    {/* DJ / Staff */}
+                    <td className="px-3 py-3 text-sm max-w-[130px]">
+                      {event.assigned_dj
+                        ? <div className="text-gray-700 truncate">{event.assigned_dj}</div>
+                        : <span className="text-amber-500 text-xs font-medium">Unassigned</span>}
+                      {event.assigned_finalizer && <div className="text-[10px] text-gray-400 mt-0.5 truncate">FNL: {event.assigned_finalizer}</div>}
+                    </td>
+                    {/* Venue */}
+                    <td className="px-3 py-3 text-sm text-gray-600 max-w-[130px] truncate">{event.venue_name || "—"}</td>
+                    {/* Readiness */}
+                    <td className="px-3 py-3">
                       <ReadinessBar score={event.readiness_score ?? 0} />
                     </td>
-                    <td className="px-4 py-3" onClick={e => e.stopPropagation()}>
+                    {/* Fee (finance-gated) */}
+                    {showFinance && (
+                      <td className="px-3 py-3 text-sm whitespace-nowrap">
+                        {fee != null
+                          ? <span className={hasBalance ? "text-rose-600 font-semibold" : "text-gray-700"}>
+                              ${fee.toLocaleString()}
+                              {hasBalance && <span className="text-[10px] block text-rose-400">bal due</span>}
+                            </span>
+                          : <span className="text-gray-300">—</span>}
+                      </td>
+                    )}
+                    {/* Actions */}
+                    <td className="px-3 py-3" onClick={e => e.stopPropagation()}>
                       <div className="flex items-center gap-1.5">
                         <Link to={createPageUrl("EventDetail") + `?id=${event.id}`} onClick={e => e.stopPropagation()}>
                           <Button size="sm" variant="outline" className="h-7 text-xs px-2 gap-1">
