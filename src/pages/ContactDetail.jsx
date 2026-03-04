@@ -129,7 +129,7 @@ export default function ContactDetail() {
             {provisioning ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <UserCheck className="w-3.5 h-3.5" />}
             Create Portal Login
           </Button>
-          <Link to={createPageUrl("Contacts")}>
+          <Link to={createPageUrl("ContactForm") + `?id=${id}`}>
             <Button variant="outline" className="text-sm h-8">Edit Contact</Button>
           </Link>
         </div>
