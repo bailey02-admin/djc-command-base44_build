@@ -136,6 +136,16 @@ export default function StaffPlanningHub() {
         </Button>
       </div>
 
+      {/* ── DEBUG BANNER (remove after confirmed working) ── */}
+      <div className="bg-yellow-50 border border-yellow-300 rounded-xl p-3 text-xs font-mono text-yellow-800 space-y-0.5">
+        <div><strong>DEBUG</strong> · eventId: <span className="text-yellow-900">{eventId || "⚠ MISSING"}</span></div>
+        <div>user.role: {user?.role ?? "loading…"}</div>
+        <div>bundle loaded: {isLoading ? "⏳ loading" : data ? "✅ yes" : "❌ no data"}</div>
+        {bundleError && <div className="text-red-600">error: {bundleError.message}</div>}
+        {data?.error && <div className="text-red-600">server error: {data.error}</div>}
+        <div>special_songs: {stats?.special_song_count ?? "—"} · song_requests: {stats?.song_request_count ?? "—"} · perms_record: {data?.permissions_record_exists ? "yes" : "default"}</div>
+      </div>
+
       {isLoading ? (
         <div className="space-y-4">{Array.from({length:4}).map((_,i) => <Skeleton key={i} className="h-20 w-full rounded-xl" />)}</div>
       ) : (
