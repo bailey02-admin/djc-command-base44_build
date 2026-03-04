@@ -240,6 +240,10 @@ export default function Contacts() {
               </div>
             </div>
             <div className="space-y-1">
+              <Label>Organization / Company</Label>
+              <Input value={form.organization_name} onChange={e => set("organization_name", e.target.value)} placeholder="Company or organization name" />
+            </div>
+            <div className="space-y-1">
               <Label>Notes</Label>
               <Textarea value={form.notes} onChange={e => set("notes", e.target.value)} placeholder="Notes…" rows={3} />
             </div>
