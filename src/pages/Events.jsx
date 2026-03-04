@@ -358,6 +358,7 @@ export default function Events() {
   const handleSort = (col) => {
     if (sortCol === col) setSortDir(d => d === "asc" ? "desc" : "asc");
     else { setSortCol(col); setSortDir("asc"); }
+    setSkip(0); setAccumulated([]);
   };
 
   // ── pagination ───────────────────────────────────────────────────────────
