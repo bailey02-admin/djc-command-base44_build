@@ -39,10 +39,17 @@ export const LeadAPI = {
 };
 
 // ─── EVENTS ───────────────────────────────────────────────────────────────
+function normalizeEventList(raw) {
+  if (!raw) return { events: [], total: 0, page: { returned: 0 } };
+  if (Array.isArray(raw)) return { events: raw, total: raw.length, page: { returned: raw.length } };
+  const events = Array.isArray(raw.events) ? raw.events : [];
+  return { events, total: raw.total ?? events.length, page: raw.page ?? { returned: events.length } };
+}
+
 export const EventAPI = {
-  // Returns the full { events, total, page, _timing_ms } response — callers must normalize
+  // Always returns { events: Array, total: Number, page: Object }
   list: (filters = {}, sort = "event_date", limit = 50, skip = 0, date_from, date_to) =>
-    invoke("getEvents", { filters, sort, limit, skip, date_from, date_to }),
+    invoke("getEvents", { filters, sort, limit, skip, date_from, date_to }).then(normalizeEventList),
 
   /** Returns { event, activities, tasks, payments, musicSelections, timeline } */
   getDetailBundle: (id) =>
