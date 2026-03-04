@@ -78,9 +78,9 @@ export default function StaffPlanningHub() {
     <div className="p-8 text-center text-gray-400">No event_id provided.</div>
   );
 
-  const event = data?.event;
-  const stats = data?.stats;
-  const isLocked = event && new Date() >= new Date(event.planning_lock_at);
+  const event = data?.event ?? null;
+  const stats = data?.stats ?? null;
+  const isLocked = event?.planning_lock_at && new Date() >= new Date(event.planning_lock_at);
   const canAdmin = user && ["admin","city_manager","office_finalizer"].includes(user.role);
 
   const handleSavePerms = async () => {
