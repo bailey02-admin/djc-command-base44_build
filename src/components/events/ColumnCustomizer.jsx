@@ -78,8 +78,13 @@ export default function ColumnCustomizer({ open, onClose, columns, userRole, onS
     setCols(next);
   };
 
-  const handleSave = () => {
-    onSave({ name, columns: cols, is_default: saveAsDefault });
+  const handleSave = async () => {
+    setSaving(true);
+    try {
+      await onSave({ name, columns: cols, is_default: saveAsDefault });
+    } finally {
+      setSaving(false);
+    }
   };
 
   return (
