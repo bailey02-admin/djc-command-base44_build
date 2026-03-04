@@ -77,7 +77,7 @@ Deno.serve(async (req) => {
 
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const {
-      limit: rawLimit = 25,
+      limit: rawLimit = 50,
       skip: rawSkip = 0,
       sort = "event_date",
       filters = {},
