@@ -126,9 +126,6 @@ function TableSkeleton({ colCount }) {
 
 // ─── Cell renderer ────────────────────────────────────────────────────────────
 function EventCell({ colKey, event, canImpersonate, navigate }) {
-  const fee = event.total_fee ?? event.package_price ?? null;
-  const hasBalance = !event.balance_paid && fee;
-
   switch (colKey) {
     case "event_date": {
       const days = event.event_date ? differenceInDays(new Date(event.event_date), new Date()) : null;
