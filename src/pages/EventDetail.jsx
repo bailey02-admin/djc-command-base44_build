@@ -169,6 +169,11 @@ export default function EventDetail() {
           {impersonateError && (
             <span className="text-xs text-red-600 self-center">⚠ {impersonateError}</span>
           )}
+          <Link to={createPageUrl("StaffPlanningHub") + `?event_id=${id}`}>
+            <Button variant="outline" size="sm" className="border-violet-200 text-violet-700 hover:bg-violet-50 gap-1">
+              <Layers className="w-3.5 h-3.5" /> Staff Planning
+            </Button>
+          </Link>
           <Select value={event.status} onValueChange={v => updateEvent("status", v)}>
             <SelectTrigger className="w-44 h-9 text-sm"><SelectValue /></SelectTrigger>
             <SelectContent>
