@@ -251,6 +251,33 @@ export const ConversionAPI = {
     invoke("convertLeadToEvent", { lead_id }),
 };
 
+// ─── USERS ────────────────────────────────────────────────────────────────────
+export const UserAPI = {
+  list: (filters = {}, limit = 50, skip = 0) =>
+    invoke("getUsers", { filters, limit, skip }),
+
+  get: (id) =>
+    invoke("getUsers", { filters: {} }).then(r => (r.users || []).find(u => u.id === id) || null),
+
+  create: (data) =>
+    invoke("mutateUser", { action: "create", data }).then(r => r.user),
+
+  update: (id, data) =>
+    invoke("mutateUser", { action: "update", id, data }).then(r => r.user),
+
+  deactivate: (id) =>
+    invoke("mutateUser", { action: "deactivate", id }).then(r => r.user),
+
+  reactivate: (id) =>
+    invoke("mutateUser", { action: "reactivate", id }).then(r => r.user),
+
+  invite: (user_id) =>
+    invoke("inviteUser", { user_id }),
+
+  requestPasswordReset: (email) =>
+    invoke("requestPasswordReset", { email }),
+};
+
 // ─── ADMIN OPS ────────────────────────────────────────────────────────────
 export const AdminAPI = {
   resetDemoData: () =>
