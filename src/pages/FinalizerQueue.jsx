@@ -252,7 +252,7 @@ export default function FinalizerQueue() {
 
   const todayStr = new Date().toISOString().split("T")[0];
 
-  const { data: events = [], isLoading, refetch } = useQuery({
+  const { data: eventsData, isLoading, refetch } = useQuery({
     queryKey: ["finalizer-events", cityFilter],
     queryFn: () => EventAPI.list(
       cityFilter !== "all" ? { city: cityFilter } : {},
@@ -261,9 +261,10 @@ export default function FinalizerQueue() {
       0,
       todayStr,
       null
-    ).then(raw => Array.isArray(raw) ? raw : (raw?.events ?? [])),
+    ),
     staleTime: 60000,
   });
+  const events = eventsData?.events ?? [];
 
   const cities = useMemo(() => [...new Set(events.map(e => e.city).filter(Boolean))].sort(), [events]);
 
