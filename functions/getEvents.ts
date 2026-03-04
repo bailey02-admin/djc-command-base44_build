@@ -24,6 +24,27 @@ const LIST_FIELDS = [
   "client_changed_after_review", "dj_reviewed_at",
 ];
 
+// Finance-only fields hidden from non-finance roles
+const FINANCE_HIDDEN_ROLES = new Set(["dj", "office_finalizer", "sales_rep"]);
+
+function computeDerivedFields(record, role) {
+  // statusCityLabel: "Booked – TUL"
+  const statusLabel = (record.status || "").replace(/_/g, " ").replace(/\b\w/g, c => c.toUpperCase());
+  record.statusCityLabel = record.city ? `${statusLabel} – ${record.city}` : statusLabel;
+
+  // balance_due: server-computed, finance-gated
+  if (!FINANCE_HIDDEN_ROLES.has(role)) {
+    const fee = record.total_fee ?? record.package_price ?? null;
+    if (fee != null) {
+      record.balance_due_amount = record.balance_paid ? 0 : fee;
+    } else {
+      record.balance_due_amount = null;
+    }
+  }
+
+  return record;
+}
+
 const ROLE_HIDDEN = {
   dj:               ["contact_email","contact_phone","package_price","survey_score","survey_avg","survey_flag","survey_comments","lead_id","internal_notes"],
   office_finalizer: ["package_price","internal_notes","survey_score","survey_avg","survey_flag","survey_comments"],
