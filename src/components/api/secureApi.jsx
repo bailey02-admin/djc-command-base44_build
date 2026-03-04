@@ -152,31 +152,32 @@ export const ContactAPI = {
     invoke("mutateContact", { action: "delete", id }),
 };
 
-// ─── QUOTES ───────────────────────────────────────────────────────────────
+// ─── QUOTES (Lead-owned; NO standalone list/get) ──────────────────────────
 export const QuoteAPI = {
-  list: (filters = {}, sort = "-created_date", limit = 50, skip = 0) =>
-    invoke("getQuotes", { filters, sort, limit, skip }).then(r => r.quotes || []),
-
+  // Only access quotes in the context of a lead
   forLead: (lead_id) =>
-    invoke("getQuotes", { lead_id, sort: "-created_date", limit: 20 }).then(r => r.quotes || []),
+    invoke("getQuotes", { lead_id }).then(r => {
+      const quotes = r.quotes || [];
+      return quotes.length > 0 ? quotes[0] : null; // 1-1: return single quote or null
+    }),
 
-  create: (data) =>
-    invoke("mutateQuote", { action: "create", data }).then(r => r.quote),
+  // Upsert by lead_id: creates if none exists, else updates existing
+  upsertForLead: (lead_id, data) =>
+    invoke("mutateQuote", { action: "upsert", data: { ...data, lead_id } }).then(r => r.quote),
 
-  update: (id, data) =>
-    invoke("mutateQuote", { action: "update", id, data }).then(r => r.quote),
+  // Status transitions (send/accept/decline) — require quote ID but will validate lead access server-side
+  send: (quote_id) =>
+    invoke("mutateQuote", { action: "send", id: quote_id }).then(r => r.quote),
 
-  send: (id) =>
-    invoke("mutateQuote", { action: "send", id }).then(r => r.quote),
+  accept: (quote_id) =>
+    invoke("mutateQuote", { action: "accept", id: quote_id }).then(r => r.quote),
 
-  accept: (id) =>
-    invoke("mutateQuote", { action: "accept", id }).then(r => r.quote),
+  decline: (quote_id) =>
+    invoke("mutateQuote", { action: "decline", id: quote_id }).then(r => r.quote),
 
-  decline: (id) =>
-    invoke("mutateQuote", { action: "decline", id }).then(r => r.quote),
-
-  delete: (id) =>
-    invoke("mutateQuote", { action: "delete", id }),
+  // Delete quote (admin-only server-side)
+  delete: (quote_id) =>
+    invoke("mutateQuote", { action: "delete", id: quote_id }),
 };
 
 // ─── CONTRACTS ────────────────────────────────────────────────────────────

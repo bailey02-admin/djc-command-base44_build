@@ -19,7 +19,6 @@ const ALL_NAV_ITEMS = [
   { name: "Finalizer Queue", icon: Layers,          page: "FinalizerQueue" },
   { name: "Contacts",        icon: UserCircle,      page: "Contacts" },
   { name: "Tasks",           icon: ClipboardList,   page: "Tasks" },
-  { name: "Quotes",          icon: ScrollText,      page: "Quotes" },
   { name: "Contracts",       icon: FileSignature,   page: "Contracts" },
   { name: "DJ Roster",       icon: Music2,          page: "DJRoster" },
   { name: "Venues",          icon: Building2,       page: "Venues" },
@@ -42,11 +41,11 @@ const AUTH_PAGES = new Set(["AcceptInvite","ForgotPassword","ResetPassword"]);
 // Role-scoped nav — only show items the role can reach
 const NAV_BY_ROLE = {
   admin:            ALL_NAV_ITEMS.map(i => i.page),
-  city_manager:     ["Dashboard","Leads","Events","FinalizerQueue","Contacts","Tasks","Quotes","Contracts","DJRoster","Venues","Payments","MessageTemplates","Reports","ArchivedRecords","Users"],
-  sales_manager:    ["Dashboard","Leads","Events","Contacts","Tasks","Quotes","Contracts","Venues","Reports"],
+  city_manager:     ["Dashboard","Leads","Events","FinalizerQueue","Contacts","Tasks","Contracts","DJRoster","Venues","Payments","MessageTemplates","Reports","ArchivedRecords","Users"],
+  sales_manager:    ["Dashboard","Leads","Events","Contacts","Tasks","Contracts","Venues","Reports"],
   sales_rep:        ["Dashboard","Leads","Events","Contacts","Tasks"],
   office_finalizer: ["Dashboard","Events","FinalizerQueue","Contacts","Tasks","Venues"],
-  finance:          ["Dashboard","Payments","Quotes","Reports"],
+  finance:          ["Dashboard","Payments","Reports"],
   dj:               ["Dashboard","Events"],
   client:           [],
 };
