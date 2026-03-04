@@ -459,13 +459,6 @@ export default function Events() {
   return (
     <div className="p-4 lg:p-6 space-y-4 max-w-[1600px] mx-auto">
 
-      {/* Debug bar */}
-      <div className="text-[10px] font-mono text-gray-400 bg-gray-50 border border-dashed border-gray-200 rounded px-3 py-1">
-        Active view: <span className="text-violet-600">{activeConfigId || "none (default)"}</span>
-        {" | "}columns: <span className="text-violet-600">{visibleColumns.length} visible / {activeColumns.length} total</span>
-        {" | "}last save: <span className="text-violet-600">{lastSaveAt || "—"}</span>
-      </div>
-
       {/* Header */}
       <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-3">
         <div>
