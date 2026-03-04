@@ -1,10 +1,14 @@
 /**
- * Secure Quote read endpoint — Performance-hardened.
+ * Secure Quote read endpoint — PHASE B: Lead-only access.
+ *
+ * CRITICAL: lead_id is REQUIRED. Quotes are never accessed standalone.
+ * - All reads must specify lead_id
+ * - Server-side validates caller has access to that lead (RBAC/city scoping)
+ * - Returns at most one quote per lead (1-1 relationship)
  *
  * Key changes:
- * - DB-level filter by lead_id, status (no full table scan)
- * - City-scoping: filter leads by city at DB level, not 500-record in-memory join
- * - Hard limit cap: 50/page with skip
+ * - DB-level filter by lead_id (MANDATORY), status
+ * - City-scoping: enforce caller's city matches lead's city
  * - Slim field projection for list views
  * - Expiration enrichment (read-only computed fields)
  */
@@ -47,53 +51,35 @@ Deno.serve(async (req) => {
 
     const body = req.method === "POST" ? await req.json().catch(() => ({})) : {};
     const {
-      limit: rawLimit = 50,
-      skip = 0,
-      sort = "-created_date",
-      filters = {},
       lead_id,
       slim = true,
     } = body;
 
-    const limit = Math.min(Number(rawLimit) || 50, 200);
-
-    // Build DB-level filter
-    const dbFilter = {};
-
-    // lead_id shortcut — most common use case (forLead), very efficient
-    if (lead_id) {
-      dbFilter.lead_id = lead_id;
+    // PHASE B: lead_id is REQUIRED — quotes are never accessed standalone
+    if (!lead_id) {
+      return Response.json({ error: "lead_id is required — quotes are only accessible within a lead context" }, { status: 400 });
     }
 
-    const DB_FILTERABLE = ["status"];
-    for (const key of DB_FILTERABLE) {
-      if (filters[key] && filters[key] !== "all") {
-        dbFilter[key] = filters[key];
-      }
+    // Validate caller has access to this lead via RBAC/city scoping
+    const lead = (await base44.asServiceRole.entities.Lead.filter({ id: lead_id }))[0];
+    if (!lead) {
+      return Response.json({ error: "Lead not found" }, { status: 404 });
     }
 
-    // City-scoped roles: filter directly on quote.city (stamped at create time — no lead join needed)
-    if (["sales_rep", "city_manager"].includes(role) && user.city && !lead_id) {
-      dbFilter.city = user.city;
+    // City-scoped roles: enforce caller's city matches lead's city
+    if (["sales_rep", "city_manager"].includes(role) && user.city && lead.city !== user.city) {
+      return Response.json({ error: "Forbidden: you do not have access to this lead" }, { status: 403 });
     }
 
-    let quotes = await base44.asServiceRole.entities.Quote.filter(dbFilter, sort, limit + skip);
-
-    // Apply non-DB-filterable caller filters
-    for (const [key, val] of Object.entries(filters)) {
-      if (val && val !== "all" && !DB_FILTERABLE.includes(key)) {
-        quotes = quotes.filter(q => q[key] === val);
-      }
-    }
-
-    const paginated = quotes.slice(skip, skip + limit);
+    // Fetch quote for this lead (1-1 relationship)
+    const quotes = await base44.asServiceRole.entities.Quote.filter({ lead_id }, "-created_date", 1);
 
     // Enrich with expiry computed fields, then optionally slim
-    const result = paginated
+    const result = quotes
       .map(enrichExpiry)
       .map(q => slim ? { ...projectFields(q), is_expired: q.is_expired, effective_status: q.effective_status } : q);
 
-    return Response.json({ quotes: result, total: quotes.length, page: { skip, limit, returned: result.length } });
+    return Response.json({ quotes: result });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });
   }
