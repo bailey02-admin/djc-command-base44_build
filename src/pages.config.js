@@ -51,6 +51,7 @@ import AcceptInvite from './pages/AcceptInvite';
 import ArchivedRecords from './pages/ArchivedRecords';
 import ClientPortal from './pages/ClientPortal';
 import ContactDetail from './pages/ContactDetail';
+import ContactForm from './pages/ContactForm';
 import Contacts from './pages/Contacts';
 import Contracts from './pages/Contracts';
 import DJDetail from './pages/DJDetail';
@@ -83,7 +84,6 @@ import TimelineBuilder from './pages/TimelineBuilder';
 import UserForm from './pages/UserForm';
 import Users from './pages/Users';
 import Venues from './pages/Venues';
-import ContactForm from './pages/ContactForm';
 import __Layout from './Layout.jsx';
 
 
@@ -92,6 +92,7 @@ export const PAGES = {
     "ArchivedRecords": ArchivedRecords,
     "ClientPortal": ClientPortal,
     "ContactDetail": ContactDetail,
+    "ContactForm": ContactForm,
     "Contacts": Contacts,
     "Contracts": Contracts,
     "DJDetail": DJDetail,
@@ -124,7 +125,6 @@ export const PAGES = {
     "UserForm": UserForm,
     "Users": Users,
     "Venues": Venues,
-    "ContactForm": ContactForm,
 }
 
 export const pagesConfig = {

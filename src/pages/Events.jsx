@@ -319,8 +319,10 @@ export default function Events() {
       }
     }
     try {
+      console.log("[Events handleSaveConfig] Calling TableViewConfigAPI.save with:", payload);
       // invoke() in secureApi already unwraps r.data — so res = { config, warnings }
       const res = await TableViewConfigAPI.save(payload);
+      console.log("[Events handleSaveConfig] Response from API:", res);
       const saved = res?.config;
       if (!saved || !saved.id) {
         throw new Error(res?.error || "Server returned no config");
@@ -330,6 +332,7 @@ export default function Events() {
       setActiveViewName(saved.name);
       setActiveColumns(filterColumnsByRole(saved.columns || [], user?.role));
       setLastSaveAt(new Date().toLocaleTimeString());
+      console.log("[Events handleSaveConfig] Updated activeColumns to:", filterColumnsByRole(saved.columns || [], user?.role));
       // Update cached configs list
       queryClient.setQueryData(["table-view-configs", "events"], (old = []) => {
         const without = old.filter(c => c.id !== saved.id);
@@ -341,7 +344,7 @@ export default function Events() {
         res.warnings.forEach(w => toast.warning(`⚠️ ${w}`));
       }
     } catch (err) {
-      console.error("[handleSaveConfig] failed:", err);
+      console.error("[Events handleSaveConfig] failed:", err);
       toast.error(`Save failed: ${err.message}`);
     }
   };
