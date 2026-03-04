@@ -1,9 +1,9 @@
 /**
  * PHASE D: Fallback snapshot trigger — applies only if event is missing financial snapshot fields.
  * Idempotent: checks if snapshot already exists before applying.
- * Fired by mutateEvent when event status→booked.
+ * Fired by mutateEvent when event status ∈ groups["official_booked"].
  */
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 Deno.serve(async (req) => {
   try {
@@ -17,11 +17,22 @@ Deno.serve(async (req) => {
       return Response.json({ error: "event_id and lead_id required" }, { status: 400 });
     }
 
-    // Fetch current event
-    const eventRows = await base44.asServiceRole.entities.Event.filter({ id: event_id });
+    // Fetch current event and status groups
+    const [eventRows, groupRows] = await Promise.all([
+      base44.asServiceRole.entities.Event.filter({ id: event_id }),
+      base44.asServiceRole.entities.StatusGroup.filter({ key: "official_booked" }),
+    ]);
+
     const event = eventRows[0];
     if (!event || event.is_deleted) {
       return Response.json({ error: "Event not found" }, { status: 404 });
+    }
+
+    // Check if event status is in official_booked group (using settings instead of hardcoded)
+    const officialBookedGroup = groupRows[0];
+    const isOfficialBooked = officialBookedGroup?.statuses?.includes(event.status);
+    if (!isOfficialBooked) {
+      return Response.json({ ok: true, skipped: true, reason: "Event status not in official_booked group" });
     }
 
     // Idempotency: check if snapshot already exists
