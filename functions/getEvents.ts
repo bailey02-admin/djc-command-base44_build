@@ -66,7 +66,7 @@ Deno.serve(async (req) => {
     const skip  = Math.max(Number(rawSkip) || 0, 0);
 
     // ── Build DB filter ────────────────────────────────────────────
-    const dbFilter = { is_deleted: false };
+    const dbFilter = {};
 
     const DB_FILTERABLE = ["status", "city", "event_type", "contact_id"];
     for (const key of DB_FILTERABLE) {
