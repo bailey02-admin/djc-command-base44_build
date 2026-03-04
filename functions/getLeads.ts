@@ -83,16 +83,26 @@ Deno.serve(async (req) => {
       }
     }
 
-    let leads = await base44.asServiceRole.entities.Lead.filter(dbFilter, sort, limit + skip);
+    let leads = [];
+    try {
+      leads = await base44.asServiceRole.entities.Lead.filter(dbFilter, sort, limit + skip);
+    } catch (err) {
+      console.error("[getLeads] Lead.filter failed:", err.message);
+      leads = [];
+    }
 
     // Sales rep: OR logic — also include leads assigned to them even outside city
     if (role === "sales_rep" && user.city && !filters.assigned_rep) {
-      const assignedLeads = await base44.asServiceRole.entities.Lead.filter(
-        { is_deleted: false, assigned_rep: user.email }, sort, 100
-      );
-      const seen = new Set(leads.map(l => l.id));
-      for (const l of assignedLeads) {
-        if (!seen.has(l.id)) leads.push(l);
+      try {
+        const assignedLeads = await base44.asServiceRole.entities.Lead.filter(
+          { is_deleted: false, assigned_rep: user.email }, sort, 100
+        );
+        const seen = new Set(leads.map(l => l.id));
+        for (const l of assignedLeads) {
+          if (!seen.has(l.id)) leads.push(l);
+        }
+      } catch (err) {
+        console.error("[getLeads] assignedLeads fetch failed:", err.message);
       }
     }
 
