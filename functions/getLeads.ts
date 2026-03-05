@@ -80,14 +80,21 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Resolve StaffProfile for city/scoping info
+    let staffProfile = null;
+    try {
+      const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email });
+      staffProfile = profiles?.[0];
+    } catch (_) {}
+
     // Role-based DB scoping
     const fullAccessRoles = new Set(["admin", "sales_manager", "finance", "office_finalizer"]);
     if (!fullAccessRoles.has(role)) {
-      if (role === "city_manager" && user.city) {
-        dbFilter.city = user.city;
+      if (role === "city_manager" && staffProfile?.default_city) {
+        dbFilter.city = staffProfile.default_city;
       } else if (role === "sales_rep") {
-        if (user.city && !filters.assigned_rep) {
-          dbFilter.city = user.city;
+        if (staffProfile?.default_city && !filters.assigned_rep) {
+          dbFilter.city = staffProfile.default_city;
         } else if (filters.assigned_rep) {
           dbFilter.assigned_rep = filters.assigned_rep;
         } else {
