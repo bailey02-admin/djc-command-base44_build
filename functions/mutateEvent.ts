@@ -8,8 +8,33 @@
  *  - dj_reviewed_at stamp via mark_dj_reviewed action
  *  - Post-event automation triggers (server-side)
  */
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
-import { canAccessEvent } from './crm/accessControl.js';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+
+// Inlined StaffProfile role resolution — no local imports (avoids deployment failures)
+async function resolveRole(base44, user) {
+  try {
+    const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email });
+    const profile = profiles?.[0];
+    if (profile) {
+      if (profile.is_active === false) return { role: null, deactivated: true };
+      return { role: profile.custom_role || user.role || 'sales_rep', deactivated: false };
+    }
+  } catch (_) { /* StaffProfile unavailable — fall through */ }
+  return { role: user.role || 'sales_rep', deactivated: false };
+}
+
+function canAccessEvent(user, event, role) {
+  switch (role) {
+    case 'admin': case 'sales_manager': case 'sales_rep':
+    case 'city_manager': case 'office_finalizer': case 'finance':
+      return true;
+    case 'dj':
+      return event.assigned_dj_id === user.id || event.assigned_dj === user.email ||
+             event.assigned_mc_id === user.id || event.assigned_mc === user.email;
+    default:
+      return false;
+  }
+}
 
 const EVENT_WRITE_RULES = {
   admin:            { create: true, update: true, delete: true },
