@@ -56,13 +56,21 @@ export default function StatusSettings() {
   };
 
   const handleSaveGroup = async () => {
-    if (!groupForm.key || !groupForm.label || groupForm.statuses.length === 0) {
-      alert("Key, Label, and at least one status required");
+    if (!groupForm.key || !groupForm.label) {
+      alert("Key and Label required");
+      return;
+    }
+    if (groupForm.statuses.length === 0) {
+      alert("At least one status must be selected");
+      return;
+    }
+    if (groupForm.key === "official_booked" && groupForm.statuses.length === 0) {
+      alert("The official_booked group cannot be empty");
       return;
     }
     await base44.functions.invoke("saveStatusSettings", {
       action: "upsert_group",
-      data: { ...groupForm, id: editingGroup?.id },
+      data: { ...groupForm, entity_key: "event", id: editingGroup?.id },
     });
     queryClient.invalidateQueries({ queryKey: ["status-settings"] });
     setGroupForm({ key: "", label: "", description: "", statuses: [], required: false });
