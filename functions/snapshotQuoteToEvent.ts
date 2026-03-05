@@ -2,8 +2,14 @@
  * PHASE D: Fallback snapshot trigger — applies only if event is missing financial snapshot fields.
  * Idempotent: checks if snapshot already exists before applying.
  * Fired by mutateEvent when event status ∈ groups["official_booked"].
+ *
+ * Safe fallback: if StatusGroup settings are missing or official_booked group is not found,
+ * falls back to legacy hardcoded defaults so snapshot logic never silently stops.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
+
+// Legacy fallback: used only if settings are missing
+const LEGACY_OFFICIAL_BOOKED = new Set(["booked_pending", "booked", "planning_in_progress", "finalized"]);
 
 Deno.serve(async (req) => {
   try {
@@ -17,10 +23,10 @@ Deno.serve(async (req) => {
       return Response.json({ error: "event_id and lead_id required" }, { status: 400 });
     }
 
-    // Fetch current event and status groups
+    // Fetch current event and status groups in parallel
     const [eventRows, groupRows] = await Promise.all([
       base44.asServiceRole.entities.Event.filter({ id: event_id }),
-      base44.asServiceRole.entities.StatusGroup.filter({ key: "official_booked" }),
+      base44.asServiceRole.entities.StatusGroup.filter({ key: "official_booked" }).catch(() => []),
     ]);
 
     const event = eventRows[0];
@@ -28,11 +34,21 @@ Deno.serve(async (req) => {
       return Response.json({ error: "Event not found" }, { status: 404 });
     }
 
-    // Check if event status is in official_booked group (using settings instead of hardcoded)
+    // Determine which statuses are "official booked"
+    // Safe fallback: if group missing, use legacy hardcoded set
     const officialBookedGroup = groupRows[0];
-    const isOfficialBooked = officialBookedGroup?.statuses?.includes(event.status);
+    let officialBookedStatuses;
+    if (officialBookedGroup?.statuses?.length > 0) {
+      officialBookedStatuses = new Set(officialBookedGroup.statuses);
+      console.log(`[snapshotQuoteToEvent] Using configured official_booked group: ${[...officialBookedStatuses].join(", ")}`);
+    } else {
+      officialBookedStatuses = LEGACY_OFFICIAL_BOOKED;
+      console.warn("[snapshotQuoteToEvent] official_booked group missing or empty — falling back to legacy defaults");
+    }
+
+    const isOfficialBooked = officialBookedStatuses.has(event.status);
     if (!isOfficialBooked) {
-      return Response.json({ ok: true, skipped: true, reason: "Event status not in official_booked group" });
+      return Response.json({ ok: true, skipped: true, reason: `Event status "${event.status}" not in official_booked group` });
     }
 
     // Idempotency: check if snapshot already exists
@@ -73,6 +89,7 @@ Deno.serve(async (req) => {
 
     return Response.json({ ok: true, snapshot_applied: true });
   } catch (err) {
+    console.error("[snapshotQuoteToEvent] error:", err.message);
     return Response.json({ error: err.message }, { status: 500 });
   }
 });
