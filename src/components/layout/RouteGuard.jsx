@@ -1,15 +1,18 @@
 /**
  * RouteGuard — enforces page-level access control based on StaffProfile custom_role.
  * Access is granted if:
- *   1. StaffProfile exists for the logged-in email
+ *   1. StaffProfile exists for the logged-in email (normalized lowercase)
  *   2. StaffProfile.is_active = true
  *   3. StaffProfile.custom_role is in the allowed list for the page
  *
- * invite_status is NOT used for access control — informational only.
+ * admin role bypasses city scoping.
+ * invite_status is NOT used for access control — auto-accepted on first login via rbacDebug.
+ * Platform user.role is IGNORED for permissions.
  */
 import React, { useEffect, useState } from "react";
 import { Shield, UserX, Loader2 } from "lucide-react";
 import { base44 } from "@/api/base44Client";
+import NotProvisioned from "./NotProvisioned";
 
 const PAGE_ACCESS = {
   Dashboard:       ["admin", "city_manager", "sales_manager", "sales_rep", "dj", "office_finalizer", "finance"],
@@ -43,45 +46,39 @@ const PAGE_ACCESS = {
   TimelineBuilder: ["admin", "city_manager", "sales_manager", "office_finalizer"],
 };
 
-// Pages that are always open (no auth required)
+// Pages that bypass auth entirely
 const OPEN_PAGES = new Set(["AcceptInvite", "ForgotPassword", "ResetPassword", "ClientPortal", "DJView"]);
 
-export default function RouteGuard({ pageName, userRole, children }) {
-  const [staffCheck, setStaffCheck] = useState({ loading: true, profile: null, checked: false });
+export default function RouteGuard({ pageName, children }) {
+  const [state, setState] = useState({ loading: true, profile: null, authEmail: null });
 
   useEffect(() => {
-    // Open pages — skip staff check
     if (OPEN_PAGES.has(pageName)) {
-      setStaffCheck({ loading: false, profile: null, checked: true });
+      setState({ loading: false, profile: null, authEmail: null });
       return;
     }
 
-    // If we have userRole from layout, do a StaffProfile lookup for non-admin platform roles
-    // We resolve based on the logged-in user's email
     base44.auth.me().then(async (user) => {
       if (!user) {
-        setStaffCheck({ loading: false, profile: null, checked: true });
+        setState({ loading: false, profile: null, authEmail: null });
         return;
       }
-      const email = user.email.trim().toLowerCase();
       try {
+        // rbacDebug: resolves StaffProfile by normalized email, auto-accepts invite_status
         const res = await base44.functions.invoke("rbacDebug", {});
-        const data = res?.data || {};
-        setStaffCheck({ loading: false, profile: data, checked: true });
+        setState({ loading: false, profile: res?.data || null, authEmail: user.email });
       } catch {
-        // Fallback: use platform role
-        setStaffCheck({ loading: false, profile: null, checked: true });
+        setState({ loading: false, profile: null, authEmail: user.email });
       }
     }).catch(() => {
-      setStaffCheck({ loading: false, profile: null, checked: true });
+      setState({ loading: false, profile: null, authEmail: null });
     });
-  }, [pageName, userRole]);
+  }, [pageName]);
 
   // Open pages — always render
   if (OPEN_PAGES.has(pageName)) return <>{children}</>;
 
-  // Still loading profile
-  if (staffCheck.loading) {
+  if (state.loading) {
     return (
       <div className="flex items-center justify-center min-h-[60vh]">
         <Loader2 className="w-6 h-6 text-violet-400 animate-spin" />
@@ -89,19 +86,22 @@ export default function RouteGuard({ pageName, userRole, children }) {
     );
   }
 
-  // Pages not in the map are open
   const allowed = PAGE_ACCESS[pageName];
+  // Page not in map = open
   if (!allowed) return <>{children}</>;
-
-  // No allowed roles = always accessible (empty array = open page)
+  // Empty array = open page
   if (allowed.length === 0) return <>{children}</>;
 
-  // Determine effective role: prefer StaffProfile custom_role, fall back to platform role
-  const profile = staffCheck.profile;
-  const effectiveRole = profile?.custom_role || userRole || "sales_rep";
+  const profile = state.profile;
+  const customRole = profile?.custom_role;
   const isActive = profile?.is_active !== false;
 
-  // StaffProfile exists but user is deactivated
+  // Authenticated but no StaffProfile → full-screen not provisioned
+  if (state.authEmail && !profile?.staff_profile_found) {
+    return <NotProvisioned email={state.authEmail} />;
+  }
+
+  // StaffProfile found but deactivated
   if (profile?.staff_profile_found && !isActive) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center p-8">
@@ -114,24 +114,11 @@ export default function RouteGuard({ pageName, userRole, children }) {
     );
   }
 
-  // No StaffProfile found — show clear message instead of silent denial
-  if (profile?.staff_profile_found === false) {
-    return (
-      <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center p-8">
-        <div className="w-16 h-16 rounded-2xl bg-amber-50 flex items-center justify-center">
-          <UserX className="w-8 h-8 text-amber-400" />
-        </div>
-        <h2 className="text-xl font-bold text-gray-800">No Staff Profile Found</h2>
-        <p className="text-sm text-gray-500 max-w-sm">
-          Your account (<span className="font-mono">{profile?.email}</span>) does not have a Staff Profile in DJ Command.
-          Contact your administrator to set one up.
-        </p>
-      </div>
-    );
-  }
+  // admin bypasses all city scoping and has full access
+  if (customRole === "admin") return <>{children}</>;
 
-  // Check page access
-  if (!allowed.includes(effectiveRole)) {
+  // Check page access by custom_role
+  if (!allowed.includes(customRole)) {
     return (
       <div className="flex flex-col items-center justify-center min-h-[60vh] gap-4 text-center p-8">
         <div className="w-16 h-16 rounded-2xl bg-red-50 flex items-center justify-center">
@@ -139,9 +126,9 @@ export default function RouteGuard({ pageName, userRole, children }) {
         </div>
         <h2 className="text-xl font-bold text-gray-800">Access Denied</h2>
         <p className="text-sm text-gray-500 max-w-sm">
-          Your role (<span className="font-mono font-semibold">{effectiveRole}</span>) does not have permission to access <strong>{pageName}</strong>.
+          Your role (<span className="font-mono font-semibold">{customRole}</span>) does not have permission to access <strong>{pageName}</strong>.
         </p>
-        <p className="text-xs text-gray-400">If you believe this is an error, contact your administrator.</p>
+        <p className="text-xs text-gray-400">Contact your administrator if you believe this is an error.</p>
       </div>
     );
   }
