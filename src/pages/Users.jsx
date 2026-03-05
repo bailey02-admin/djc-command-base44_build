@@ -175,15 +175,10 @@ export default function Users() {
                             <Edit className="w-4 h-4" /> Edit
                           </Link>
                         </DropdownMenuItem>
-                        {u.invite_status !== 'accepted' && (
-                          <DropdownMenuItem onClick={() => handleAction("invite", u.id)} className="gap-2">
-                            <Mail className="w-4 h-4" />
-                            {u.invite_status === 'invited' ? 'Re-invite' : 'Send Invite'}
-                          </DropdownMenuItem>
-                        )}
-                        <DropdownMenuItem onClick={() => handleAction("reset", u.id)} className="gap-2">
-                          <RotateCcw className="w-4 h-4" /> Reset Password
-                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleAction("invite", u.id)} className="gap-2">
+                           <Mail className="w-4 h-4" />
+                           {u.invite_status === 'accepted' ? 'Resend Sign-In Link' : u.invite_status === 'invited' ? 'Resend Invite' : 'Send Sign-In Link'}
+                         </DropdownMenuItem>
                         {u.is_active !== false
                           ? <DropdownMenuItem onClick={() => handleAction("deactivate", u.id)} className="gap-2 text-red-600">
                               <UserX className="w-4 h-4" /> Deactivate
