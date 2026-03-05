@@ -30,6 +30,12 @@ export default function Users() {
   const [cityFilter, setCityFilter] = useState("");
   const [activeFilter, setActiveFilter] = useState("");
   const [loadingId, setLoadingId] = useState(null);
+  const [showRbac, setShowRbac] = useState(false);
+  const [currentUser, setCurrentUser] = useState(null);
+
+  useEffect(() => {
+    base44.auth.me().then(setCurrentUser).catch(() => null);
+  }, []);
 
   const filters = {
     search: search || undefined,
