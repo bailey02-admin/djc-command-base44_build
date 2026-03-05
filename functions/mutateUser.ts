@@ -27,9 +27,10 @@ Deno.serve(async (req) => {
       if (data.role !== 'client' && !data.email) return Response.json({ error: 'email is required for staff roles' }, { status: 400 });
       if (data.role === 'client' && !data.contact_id) return Response.json({ error: 'contact_id is required for client role' }, { status: 400 });
 
-      // Use base44.users.inviteUser to create the user record (required by platform)
-      // This sets up the user with the given role; we then patch extra fields.
-      await base44.users.inviteUser(data.email, data.role || 'sales_rep');
+      // Use base44.users.inviteUser to create the user record (required by platform).
+      // Platform only accepts 'user' or 'admin'; custom role is patched afterwards.
+      const platformRole = data.role === 'admin' ? 'admin' : 'user';
+      await base44.users.inviteUser(data.email, platformRole);
 
       // Fetch the newly created user by email to get their id
       const allUsers = await base44.asServiceRole.entities.User.list('-created_date', 500);
