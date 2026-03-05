@@ -106,7 +106,8 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const role = user.role || "sales_rep";
+    const { role, deactivated } = await resolveRole(base44, user);
+    if (deactivated) return Response.json({ error: "Account deactivated" }, { status: 403 });
     const rules = EVENT_WRITE_RULES[role] || { create: false, update: false, delete: false };
 
     const body = await req.json().catch(() => ({}));
@@ -128,7 +129,7 @@ Deno.serve(async (req) => {
 
     // ── ASSIGN DJ ─────────────────────────────────────────────────
     if (action === "assign_dj") {
-      if (!["admin","city_manager","sales_manager"].includes(role)) {
+      if (!["admin", "city_manager", "sales_manager"].includes(role)) {
         await logDenial(base44, user, "assign_dj", id, "role denied");
         return Response.json({ error: "Forbidden: your role cannot assign DJs" }, { status: 403 });
       }
@@ -152,7 +153,7 @@ Deno.serve(async (req) => {
 
     // ── MARK DJ REVIEWED ─────────────────────────────────────────
     if (action === "mark_dj_reviewed") {
-      if (!["admin","city_manager","sales_manager","office_finalizer","dj"].includes(role)) {
+      if (!["admin", "city_manager", "sales_manager", "office_finalizer", "dj"].includes(role)) {
         return Response.json({ error: "Forbidden" }, { status: 403 });
       }
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
@@ -188,8 +189,8 @@ Deno.serve(async (req) => {
         return Response.json({ error: "Event not found" }, { status: 404 });
       }
 
-      // Access check via centralized rule
-      if (!canAccessEvent(user, preUpdateEvent)) {
+      // Access check via inlined rule
+      if (!canAccessEvent(user, preUpdateEvent, role)) {
         await logDenial(base44, user, action, id, "outside city or not assigned");
         return Response.json({ error: "Forbidden: access denied" }, { status: 403 });
       }
