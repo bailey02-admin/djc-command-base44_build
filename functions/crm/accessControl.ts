@@ -2,44 +2,33 @@
  * crm/accessControl.js — Centralized event access control for all backend functions.
  *
  * Exports:
- *   canAccessEvent(user, event) → boolean
- *   redactEvent(record, role)   → redacted record
+ *   resolveRole(base44, user)       → { role, cities, isActive, profile }
+ *   canAccessEvent(user, event, resolvedRole) → boolean
+ *   redactEvent(record, role)       → redacted record
  *   safeContactSummary(contact, role) → role-scoped contact fields (or null)
  *
- * Access Policy (authoritative):
- *   admin, sales_manager, sales_rep, city_manager, office_finalizer, finance → global (all events)
- *   dj → only events where event.assigned_dj === user.email
- *   client → handled separately in each endpoint (returns false here)
+ * Role resolution order:
+ *   1. StaffProfile.custom_role (source of truth)
+ *   2. Fallback to user.role from platform (migration safety for existing admins)
+ *
+ * is_active=false → callers should return 403 after calling resolveRole.
  */
 
-// ─── DJ finance/contact fields to hide (from Event schema) ───────────────────
-// Finance keys derived from entities/Event.json: package_price, survey_score,
-// survey_avg, survey_flag, survey_comments, booked_date (financial milestone),
-// plus any balance/fee fields.
+// ─── DJ finance/contact fields to hide ───────────────────────────────────────
 const DJ_HIDDEN = [
-  // Contact PII
   "contact_email", "contact_phone",
-  // All finance / pricing fields present in Event schema
   "package_price",
-  // Survey / performance data (finance-adjacent, not for DJs)
   "survey_score", "survey_avg", "survey_flag", "survey_comments",
-  // Internal
   "lead_id", "internal_notes",
 ];
 
-// ─── Role → hidden event fields ──────────────────────────────────────────────
 const EVENT_HIDDEN_FIELDS = {
   dj:               DJ_HIDDEN,
-  // office_finalizer: hide finance pricing, internal notes, survey data
   office_finalizer: ["package_price", "internal_notes", "survey_score", "survey_avg", "survey_flag", "survey_comments"],
-  // sales_rep: hide pricing only — internal_notes are visible and writable
   sales_rep:        ["package_price"],
-  // finance: hide internal notes (they see all finance fields)
   finance:          ["internal_notes"],
-  // city_manager, sales_manager, admin: no field redaction
 };
 
-// ─── Role → allowed contact fields ───────────────────────────────────────────
 const CONTACT_FIELDS_BY_ROLE = {
   admin: [
     "id", "first_name", "last_name", "email", "phone", "secondary_phone",
@@ -63,22 +52,47 @@ const CONTACT_FIELDS_BY_ROLE = {
   ],
   finance: ["id", "first_name", "last_name"],
   dj:      ["id", "first_name", "last_name", "preferred_contact_method"],
-  client:  null, // clients never receive contact summary
+  client:  null,
 };
 
 /**
- * canAccessEvent — returns true if the user may read/act on this event.
- *
- * Global roles (all events visible):
- *   admin, sales_manager, sales_rep, city_manager, office_finalizer, finance
- *
- * Scoped roles:
- *   dj → only if event.assigned_dj === user.email
- *
- * Client handled separately in endpoints — returns false here.
+ * resolveRole — looks up the caller's StaffProfile by email.
+ * Falls back to user.role if no profile found (migration safety).
+ * Returns { role, cities, isActive, profile }.
  */
-export function canAccessEvent(user, event) {
-  const role = user.role || "sales_rep";
+export async function resolveRole(base44, user) {
+  if (!user?.email) return { role: 'sales_rep', cities: [], isActive: true, profile: null };
+
+  try {
+    const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email });
+    const profile = profiles?.[0];
+
+    if (profile) {
+      return {
+        role: profile.custom_role || 'sales_rep',
+        cities: profile.cities || [],
+        isActive: profile.is_active !== false,
+        profile,
+      };
+    }
+  } catch (_) {
+    // StaffProfile entity may not exist yet during initial migration
+  }
+
+  // Fallback: use platform user.role so existing admins aren't locked out
+  return {
+    role: user.role || 'sales_rep',
+    cities: [],
+    isActive: true,
+    profile: null,
+  };
+}
+
+/**
+ * canAccessEvent — returns true if the user may read/act on this event.
+ */
+export function canAccessEvent(user, event, resolvedRole) {
+  const role = resolvedRole || user?.role || 'sales_rep';
 
   switch (role) {
     case "admin":
@@ -90,7 +104,6 @@ export function canAccessEvent(user, event) {
       return true;
 
     case "dj":
-      // Match by ID (preferred) or email fallback for legacy records
       return event.assigned_dj_id === user.id || event.assigned_dj === user.email ||
              event.assigned_mc_id === user.id || event.assigned_mc === user.email;
 
@@ -101,7 +114,6 @@ export function canAccessEvent(user, event) {
 
 /**
  * redactEvent — strips hidden fields from an event record based on role.
- * Returns a shallow copy with restricted fields removed.
  */
 export function redactEvent(record, role) {
   const hidden = EVENT_HIDDEN_FIELDS[role];
@@ -113,12 +125,11 @@ export function redactEvent(record, role) {
 
 /**
  * safeContactSummary — returns only the fields allowed for the given role.
- * Returns null for client role or if contact is falsy.
  */
 export function safeContactSummary(contact, role) {
   if (!contact) return null;
   const allowed = CONTACT_FIELDS_BY_ROLE[role || "sales_rep"];
-  if (!allowed) return null; // client role
+  if (!allowed) return null;
   const out = {};
   for (const f of allowed) {
     if (contact[f] !== undefined) out[f] = contact[f];

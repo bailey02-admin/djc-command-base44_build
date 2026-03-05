@@ -13,6 +13,14 @@ async function auditLog(base44, actor, subject, description) {
   }).catch(() => null);
 }
 
+async function upsertProfile(base44, email, data) {
+  const existing = await base44.asServiceRole.entities.StaffProfile.filter({ email });
+  if (existing && existing.length > 0) {
+    return base44.asServiceRole.entities.StaffProfile.update(existing[0].id, data);
+  }
+  return base44.asServiceRole.entities.StaffProfile.create({ email, ...data });
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -22,68 +30,122 @@ Deno.serve(async (req) => {
 
     const { action, id, data = {} } = await req.json();
 
+    // ── CREATE (StaffProfile only, no auth account) ─────────────────────────
     if (action === 'create') {
-      if (!data.role) return Response.json({ error: 'role is required' }, { status: 400 });
-      if (data.role !== 'client' && !data.email) return Response.json({ error: 'email is required for staff roles' }, { status: 400 });
-      if (data.role === 'client' && !data.contact_id) return Response.json({ error: 'contact_id is required for client role' }, { status: 400 });
+      if (!data.custom_role) return Response.json({ error: 'custom_role is required' }, { status: 400 });
+      if (data.custom_role !== 'client' && !data.email) return Response.json({ error: 'email is required for staff roles' }, { status: 400 });
+      if (data.custom_role === 'client' && !data.contact_id) return Response.json({ error: 'contact_id is required for client role' }, { status: 400 });
 
-      const createPayload = {
+      const profileData = {
         email: data.email,
         full_name: data.full_name || '',
         phone: data.phone || '',
-        role: data.role,
+        custom_role: data.custom_role,
         cities: data.cities || [],
+        default_city: data.default_city || '',
         is_active: data.is_active !== false,
         invite_status: 'not_invited',
-        invited_at: '',
-        last_login_at: '',
-        notes: data.notes || '',
         contact_id: data.contact_id || '',
-        default_city: data.default_city || '',
+        notes: data.notes || '',
       };
 
-      const newUser = await base44.asServiceRole.entities.User.create(createPayload);
-      await auditLog(base44, actor, 'User Created',
-        `Admin ${actor.email} created user ${newUser.email} with role=${newUser.role} cities=${(newUser.cities||[]).join(',') || 'none'}`);
-      return Response.json({ user: newUser });
+      const profile = await upsertProfile(base44, data.email, profileData);
+      await auditLog(base44, actor, 'StaffProfile Created',
+        `Admin ${actor.email} created profile ${profile.email} with role=${profile.custom_role}`);
+      return Response.json({ user: profile });
     }
 
+    // ── CREATE + INVITE (StaffProfile + real auth account via inviteUser) ───
+    if (action === 'create_and_invite') {
+      if (!data.email) return Response.json({ error: 'email is required' }, { status: 400 });
+      if (!data.custom_role) return Response.json({ error: 'custom_role is required' }, { status: 400 });
+
+      // 1. Upsert StaffProfile first
+      const profileData = {
+        email: data.email,
+        full_name: data.full_name || '',
+        phone: data.phone || '',
+        custom_role: data.custom_role,
+        cities: data.cities || [],
+        default_city: data.default_city || '',
+        is_active: true,
+        contact_id: data.contact_id || '',
+        notes: data.notes || '',
+        invite_status: 'not_invited',
+      };
+      const profile = await upsertProfile(base44, data.email, profileData);
+
+      // 2. Send platform invite (always as "user" platform role)
+      await base44.users.inviteUser(data.email, 'user');
+
+      // 3. Mark as invited
+      const invited = await base44.asServiceRole.entities.StaffProfile.update(profile.id, {
+        invite_status: 'invited',
+        invited_at: new Date().toISOString(),
+      });
+
+      await auditLog(base44, actor, 'StaffProfile Invited',
+        `Admin ${actor.email} created + invited ${data.email} with role=${data.custom_role}`);
+      return Response.json({ user: invited });
+    }
+
+    // ── UPDATE ──────────────────────────────────────────────────────────────
     if (action === 'update') {
       if (!id) return Response.json({ error: 'id required' }, { status: 400 });
-      // Fetch old user to diff role/city changes
-      const allUsers = await base44.asServiceRole.entities.User.list('-created_date', 500);
-      const oldUser = allUsers.find(u => u.id === id);
-      const updated = await base44.asServiceRole.entities.User.update(id, data);
+      const old = await base44.asServiceRole.entities.StaffProfile.filter({ id }).then(r => r[0]).catch(() => null);
+
+      // Map legacy 'role' field to 'custom_role' if caller sends it
+      const updateData = { ...data };
+      if (updateData.role && !updateData.custom_role) {
+        updateData.custom_role = updateData.role;
+        delete updateData.role;
+      }
+
+      const updated = await base44.asServiceRole.entities.StaffProfile.update(id, updateData);
 
       const logs = [];
-      if (oldUser && data.role && oldUser.role !== data.role) {
-        logs.push(`role changed from ${oldUser.role} → ${data.role}`);
-      }
-      if (oldUser && data.cities !== undefined) {
-        const oldCities = (oldUser.cities || []).join(',');
-        const newCities = (data.cities || []).join(',');
-        if (oldCities !== newCities) logs.push(`cities changed from [${oldCities}] → [${newCities}]`);
+      if (old && updateData.custom_role && old.custom_role !== updateData.custom_role)
+        logs.push(`role changed from ${old.custom_role} → ${updateData.custom_role}`);
+      if (old && updateData.cities !== undefined) {
+        const o = (old.cities || []).join(','), n = (updateData.cities || []).join(',');
+        if (o !== n) logs.push(`cities changed from [${o}] → [${n}]`);
       }
       if (logs.length > 0) {
-        await auditLog(base44, actor, 'User Updated',
-          `Admin ${actor.email} updated user ${updated.email || id}: ${logs.join('; ')}`);
+        await auditLog(base44, actor, 'StaffProfile Updated',
+          `Admin ${actor.email} updated ${updated.email || id}: ${logs.join('; ')}`);
       }
       return Response.json({ user: updated });
     }
 
+    // ── SEND INVITE (for existing profile) ──────────────────────────────────
+    if (action === 'send_invite') {
+      if (!id) return Response.json({ error: 'id required' }, { status: 400 });
+      const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ id });
+      if (!profiles || profiles.length === 0) return Response.json({ error: 'Profile not found' }, { status: 404 });
+      const profile = profiles[0];
+      if (!profile.email) return Response.json({ error: 'Profile has no email' }, { status: 400 });
+
+      await base44.users.inviteUser(profile.email, 'user');
+      const updated = await base44.asServiceRole.entities.StaffProfile.update(id, {
+        invite_status: 'invited',
+        invited_at: new Date().toISOString(),
+      });
+      await auditLog(base44, actor, 'Invite Sent', `Admin ${actor.email} sent invite to ${profile.email}`);
+      return Response.json({ user: updated });
+    }
+
+    // ── DEACTIVATE / REACTIVATE ─────────────────────────────────────────────
     if (action === 'deactivate') {
       if (!id) return Response.json({ error: 'id required' }, { status: 400 });
-      const updated = await base44.asServiceRole.entities.User.update(id, { is_active: false });
-      await auditLog(base44, actor, 'User Deactivated',
-        `Admin ${actor.email} deactivated user ${updated.email || id}`);
+      const updated = await base44.asServiceRole.entities.StaffProfile.update(id, { is_active: false });
+      await auditLog(base44, actor, 'StaffProfile Deactivated', `Admin ${actor.email} deactivated ${updated.email || id}`);
       return Response.json({ user: updated });
     }
 
     if (action === 'reactivate') {
       if (!id) return Response.json({ error: 'id required' }, { status: 400 });
-      const updated = await base44.asServiceRole.entities.User.update(id, { is_active: true });
-      await auditLog(base44, actor, 'User Reactivated',
-        `Admin ${actor.email} reactivated user ${updated.email || id}`);
+      const updated = await base44.asServiceRole.entities.StaffProfile.update(id, { is_active: true });
+      await auditLog(base44, actor, 'StaffProfile Reactivated', `Admin ${actor.email} reactivated ${updated.email || id}`);
       return Response.json({ user: updated });
     }
 
