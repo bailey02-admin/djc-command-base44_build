@@ -1,5 +1,6 @@
 import React, { useState } from "react";
 import { base44 } from "@/api/base44Client";
+import { useStatusSettings } from "@/components/hooks/useStatusSettings";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { EventAPI } from "@/components/api/secureApi";
 import { Link, useNavigate } from "react-router-dom";
@@ -26,16 +27,7 @@ import SendMessageModal from "@/components/communication/SendMessageModal";
 import { calculateReadinessScore } from "@/components/crm/pipeline";
 import { trackEventChanges } from "@/components/crm/changeTracker";
 
-const STATUS_OPTIONS = ["booked_pending","booked","planning_in_progress","finalized","completed","cancelled","postponed"];
-const STATUS_COLOR = {
-  booked_pending:       "bg-sky-50 text-sky-700 border-sky-200",
-  booked:               "bg-blue-50 text-blue-700 border-blue-200",
-  planning_in_progress: "bg-violet-50 text-violet-700 border-violet-200",
-  finalized:            "bg-purple-50 text-purple-700 border-purple-200",
-  completed:            "bg-green-50 text-green-700 border-green-200",
-  cancelled:            "bg-red-50 text-red-700 border-red-200",
-  postponed:            "bg-amber-50 text-amber-700 border-amber-200",
-};
+// Status options/colors now come from useStatusSettings hook (loaded in component)
 
 function InfoRow({ label, value, mono, className }) {
   if (!value && value !== 0) return null;
