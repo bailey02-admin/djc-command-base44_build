@@ -22,18 +22,6 @@ const PAGE_SIZE = 50;
 const ALLOWED_IMPERSONATE = new Set(["admin", "city_manager", "office_finalizer"]);
 const FINANCE_ROLES = new Set(["admin", "city_manager", "sales_manager", "finance"]);
 const todayStr = () => new Date().toISOString().split("T")[0];
-
-const STATUS_OPTIONS = [
-  { value: "booked_pending",       label: "Booked Pending",       color: "bg-sky-50 text-sky-700 border-sky-200" },
-  { value: "booked",               label: "Booked",               color: "bg-blue-50 text-blue-700 border-blue-200" },
-  { value: "planning_in_progress", label: "Planning In Progress", color: "bg-violet-50 text-violet-700 border-violet-200" },
-  { value: "finalized",            label: "Finalized",            color: "bg-purple-50 text-purple-700 border-purple-200" },
-  { value: "completed",            label: "Completed",            color: "bg-green-50 text-green-700 border-green-200" },
-  { value: "cancelled",            label: "Cancelled",            color: "bg-red-50 text-red-700 border-red-200" },
-  { value: "postponed",            label: "Postponed",            color: "bg-amber-50 text-amber-700 border-amber-200" },
-];
-const STATUS_COLOR = Object.fromEntries(STATUS_OPTIONS.map(s => [s.value, s.color]));
-const STATUS_LABEL = Object.fromEntries(STATUS_OPTIONS.map(s => [s.value, s.label]));
 const CITY_OPTIONS = ["TUL","DFW","HOU","SAT","KC","STL","INDY","NASH","DEN","ATL"];
 
 const SAVED_VIEWS = [

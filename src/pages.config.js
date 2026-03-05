@@ -78,12 +78,12 @@ import StaffPrint from './pages/StaffPrint';
 import StaffSpecialSongsList from './pages/StaffSpecialSongsList';
 import StaffTimelineManager from './pages/StaffTimelineManager';
 import StaffTimelineView from './pages/StaffTimelineView';
+import StatusSettings from './pages/StatusSettings';
 import Tasks from './pages/Tasks';
 import TimelineBuilder from './pages/TimelineBuilder';
 import UserForm from './pages/UserForm';
 import Users from './pages/Users';
 import Venues from './pages/Venues';
-import StatusSettings from './pages/StatusSettings';
 import __Layout from './Layout.jsx';
 
 
@@ -119,12 +119,12 @@ export const PAGES = {
     "StaffSpecialSongsList": StaffSpecialSongsList,
     "StaffTimelineManager": StaffTimelineManager,
     "StaffTimelineView": StaffTimelineView,
+    "StatusSettings": StatusSettings,
     "Tasks": Tasks,
     "TimelineBuilder": TimelineBuilder,
     "UserForm": UserForm,
     "Users": Users,
     "Venues": Venues,
-    "StatusSettings": StatusSettings,
 }
 
 export const pagesConfig = {
