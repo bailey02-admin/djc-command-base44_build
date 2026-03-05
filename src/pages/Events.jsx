@@ -3,7 +3,7 @@ import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { useStatusSettings } from "@/components/hooks/useStatusSettings";
 import { EventAPI, TableViewConfigAPI } from "@/components/api/secureApi";
-import { useNavigate, Link } from "react-router-dom";
+import { useNavigate, Link, useSearchParams } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { toast } from "sonner";
 import { Button } from "@/components/ui/button";
@@ -235,6 +235,7 @@ function EventCell({ colKey, event, canImpersonate, navigate, statusColor, statu
 // ─── Main Page ────────────────────────────────────────────────────────────────
 export default function Events() {
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const queryClient = useQueryClient();
   const [user, setUser] = useState(null);
   useEffect(() => { base44.auth.me().then(setUser).catch(() => {}); }, []);
@@ -345,13 +346,29 @@ export default function Events() {
   };
 
   // ── filters ──────────────────────────────────────────────────────────────
-  const [dateFrom, setDateFrom] = useState(todayStr());
-  const [dateTo, setDateTo]     = useState("");
+  // Initialize from URL params if present
+  const urlDateFrom = searchParams.get("date_from");
+  const urlDateTo = searchParams.get("date_to");
+  const urlCity = searchParams.get("city");
+  
+  const [dateFrom, setDateFrom] = useState(urlDateFrom || todayStr());
+  const [dateTo, setDateTo]     = useState(urlDateTo || "");
   const [statusFilter, setStatus] = useState("all");
-  const [cityFilter, setCity]     = useState("all");
+  const [cityFilter, setCity]     = useState(urlCity || "all");
   const [djFilter, setDj]         = useState("any");
   const [activeSavedView, setActiveSavedView] = useState("all_upcoming");
   const [clientFilters, setClientFilters] = useState({});
+  const [urlFilterApplied, setUrlFilterApplied] = useState(false);
+
+  // Apply URL filters once on initial load
+  useEffect(() => {
+    if (!urlFilterApplied && (urlDateFrom || urlDateTo || urlCity)) {
+      setUrlFilterApplied(true);
+      if (urlDateFrom) setDateFrom(urlDateFrom);
+      if (urlDateTo) setDateTo(urlDateTo);
+      if (urlCity) setCity(urlCity);
+    }
+  }, [urlFilterApplied, urlDateFrom, urlDateTo, urlCity]);
 
   // ── search ───────────────────────────────────────────────────────────────
   const [search, setSearch] = useState("");
@@ -462,6 +479,20 @@ export default function Events() {
   const hasActiveFilters = statusFilter !== "all" || cityFilter !== "all" || djFilter !== "any"
     || dateTo !== "" || debouncedSearch || Object.keys(clientFilters).length > 0;
 
+  const hasDateFilter = dateFrom !== todayStr() || dateTo !== "";
+
+  const clearDateFilter = () => {
+    setDateFrom(todayStr());
+    setDateTo("");
+    setSearchParams(p => {
+      p.delete("date_from");
+      p.delete("date_to");
+      return p;
+    });
+    setSkip(0);
+    setAccumulated([]);
+  };
+
   const thCls = `px-3 py-3 text-left text-[11px] font-semibold text-gray-500 uppercase tracking-wide whitespace-nowrap`;
   const thSortCls = thCls + " cursor-pointer select-none hover:text-gray-800";
 
@@ -531,6 +562,17 @@ export default function Events() {
 
       {/* Filter bar */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-3 space-y-2">
+        {/* Date filter pill (if active) */}
+        {hasDateFilter && (
+          <div className="flex items-center gap-2">
+            <Badge variant="secondary" className="text-[11px] gap-1.5">
+              Date: {dateFrom}{dateTo ? ` → ${dateTo}` : ""}
+              <button onClick={clearDateFilter} className="ml-1 hover:opacity-70">
+                <X className="w-3 h-3" />
+              </button>
+            </Badge>
+          </div>
+        )}
         <div className="flex flex-wrap gap-2 items-center">
           <div className="relative flex-1 min-w-[160px] max-w-xs">
             <Search className="absolute left-2.5 top-1/2 -translate-y-1/2 w-3.5 h-3.5 text-gray-400" />
