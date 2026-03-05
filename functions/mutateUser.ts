@@ -1,3 +1,7 @@
+/**
+ * mutateUser — Admin-only. Manages StaffProfile CRUD + invites.
+ * All invites now use Base44's native platform invite (handles password setup).
+ */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 async function auditLog(base44, actor, subject, description) {
@@ -14,11 +18,12 @@ async function auditLog(base44, actor, subject, description) {
 }
 
 async function upsertProfile(base44, email, data) {
-  const existing = await base44.asServiceRole.entities.StaffProfile.filter({ email });
+  const normalizedEmail = email.trim().toLowerCase();
+  const existing = await base44.asServiceRole.entities.StaffProfile.filter({ email: normalizedEmail });
   if (existing && existing.length > 0) {
     return base44.asServiceRole.entities.StaffProfile.update(existing[0].id, data);
   }
-  return base44.asServiceRole.entities.StaffProfile.create({ email, ...data });
+  return base44.asServiceRole.entities.StaffProfile.create({ email: normalizedEmail, ...data });
 }
 
 Deno.serve(async (req) => {
@@ -30,14 +35,14 @@ Deno.serve(async (req) => {
 
     const { action, id, data = {} } = await req.json();
 
-    // ── CREATE (StaffProfile only, no auth account) ─────────────────────────
+    // ── CREATE (StaffProfile only, no invite) ──────────────────────────────
     if (action === 'create') {
       if (!data.custom_role) return Response.json({ error: 'custom_role is required' }, { status: 400 });
       if (data.custom_role !== 'client' && !data.email) return Response.json({ error: 'email is required for staff roles' }, { status: 400 });
       if (data.custom_role === 'client' && !data.contact_id) return Response.json({ error: 'contact_id is required for client role' }, { status: 400 });
 
+      const email = (data.email || '').trim().toLowerCase();
       const profileData = {
-        email: data.email,
         full_name: data.full_name || '',
         phone: data.phone || '',
         custom_role: data.custom_role,
@@ -49,20 +54,21 @@ Deno.serve(async (req) => {
         notes: data.notes || '',
       };
 
-      const profile = await upsertProfile(base44, data.email, profileData);
+      const profile = await upsertProfile(base44, email, profileData);
       await auditLog(base44, actor, 'StaffProfile Created',
-        `Admin ${actor.email} created profile ${profile.email} with role=${profile.custom_role}`);
+        `Admin ${actor.email} created profile ${email} with role=${data.custom_role}`);
       return Response.json({ user: profile });
     }
 
-    // ── CREATE + INVITE (StaffProfile + real auth account via inviteUser) ───
+    // ── CREATE + INVITE (StaffProfile + platform invite) ──────────────────
     if (action === 'create_and_invite') {
       if (!data.email) return Response.json({ error: 'email is required' }, { status: 400 });
       if (!data.custom_role) return Response.json({ error: 'custom_role is required' }, { status: 400 });
 
-      // 1. Upsert StaffProfile first
+      const email = data.email.trim().toLowerCase();
+
+      // 1. Upsert StaffProfile
       const profileData = {
-        email: data.email,
         full_name: data.full_name || '',
         phone: data.phone || '',
         custom_role: data.custom_role,
@@ -73,10 +79,10 @@ Deno.serve(async (req) => {
         notes: data.notes || '',
         invite_status: 'not_invited',
       };
-      const profile = await upsertProfile(base44, data.email, profileData);
+      const profile = await upsertProfile(base44, email, profileData);
 
-      // 2. Send platform invite (always as "user" platform role)
-      await base44.users.inviteUser(data.email, 'user');
+      // 2. Send platform-native invite (handles password setup email)
+      await base44.users.inviteUser(email, 'user');
 
       // 3. Mark as invited
       const invited = await base44.asServiceRole.entities.StaffProfile.update(profile.id, {
@@ -85,21 +91,22 @@ Deno.serve(async (req) => {
       });
 
       await auditLog(base44, actor, 'StaffProfile Invited',
-        `Admin ${actor.email} created + invited ${data.email} with role=${data.custom_role}`);
+        `Admin ${actor.email} created + invited ${email} with role=${data.custom_role}`);
       return Response.json({ user: invited });
     }
 
-    // ── UPDATE ──────────────────────────────────────────────────────────────
+    // ── UPDATE ─────────────────────────────────────────────────────────────
     if (action === 'update') {
       if (!id) return Response.json({ error: 'id required' }, { status: 400 });
       const old = await base44.asServiceRole.entities.StaffProfile.filter({ id }).then(r => r[0]).catch(() => null);
 
-      // Map legacy 'role' field to 'custom_role' if caller sends it
       const updateData = { ...data };
       if (updateData.role && !updateData.custom_role) {
         updateData.custom_role = updateData.role;
         delete updateData.role;
       }
+      // Normalize email if being updated
+      if (updateData.email) updateData.email = updateData.email.trim().toLowerCase();
 
       const updated = await base44.asServiceRole.entities.StaffProfile.update(id, updateData);
 
@@ -117,7 +124,7 @@ Deno.serve(async (req) => {
       return Response.json({ user: updated });
     }
 
-    // ── SEND INVITE (for existing profile) ──────────────────────────────────
+    // ── SEND INVITE (for existing profile) ─────────────────────────────────
     if (action === 'send_invite') {
       if (!id) return Response.json({ error: 'id required' }, { status: 400 });
       const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ id });
@@ -125,16 +132,20 @@ Deno.serve(async (req) => {
       const profile = profiles[0];
       if (!profile.email) return Response.json({ error: 'Profile has no email' }, { status: 400 });
 
-      await base44.users.inviteUser(profile.email, 'user');
+      const email = profile.email.trim().toLowerCase();
+
+      // Platform-native invite handles password setup
+      await base44.users.inviteUser(email, 'user');
+
       const updated = await base44.asServiceRole.entities.StaffProfile.update(id, {
         invite_status: 'invited',
         invited_at: new Date().toISOString(),
       });
-      await auditLog(base44, actor, 'Invite Sent', `Admin ${actor.email} sent invite to ${profile.email}`);
+      await auditLog(base44, actor, 'Invite Sent', `Admin ${actor.email} sent invite to ${email}`);
       return Response.json({ user: updated });
     }
 
-    // ── DEACTIVATE / REACTIVATE ─────────────────────────────────────────────
+    // ── DEACTIVATE / REACTIVATE ────────────────────────────────────────────
     if (action === 'deactivate') {
       if (!id) return Response.json({ error: 'id required' }, { status: 400 });
       const updated = await base44.asServiceRole.entities.StaffProfile.update(id, { is_active: false });
