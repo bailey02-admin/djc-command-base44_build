@@ -33,12 +33,13 @@ Deno.serve(async (req) => {
 
     // Resolve role from StaffProfile
     let role = user.role || "sales_rep";
+    let staffProfile = null;
     try {
       const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email });
-      const profile = profiles?.[0];
-      if (profile) {
-        if (profile.is_active === false) return Response.json({ error: "Account deactivated" }, { status: 403 });
-        role = profile.custom_role || role;
+      staffProfile = profiles?.[0];
+      if (staffProfile) {
+        if (staffProfile.is_active === false) return Response.json({ error: "Account deactivated" }, { status: 403 });
+        role = staffProfile.custom_role || role;
       }
     } catch (_) {}
     if (BLOCKED_ROLES.has(role)) {
@@ -70,6 +71,11 @@ Deno.serve(async (req) => {
       if (filters[key] && filters[key] !== "all") {
         dbFilter[key] = filters[key];
       }
+    }
+
+    // Role-based filtering: city_manager scoped by default_city
+    if (role === "city_manager" && staffProfile?.default_city) {
+      dbFilter.city = staffProfile.default_city;
     }
 
     let contacts = await base44.asServiceRole.entities.Contact.filter(dbFilter, sort, limit + skip);
