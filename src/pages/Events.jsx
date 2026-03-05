@@ -631,7 +631,7 @@ export default function Events() {
                   className="border-b border-gray-50 hover:bg-violet-50/40 cursor-pointer transition-colors">
                   {visibleColumns.map(col => (
                     <td key={col.key} className="px-3 py-3">
-                      <EventCell colKey={col.key} event={event} canImpersonate={canImpersonate} navigate={navigate} />
+                      <EventCell colKey={col.key} event={event} canImpersonate={canImpersonate} navigate={navigate} statusColor={statusColor} statusLabel={statusLabel} />
                     </td>
                   ))}
                 </tr>
