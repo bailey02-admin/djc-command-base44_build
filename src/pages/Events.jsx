@@ -114,7 +114,7 @@ function TableSkeleton({ colCount }) {
 }
 
 // ─── Cell renderer ────────────────────────────────────────────────────────────
-function EventCell({ colKey, event, canImpersonate, navigate }) {
+function EventCell({ colKey, event, canImpersonate, navigate, statusColor, statusLabel }) {
   switch (colKey) {
     case "event_date": {
       const days = event.event_date ? differenceInDays(new Date(event.event_date), new Date()) : null;
@@ -134,8 +134,8 @@ function EventCell({ colKey, event, canImpersonate, navigate }) {
     case "status_city":
       return (
         <div>
-          <Badge variant="outline" className={`text-[10px] whitespace-nowrap ${STATUS_COLOR[event.status] || ""}`}>
-            {STATUS_LABEL[event.status] || event.status?.replace(/_/g, " ") || "—"}
+          <Badge variant="outline" className={`text-[10px] whitespace-nowrap ${statusColor(event.status)}`}>
+            {statusLabel(event.status) || "—"}
           </Badge>
           {event.city && <div className="text-[10px] text-gray-400 mt-0.5">{event.city}</div>}
         </div>
