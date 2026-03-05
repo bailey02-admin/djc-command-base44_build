@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { UserPlus, MoreHorizontal, Search, Mail, RotateCcw, UserX, UserCheck, Edit, Shield } from "lucide-react";
+import { UserPlus, MoreHorizontal, Search, Mail, UserX, UserCheck, Edit, Shield } from "lucide-react";
 import { toast } from "sonner";
 import RbacSelfTest from "@/components/users/RbacSelfTest";
 
