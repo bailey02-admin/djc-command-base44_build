@@ -1,5 +1,6 @@
 /**
  * rbacDebug — Admin-only. Returns RBAC identity for self or a lookup email.
+ * Lightweight — only hits StaffProfile entity, nothing else.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
@@ -12,37 +13,21 @@ Deno.serve(async (req) => {
 
     const body = await req.json().catch(() => ({}));
     const lookupEmail = body.lookup_email ? body.lookup_email.trim().toLowerCase() : null;
+    const targetEmail = lookupEmail || user.email.trim().toLowerCase();
 
-    // If lookup_email provided, return that user's StaffProfile
-    if (lookupEmail) {
-      const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: lookupEmail });
-      const staffProfile = profiles?.[0] || null;
-      return Response.json({
-        lookup_mode: true,
-        lookup_email: lookupEmail,
-        staff_profile_found: !!staffProfile,
-        custom_role: staffProfile?.custom_role || null,
-        cities: staffProfile?.cities || [],
-        is_active: staffProfile ? staffProfile.is_active !== false : null,
-        invite_status: staffProfile?.invite_status || null,
-        staff_profile_id: staffProfile?.id || null,
-        full_name: staffProfile?.full_name || null,
-      });
-    }
-
-    // Default: return caller's own identity
-    const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email.trim().toLowerCase() });
+    const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: targetEmail });
     const staffProfile = profiles?.[0] || null;
 
     return Response.json({
-      lookup_mode: false,
-      email: user.email,
-      full_name: user.full_name,
-      platform_role: user.role,
+      lookup_mode: !!lookupEmail,
+      lookup_email: lookupEmail || null,
+      email: lookupEmail ? null : user.email,
+      full_name: lookupEmail ? (staffProfile?.full_name || null) : user.full_name,
+      platform_role: lookupEmail ? null : user.role,
       staff_profile_found: !!staffProfile,
       custom_role: staffProfile?.custom_role || null,
       cities: staffProfile?.cities || [],
-      is_active: staffProfile ? staffProfile.is_active !== false : true,
+      is_active: staffProfile ? staffProfile.is_active !== false : (lookupEmail ? null : true),
       invite_status: staffProfile?.invite_status || null,
       staff_profile_id: staffProfile?.id || null,
     });
