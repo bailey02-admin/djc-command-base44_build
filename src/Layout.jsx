@@ -14,6 +14,7 @@ import RouteGuard from "./components/layout/RouteGuard";
 
 const ALL_NAV_ITEMS = [
   { name: "Dashboard",       icon: LayoutDashboard, page: "Dashboard" },
+  { name: "Calendar",        icon: CalendarDays,    page: "Calendar" },
   { name: "Leads",           icon: UserCircle,      page: "Leads" },
   { name: "Events",          icon: CalendarDays,    page: "Events" },
   { name: "Finalizer Queue", icon: Layers,          page: "FinalizerQueue" },
@@ -41,12 +42,12 @@ const AUTH_PAGES = new Set(["AcceptInvite","ForgotPassword","ResetPassword"]);
 // Role-scoped nav — only show items the role can reach
 const NAV_BY_ROLE = {
   admin:            ALL_NAV_ITEMS.map(i => i.page),
-  city_manager:     ["Dashboard","Leads","Events","FinalizerQueue","Contacts","Tasks","Contracts","DJRoster","Venues","Payments","MessageTemplates","Reports","ArchivedRecords","Users"],
-  sales_manager:    ["Dashboard","Leads","Events","Contacts","Tasks","Contracts","Venues","Reports"],
-  sales_rep:        ["Dashboard","Leads","Events","Contacts","Tasks"],
-  office_finalizer: ["Dashboard","Events","FinalizerQueue","Contacts","Tasks","Venues"],
+  city_manager:     ["Dashboard","Calendar","Leads","Events","FinalizerQueue","Contacts","Tasks","Contracts","DJRoster","Venues","Payments","MessageTemplates","Reports","ArchivedRecords","Users"],
+  sales_manager:    ["Dashboard","Calendar","Leads","Events","Contacts","Tasks","Contracts","Venues","Reports"],
+  sales_rep:        ["Dashboard","Calendar","Leads","Events","Contacts","Tasks"],
+  office_finalizer: ["Dashboard","Calendar","Events","FinalizerQueue","Contacts","Tasks","Venues"],
   finance:          ["Dashboard","Payments","Reports"],
-  dj:               ["Dashboard","Events"],
+  dj:               ["Dashboard","Calendar","Events"],
   client:           [],
 };
 
