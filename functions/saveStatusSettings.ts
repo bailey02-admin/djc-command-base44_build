@@ -4,8 +4,9 @@
  * Enforcement rules:
  *  - Admin only
  *  - EventStatus.key is immutable after creation
- *  - Cannot delete a status used by any Event; only deactivate
- *  - official_booked group must remain non-empty
+ *  - Cannot deactivate a status used by any Event; only deactivate
+ *  - official_booked (entity_key=event) group must remain non-empty and cannot be deleted
+ *  - required groups cannot be empty
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
@@ -27,10 +28,8 @@ Deno.serve(async (req) => {
       }
 
       if (id) {
-        // UPDATE: key cannot change
         const existing = await base44.asServiceRole.entities.EventStatus.filter({ id });
         if (!existing[0]) return Response.json({ error: "Status not found" }, { status: 404 });
-        // Only allow updating label, color, sort_order, is_active — never key
         await base44.asServiceRole.entities.EventStatus.update(id, {
           label,
           color: color || "",
@@ -38,7 +37,6 @@ Deno.serve(async (req) => {
           is_active: is_active !== false,
         });
       } else {
-        // CREATE: key required and must be unique
         if (!key) return Response.json({ error: "key is required for new statuses" }, { status: 400 });
         const existing = await base44.asServiceRole.entities.EventStatus.list("key", 500);
         if (existing.some(s => s.key === key)) {
@@ -64,7 +62,6 @@ Deno.serve(async (req) => {
       const status = existing[0];
       if (!status) return Response.json({ error: "Status not found" }, { status: 404 });
 
-      // Check no events currently use this status
       const eventsWithStatus = await base44.asServiceRole.entities.Event.filter({ status: status.key, is_deleted: false });
       if (eventsWithStatus.length > 0) {
         return Response.json({
@@ -78,10 +75,12 @@ Deno.serve(async (req) => {
 
     // ── upsert_group ──────────────────────────────────────────────────────────
     if (action === 'upsert_group') {
-      const { id, key, label, description, statuses, required } = data;
+      const { id, key, label, description, statuses, required, entity_key } = data;
       if (!key || !label || !Array.isArray(statuses)) {
         return Response.json({ error: "key, label, and statuses array required" }, { status: 400 });
       }
+
+      const entityKey = entity_key || "event";
 
       // Validate all status keys exist
       const allStatuses = await base44.asServiceRole.entities.EventStatus.list("key", 500);
@@ -92,8 +91,8 @@ Deno.serve(async (req) => {
         }
       }
 
-      // official_booked group must never be empty
-      if (key === "official_booked" && statuses.length === 0) {
+      // official_booked (event) must never be empty
+      if (entityKey === "event" && key === "official_booked" && statuses.length === 0) {
         return Response.json({ error: "The official_booked group cannot be empty — it controls quote snapshot logic." }, { status: 400 });
       }
 
@@ -103,14 +102,28 @@ Deno.serve(async (req) => {
       }
 
       if (id) {
-        await base44.asServiceRole.entities.StatusGroup.update(id, { key, label, description, statuses, required: required || false });
+        await base44.asServiceRole.entities.StatusGroup.update(id, {
+          entity_key: entityKey,
+          key,
+          label,
+          description: description || "",
+          statuses,
+          required: required || false,
+        });
       } else {
-        // Check key uniqueness
+        // Check key uniqueness within same entity_key scope
         const existingGroups = await base44.asServiceRole.entities.StatusGroup.list("key", 200);
-        if (existingGroups.some(g => g.key === key)) {
-          return Response.json({ error: `Group key "${key}" already exists` }, { status: 409 });
+        if (existingGroups.some(g => g.key === key && (g.entity_key || "event") === entityKey)) {
+          return Response.json({ error: `Group key "${key}" already exists for entity "${entityKey}"` }, { status: 409 });
         }
-        await base44.asServiceRole.entities.StatusGroup.create({ key, label, description, statuses, required: required || false });
+        await base44.asServiceRole.entities.StatusGroup.create({
+          entity_key: entityKey,
+          key,
+          label,
+          description: description || "",
+          statuses,
+          required: required || false,
+        });
       }
       return Response.json({ ok: true });
     }
@@ -120,11 +133,12 @@ Deno.serve(async (req) => {
       const { id } = data;
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
 
-      // Do not allow deleting official_booked
       const existing = await base44.asServiceRole.entities.StatusGroup.filter({ id });
       const group = existing[0];
       if (!group) return Response.json({ error: "Group not found" }, { status: 404 });
-      if (group.key === "official_booked") {
+
+      const entityKey = group.entity_key || "event";
+      if (entityKey === "event" && group.key === "official_booked") {
         return Response.json({ error: "The official_booked group cannot be deleted — it is required for system logic." }, { status: 403 });
       }
 

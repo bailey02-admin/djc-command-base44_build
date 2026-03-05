@@ -1,15 +1,15 @@
 /**
  * PHASE D: Fallback snapshot trigger — applies only if event is missing financial snapshot fields.
  * Idempotent: checks if snapshot already exists before applying.
- * Fired by mutateEvent when event status ∈ groups["official_booked"].
+ * Fired by mutateEvent when event status ∈ groups["official_booked"] (entity_key="event").
  *
  * Safe fallback: if StatusGroup settings are missing or official_booked group is not found,
  * falls back to legacy hardcoded defaults so snapshot logic never silently stops.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
-// Legacy fallback: used only if settings are missing
-const LEGACY_OFFICIAL_BOOKED = new Set(["booked_pending", "booked", "planning_in_progress", "finalized"]);
+// Legacy fallback: used only if the configured group is missing or empty
+const LEGACY_OFFICIAL_BOOKED = new Set(["booked_pending", "booked"]);
 
 Deno.serve(async (req) => {
   try {
@@ -23,10 +23,10 @@ Deno.serve(async (req) => {
       return Response.json({ error: "event_id and lead_id required" }, { status: 400 });
     }
 
-    // Fetch current event and status groups in parallel
+    // Fetch current event and official_booked group (scoped to entity_key=event) in parallel
     const [eventRows, groupRows] = await Promise.all([
       base44.asServiceRole.entities.Event.filter({ id: event_id }),
-      base44.asServiceRole.entities.StatusGroup.filter({ key: "official_booked" }).catch(() => []),
+      base44.asServiceRole.entities.StatusGroup.list("key", 100).catch(() => []),
     ]);
 
     const event = eventRows[0];
@@ -34,16 +34,19 @@ Deno.serve(async (req) => {
       return Response.json({ error: "Event not found" }, { status: 404 });
     }
 
-    // Determine which statuses are "official booked"
-    // Safe fallback: if group missing, use legacy hardcoded set
-    const officialBookedGroup = groupRows[0];
+    // Find official_booked group scoped to entity_key="event"
+    // Support legacy records that have no entity_key set
+    const officialBookedGroup = groupRows.find(g =>
+      g.key === "official_booked" && (g.entity_key === "event" || !g.entity_key)
+    );
+
     let officialBookedStatuses;
     if (officialBookedGroup?.statuses?.length > 0) {
       officialBookedStatuses = new Set(officialBookedGroup.statuses);
       console.log(`[snapshotQuoteToEvent] Using configured official_booked group: ${[...officialBookedStatuses].join(", ")}`);
     } else {
       officialBookedStatuses = LEGACY_OFFICIAL_BOOKED;
-      console.warn("[snapshotQuoteToEvent] official_booked group missing or empty — falling back to legacy defaults");
+      console.warn("[snapshotQuoteToEvent] official_booked group missing or empty — falling back to legacy defaults:", [...LEGACY_OFFICIAL_BOOKED].join(", "));
     }
 
     const isOfficialBooked = officialBookedStatuses.has(event.status);
