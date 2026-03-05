@@ -7,9 +7,21 @@
  * - Hard limit cap: 50/page with skip for global list
  * - Status filter pushed to DB
  */
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 const PAYMENT_READ_ALLOWED = new Set(["admin", "city_manager", "sales_manager", "finance"]);
+
+async function resolveRole(base44, user) {
+  try {
+    const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email });
+    const profile = profiles?.[0];
+    if (profile) {
+      if (profile.is_active === false) return { role: null, deactivated: true, cities: [] };
+      return { role: profile.custom_role || user.role || "sales_rep", deactivated: false, cities: profile.cities || [] };
+    }
+  } catch (_) {}
+  return { role: user.role || "sales_rep", deactivated: false, cities: [] };
+}
 
 Deno.serve(async (req) => {
   try {
@@ -17,7 +29,8 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const role = user.role || "sales_rep";
+    const { role, deactivated, cities } = await resolveRole(base44, user);
+    if (deactivated) return Response.json({ error: "Account deactivated" }, { status: 403 });
     if (!PAYMENT_READ_ALLOWED.has(role)) {
       return Response.json({ error: "Forbidden: your role cannot access payment records" }, { status: 403 });
     }

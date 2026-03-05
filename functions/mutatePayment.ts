@@ -2,9 +2,21 @@
  * Secure Payment mutation endpoint.
  * Only admin, city_manager, sales_manager, finance can create/update payments.
  */
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 const PAYMENT_WRITE_ALLOWED = new Set(["admin", "city_manager", "sales_manager", "finance"]);
+
+async function resolveRole(base44, user) {
+  try {
+    const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email });
+    const profile = profiles?.[0];
+    if (profile) {
+      if (profile.is_active === false) return { role: null, deactivated: true };
+      return { role: profile.custom_role || user.role || "sales_rep", deactivated: false };
+    }
+  } catch (_) {}
+  return { role: user.role || "sales_rep", deactivated: false };
+}
 
 Deno.serve(async (req) => {
   try {
@@ -12,7 +24,8 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const role = user.role || "sales_rep";
+    const { role, deactivated } = await resolveRole(base44, user);
+    if (deactivated) return Response.json({ error: "Account deactivated" }, { status: 403 });
     if (!PAYMENT_WRITE_ALLOWED.has(role)) {
       return Response.json({ error: "Forbidden: your role cannot create or modify payments" }, { status: 403 });
     }

@@ -2,9 +2,21 @@
  * Secure Lead read endpoint — Performance-hardened.
  * Includes contact_id in list view; full contact summary available via getLeadById.
  */
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 const LEAD_READ_DENIED = new Set(["dj", "client"]);
+
+async function resolveRole(base44, user) {
+  try {
+    const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email });
+    const profile = profiles?.[0];
+    if (profile) {
+      if (profile.is_active === false) return { role: null, deactivated: true, cities: profile.cities || [] };
+      return { role: profile.custom_role || user.role || "sales_rep", deactivated: false, cities: profile.cities || [] };
+    }
+  } catch (_) {}
+  return { role: user.role || "sales_rep", deactivated: false, cities: [] };
+}
 
 const LEAD_HIDDEN_FIELDS = {
   sales_rep:        ["discount_amount", "internal_notes", "gclid", "fbclid", "utm_source", "utm_medium", "utm_campaign", "utm_content", "utm_term"],
@@ -41,7 +53,8 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const role = user.role || "sales_rep";
+    const { role, deactivated } = await resolveRole(base44, user);
+    if (deactivated) return Response.json({ error: "Account deactivated" }, { status: 403 });
     if (LEAD_READ_DENIED.has(role)) {
       return Response.json({ error: "Forbidden: your role cannot access leads" }, { status: 403 });
     }

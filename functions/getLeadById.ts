@@ -2,7 +2,7 @@
  * Secure single-Lead read endpoint with full field redaction.
  * Includes a safe contact summary when contact_id is present.
  */
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 const LEAD_READ_DENIED = new Set(["dj", "client"]);
 
@@ -38,7 +38,16 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const role = user.role || "sales_rep";
+    // Resolve role from StaffProfile
+    let role = user.role || "sales_rep";
+    try {
+      const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email });
+      const profile = profiles?.[0];
+      if (profile) {
+        if (profile.is_active === false) return Response.json({ error: "Account deactivated" }, { status: 403 });
+        role = profile.custom_role || role;
+      }
+    } catch (_) {}
     if (LEAD_READ_DENIED.has(role)) {
       return Response.json({ error: "Forbidden: your role cannot access leads" }, { status: 403 });
     }

@@ -7,7 +7,18 @@ Deno.serve(async (req) => {
     const base44 = createClientFromRequest(req);
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    if (!ALLOWED_ROLES.includes(user.role)) return Response.json({ error: 'Forbidden' }, { status: 403 });
+
+    // Resolve role from StaffProfile
+    let role = user.role || 'sales_rep';
+    try {
+      const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email });
+      const profile = profiles?.[0];
+      if (profile) {
+        if (profile.is_active === false) return Response.json({ error: 'Account deactivated' }, { status: 403 });
+        role = profile.custom_role || role;
+      }
+    } catch (_) {}
+    if (!ALLOWED_ROLES.includes(role)) return Response.json({ error: 'Forbidden' }, { status: 403 });
 
     const { event_id, assigned_dj_id, assigned_mc_id } = await req.json();
     if (!event_id) return Response.json({ error: 'event_id required' }, { status: 400 });
