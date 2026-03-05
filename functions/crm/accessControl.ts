@@ -2,9 +2,9 @@
  * crm/accessControl.js — Centralized event access control for all backend functions.
  *
  * Exports:
- *   resolveRole(base44, user)       → { role, cities, isActive, profile }
- *   canAccessEvent(user, event, resolvedRole) → boolean
- *   redactEvent(record, role)       → redacted record
+ *   resolveRole(base44, user)         → { role, cities, isActive, profile }
+ *   canAccessEvent(user, event, role) → boolean
+ *   redactEvent(record, role)         → redacted record
  *   safeContactSummary(contact, role) → role-scoped contact fields (or null)
  *
  * Role resolution order:
@@ -14,7 +14,6 @@
  * is_active=false → callers should return 403 after calling resolveRole.
  */
 
-// ─── DJ finance/contact fields to hide ───────────────────────────────────────
 const DJ_HIDDEN = [
   "contact_email", "contact_phone",
   "package_price",
@@ -58,30 +57,27 @@ const CONTACT_FIELDS_BY_ROLE = {
 /**
  * resolveRole — looks up the caller's StaffProfile by email.
  * Falls back to user.role if no profile found (migration safety).
- * Returns { role, cities, isActive, profile }.
  */
 export async function resolveRole(base44, user) {
-  if (!user?.email) return { role: 'sales_rep', cities: [], isActive: true, profile: null };
+  if (!user?.email) return { role: "sales_rep", cities: [], isActive: true, profile: null };
 
   try {
     const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email });
     const profile = profiles?.[0];
-
     if (profile) {
       return {
-        role: profile.custom_role || 'sales_rep',
+        role: profile.custom_role || "sales_rep",
         cities: profile.cities || [],
         isActive: profile.is_active !== false,
         profile,
       };
     }
   } catch (_) {
-    // StaffProfile entity may not exist yet during initial migration
+    // StaffProfile entity may not exist yet during migration — fall through
   }
 
-  // Fallback: use platform user.role so existing admins aren't locked out
   return {
-    role: user.role || 'sales_rep',
+    role: user.role || "sales_rep",
     cities: [],
     isActive: true,
     profile: null,
@@ -92,7 +88,7 @@ export async function resolveRole(base44, user) {
  * canAccessEvent — returns true if the user may read/act on this event.
  */
 export function canAccessEvent(user, event, resolvedRole) {
-  const role = resolvedRole || user?.role || 'sales_rep';
+  const role = resolvedRole || user?.role || "sales_rep";
 
   switch (role) {
     case "admin":
@@ -102,11 +98,9 @@ export function canAccessEvent(user, event, resolvedRole) {
     case "office_finalizer":
     case "finance":
       return true;
-
     case "dj":
       return event.assigned_dj_id === user.id || event.assigned_dj === user.email ||
              event.assigned_mc_id === user.id || event.assigned_mc === user.email;
-
     default:
       return false;
   }
