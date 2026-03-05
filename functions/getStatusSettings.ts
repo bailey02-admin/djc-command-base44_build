@@ -89,10 +89,12 @@ Deno.serve(async (req) => {
       }
     }
 
+    const eventGroups = groups.filter(g => (g.entity_key || "event") === "event");
     return Response.json({
       statuses: statuses.filter(s => s.is_active),
       all_statuses: statuses,
       groups,
+      eventGroups,
     });
   } catch (error) {
     console.error("[getStatusSettings] error:", error.message);
