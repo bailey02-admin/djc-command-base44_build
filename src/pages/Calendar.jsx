@@ -50,18 +50,14 @@ export default function Calendar() {
   const [approvingId, setApprovingId] = useState(null);
   const [role, setRole] = useState(null);
 
-  // Fetch current user
-  React.useEffect(() => {
-    Promise.all([
-      base44.auth.me(),
-      base44.auth.me().then(u => 
-        base44.asServiceRole.entities.StaffProfile.filter({ email: u?.email }).then(profs => profs?.[0])
-      )
-    ]).then(([u, prof]) => {
-      setUser(u);
-      setStaffProfile(prof);
-      setRole(prof?.custom_role || u?.role);
-    });
+  // Fetch current user and profile
+  useEffect(() => {
+    base44.functions.invoke('getCurrentStaffProfile', {})
+      .then(res => {
+        setUser(res.data.user);
+        setStaffProfile(res.data.profile);
+        setRole(res.data.profile?.custom_role || res.data.user?.role);
+      });
   }, []);
 
   const dateFrom = format(startOfMonth(currentDate), 'yyyy-MM-dd');
