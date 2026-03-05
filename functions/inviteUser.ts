@@ -66,6 +66,18 @@ Deno.serve(async (req) => {
       invite_status: 'invited',
     });
 
+    // Audit log
+    await base44.asServiceRole.entities.Activity.create({
+      type: 'system',
+      subject: body.user_id ? 'User Re-invited' : 'User Invited',
+      description: `Admin ${actor.email} ${body.user_id ? 're-invited' : 'invited'} ${targetUser.email} (role=${targetUser.role})`,
+      performed_by: actor.email,
+      related_type: 'contact',
+      related_id: 'user_management',
+      related_name: 'User Management',
+      is_internal: true,
+    }).catch(() => null);
+
     // Build invite link — use app URL via env or fallback
     const appUrl = Deno.env.get('APP_URL') || 'https://app.base44.com';
     const inviteLink = `${appUrl}/AcceptInvite?token=${plainToken}`;
