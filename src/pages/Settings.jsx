@@ -189,6 +189,11 @@ export default function Settings() {
           <LabelsTab />
         </TabsContent>
 
+        {/* RBAC Debug */}
+        <TabsContent value="rbac" className="mt-6">
+          <RbacDebugPanel />
+        </TabsContent>
+
         {/* General */}
         <TabsContent value="general" className="mt-6 space-y-4">
           <Card className="border-0 shadow-sm">
