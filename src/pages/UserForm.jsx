@@ -119,7 +119,7 @@ export default function UserForm() {
           </div>
           <div className="space-y-1.5">
             <Label>Role <span className="text-red-500">*</span></Label>
-            <Select value={form.role} onValueChange={v => set("role", v)}>
+            <Select value={form.custom_role} onValueChange={v => set("custom_role", v)}>
               <SelectTrigger><SelectValue /></SelectTrigger>
               <SelectContent>
                 {ROLE_OPTIONS.map(r => <SelectItem key={r} value={r}>{r.replace(/_/g, " ")}</SelectItem>)}
@@ -134,7 +134,7 @@ export default function UserForm() {
       </Card>
 
       {/* Cities — shown for non-client roles */}
-      {form.role !== "client" && (
+      {form.custom_role !== "client" && (
         <Card className="border-0 shadow-sm">
           <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">City Assignments</CardTitle></CardHeader>
           <CardContent className="space-y-4">
@@ -168,7 +168,7 @@ export default function UserForm() {
       )}
 
       {/* Contact link — only for client role */}
-      {form.role === "client" && (
+      {form.custom_role === "client" && (
         <Card className="border-0 shadow-sm">
           <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Linked Contact <span className="text-red-500">*</span></CardTitle></CardHeader>
           <CardContent className="space-y-3">
@@ -212,7 +212,7 @@ export default function UserForm() {
         <Button onClick={() => save(false)} disabled={saving} className="bg-violet-600 hover:bg-violet-700 text-white">
           {saving && <Loader2 className="w-4 h-4 mr-2 animate-spin" />} Save
         </Button>
-        {!editId && form.role !== "client" && form.email && (
+        {!editId && form.custom_role !== "client" && form.email && (
           <Button variant="outline" onClick={() => save(true)} disabled={saving}>
             Save + Send Invite
           </Button>
