@@ -1,5 +1,7 @@
 import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useNavigate } from 'react-router-dom';
+import { createPageUrl } from '@/utils';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
@@ -35,6 +37,7 @@ function countEventsByStatus(events, dateStr, city) {
 }
 
 export default function Calendar() {
+  const navigate = useNavigate();
   const qc = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
@@ -230,7 +233,6 @@ export default function Calendar() {
                 return (
                   <div
                     key={idx}
-                    onClick={() => day && (setSelectedDay(day), setSelectedDayCity(null))}
                     className={`
                       min-h-[140px] bg-white p-2 cursor-pointer transition-colors border border-gray-100
                       ${!isCurrentMonth && 'bg-gray-50'}
@@ -239,7 +241,13 @@ export default function Calendar() {
                   >
                     {day && (
                       <>
-                        <div className={`text-xs font-bold mb-2 ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}`}>
+                        <div
+                          onClick={() => {
+                            const dateStr = format(day, 'yyyy-MM-dd');
+                            navigate(createPageUrl('Events') + `?date_from=${dateStr}&date_to=${dateStr}`);
+                          }}
+                          className={`text-xs font-bold mb-2 cursor-pointer hover:text-violet-600 transition-colors ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}`}
+                        >
                           {format(day, 'd')}
                         </div>
                         <div className="space-y-1">
@@ -247,14 +255,18 @@ export default function Calendar() {
                             const cityEvents = (events[dateStr] || []).filter(e => e.city === city);
                             const count = cityEvents.length;
                             if (count === 0) return null;
-                            const statusCounts = {};
-                            cityEvents.forEach(e => {
-                              statusCounts[e.status] = (statusCounts[e.status] || 0) + 1;
-                            });
                             return (
-                              <div key={city} className="text-[10px] font-semibold text-gray-700 px-1.5 py-1 bg-gray-100 rounded">
+                              <button
+                                key={city}
+                                onClick={(e) => {
+                                  e.stopPropagation();
+                                  const dateStr = format(day, 'yyyy-MM-dd');
+                                  navigate(createPageUrl('Events') + `?date_from=${dateStr}&date_to=${dateStr}&city=${city}`);
+                                }}
+                                className="w-full text-left text-[10px] font-semibold text-gray-700 px-1.5 py-1 bg-gray-100 rounded hover:bg-violet-100 hover:text-violet-700 transition-colors"
+                              >
                                 {city}: {count}
-                              </div>
+                              </button>
                             );
                           })}
                         </div>
@@ -283,7 +295,7 @@ export default function Calendar() {
 
             {!selectedDayCity ? (
               // City List
-              <div className="px-4 py-4 space-y-2 max-h-[60vh] overflow-y-auto">
+              <div className="px-4 py-4 space-y-2 max-h-[60vh] overflow-y-auto" onClick={(e) => e.stopPropagation()}>
                 {CITIES.map(city => {
                   const cityEvents = selectedDayAllEvents.filter(e => e.city === city);
                   if (cityEvents.length === 0) return null;
