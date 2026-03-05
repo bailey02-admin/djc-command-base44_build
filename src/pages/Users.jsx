@@ -58,11 +58,9 @@ export default function Users() {
       if (action === "deactivate") await UserAPI.deactivate(userId);
       else if (action === "reactivate") await UserAPI.reactivate(userId);
       else if (action === "invite") await UserAPI.invite(userId);
-      else if (action === "reset") await UserAPI.requestPasswordReset(users.find(u => u.id === userId)?.email);
       qc.invalidateQueries(["users"]);
       toast.success(
-        action === "invite" ? "Invite sent!" :
-        action === "reset" ? "Password reset email sent!" :
+        action === "invite" ? "Sign-in link sent!" :
         action === "deactivate" ? "User deactivated" : "User reactivated"
       );
     } catch (e) {

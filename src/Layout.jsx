@@ -168,7 +168,7 @@ export default function Layout({ children, currentPageName }) {
 
         {/* Page content — wrapped in RouteGuard for role enforcement */}
         <div className="flex-1 overflow-y-auto">
-          <RouteGuard pageName={currentPageName} userRole={user ? (user.role || "sales_rep") : null}>
+          <RouteGuard pageName={currentPageName}>
             {children}
           </RouteGuard>
         </div>
