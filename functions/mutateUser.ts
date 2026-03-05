@@ -1,11 +1,24 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
+async function auditLog(base44, actor, subject, description) {
+  await base44.asServiceRole.entities.Activity.create({
+    type: 'system',
+    subject,
+    description,
+    performed_by: actor?.email || 'system',
+    related_type: 'contact',
+    related_id: 'user_management',
+    related_name: 'User Management',
+    is_internal: true,
+  }).catch(() => null);
+}
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
-    const user = await base44.auth.me();
-    if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
-    if (user.role !== 'admin') return Response.json({ error: 'Forbidden: Admin only' }, { status: 403 });
+    const actor = await base44.auth.me();
+    if (!actor) return Response.json({ error: 'Unauthorized' }, { status: 401 });
+    if (actor.role !== 'admin') return Response.json({ error: 'Forbidden: Admin only' }, { status: 403 });
 
     const { action, id, data = {} } = await req.json();
 
@@ -20,24 +33,47 @@ Deno.serve(async (req) => {
         invite_status: data.invite_status || 'not_invited',
         cities: data.cities || [],
       });
+      await auditLog(base44, actor, 'User Created',
+        `Admin ${actor.email} created user ${newUser.email} with role=${newUser.role} cities=${(newUser.cities||[]).join(',') || 'none'}`);
       return Response.json({ user: newUser });
     }
 
     if (action === 'update') {
       if (!id) return Response.json({ error: 'id required' }, { status: 400 });
+      // Fetch old user to diff role/city changes
+      const allUsers = await base44.asServiceRole.entities.User.list('-created_date', 500);
+      const oldUser = allUsers.find(u => u.id === id);
       const updated = await base44.asServiceRole.entities.User.update(id, data);
+
+      const logs = [];
+      if (oldUser && data.role && oldUser.role !== data.role) {
+        logs.push(`role changed from ${oldUser.role} → ${data.role}`);
+      }
+      if (oldUser && data.cities !== undefined) {
+        const oldCities = (oldUser.cities || []).join(',');
+        const newCities = (data.cities || []).join(',');
+        if (oldCities !== newCities) logs.push(`cities changed from [${oldCities}] → [${newCities}]`);
+      }
+      if (logs.length > 0) {
+        await auditLog(base44, actor, 'User Updated',
+          `Admin ${actor.email} updated user ${updated.email || id}: ${logs.join('; ')}`);
+      }
       return Response.json({ user: updated });
     }
 
     if (action === 'deactivate') {
       if (!id) return Response.json({ error: 'id required' }, { status: 400 });
       const updated = await base44.asServiceRole.entities.User.update(id, { is_active: false });
+      await auditLog(base44, actor, 'User Deactivated',
+        `Admin ${actor.email} deactivated user ${updated.email || id}`);
       return Response.json({ user: updated });
     }
 
     if (action === 'reactivate') {
       if (!id) return Response.json({ error: 'id required' }, { status: 400 });
       const updated = await base44.asServiceRole.entities.User.update(id, { is_active: true });
+      await auditLog(base44, actor, 'User Reactivated',
+        `Admin ${actor.email} reactivated user ${updated.email || id}`);
       return Response.json({ user: updated });
     }
 
