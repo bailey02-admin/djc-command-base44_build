@@ -88,7 +88,7 @@ Deno.serve(async (req) => {
       };
       const profile = await upsertProfile(base44, email, profileData);
 
-      // 2. Send platform-native invite (handles password setup email)
+      // 2. Send Base44 platform-native invite (handles account creation + password setup)
       await base44.users.inviteUser(email, 'user');
 
       // 3. Mark as invited
