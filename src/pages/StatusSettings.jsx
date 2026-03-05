@@ -104,7 +104,7 @@ export default function StatusSettings() {
       <Tabs defaultValue="statuses" className="space-y-4">
         <TabsList className="bg-white border">
           <TabsTrigger value="statuses">Event Statuses</TabsTrigger>
-          <TabsTrigger value="groups">Status Groups</TabsTrigger>
+          <TabsTrigger value="groups">Event Groups</TabsTrigger>
         </TabsList>
 
         {/* Statuses Tab */}
