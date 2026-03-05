@@ -2,7 +2,6 @@ import React, { useState, useMemo, useEffect } from 'react';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
-import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
@@ -13,28 +12,34 @@ import { ChevronLeft, ChevronRight, Plus, Check, X, Loader2 } from 'lucide-react
 import { format, addMonths, subMonths, startOfMonth, endOfMonth, eachDayOfInterval, isSameDay, isSameMonth } from 'date-fns';
 
 const CITIES = ['TUL', 'DFW', 'HOU', 'SAT', 'KC', 'STL', 'INDY', 'NASH', 'DEN', 'ATL'];
+const STATUS_COLORS = {
+  booked_pending: '#87CEEB',
+  booked: '#90EE90',
+  planning_in_progress: '#87CEEB',
+  finalized: '#FFB6C1',
+  completed: '#D3D3D3',
+  cancelled: '#FF6347',
+  postponed: '#FFD700'
+};
 
-// Helper to get event color from status
-function getEventColor(status) {
-  const colors = {
-    booked_pending: 'bg-sky-50 text-sky-700 border-sky-200',
-    booked: 'bg-green-50 text-green-700 border-green-200',
-    planning_in_progress: 'bg-blue-50 text-blue-700 border-blue-200',
-    finalized: 'bg-purple-50 text-purple-700 border-purple-200',
-    completed: 'bg-gray-50 text-gray-700 border-gray-200',
-    cancelled: 'bg-red-50 text-red-700 border-red-200',
-    postponed: 'bg-yellow-50 text-yellow-700 border-yellow-200'
-  };
-  return colors[status] || 'bg-gray-50 text-gray-700';
+// Count events by status for a given date + city
+function countEventsByStatus(events, dateStr, city) {
+  const counts = {};
+  (events[dateStr] || [])
+    .filter(e => !city || e.city === city)
+    .forEach(e => {
+      counts[e.status] = (counts[e.status] || 0) + 1;
+    });
+  return counts;
 }
 
 export default function Calendar() {
   const qc = useQueryClient();
   const [currentDate, setCurrentDate] = useState(new Date());
   const [selectedDay, setSelectedDay] = useState(null);
+  const [selectedDayCity, setSelectedDayCity] = useState(null);
   const [showTimeOffModal, setShowTimeOffModal] = useState(false);
   const [showPending, setShowPending] = useState(false);
-  const [selectedCity, setSelectedCity] = useState('');
   const [user, setUser] = useState(null);
   const [staffProfile, setStaffProfile] = useState(null);
   const [timeOffForm, setTimeOffForm] = useState({
@@ -61,24 +66,22 @@ export default function Calendar() {
   const dateFrom = format(startOfMonth(currentDate), 'yyyy-MM-dd');
   const dateTo = format(endOfMonth(currentDate), 'yyyy-MM-dd');
 
-  // Fetch events
+  // Fetch events for all cities (no city filter at query level)
   const { data: eventsData = { events: [] } } = useQuery({
-    queryKey: ['calendarEvents', dateFrom, dateTo, selectedCity],
+    queryKey: ['calendarEvents', dateFrom, dateTo],
     queryFn: () => base44.functions.invoke('getCalendarEvents', { 
       date_from: dateFrom, 
-      date_to: dateTo,
-      city: selectedCity || undefined
+      date_to: dateTo
     }).then(res => res.data),
     staleTime: 60000
   });
 
   // Fetch time off requests
   const { data: timeOffData = { requests: [] } } = useQuery({
-    queryKey: ['timeOffRequests', dateFrom, dateTo, selectedCity],
+    queryKey: ['timeOffRequests', dateFrom, dateTo],
     queryFn: () => base44.functions.invoke('getTimeOffRequests', { 
       date_from: dateFrom, 
-      date_to: dateTo,
-      city: selectedCity || undefined
+      date_to: dateTo
     }).then(res => res.data),
     staleTime: 60000
   });
@@ -208,7 +211,7 @@ export default function Calendar() {
         )}
       </div>
 
-      {/* Calendar Grid */}
+      {/* Calendar Grid - City Event Counts */}
       <div className="bg-white rounded-xl border border-gray-100 shadow-sm overflow-hidden">
         {/* Nav */}
         <div className="flex items-center justify-between px-6 py-4 border-b border-gray-100">
@@ -227,7 +230,7 @@ export default function Calendar() {
             {/* Day headers */}
             <div className="grid grid-cols-7 gap-px bg-gray-100">
               {['Sun', 'Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat'].map(d => (
-                <div key={d} className="bg-white px-3 py-2 text-center text-xs font-semibold text-gray-600">
+                <div key={d} className="bg-gray-50 px-3 py-2 text-center text-xs font-bold text-gray-700 border-b border-gray-200">
                   {d}
                 </div>
               ))}
@@ -237,36 +240,38 @@ export default function Calendar() {
             <div className="grid grid-cols-7 gap-px bg-gray-100">
               {daysCells.map((day, idx) => {
                 const dateStr = day ? format(day, 'yyyy-MM-dd') : '';
-                const dayEvents = day ? (events[dateStr] || []) : [];
-                const dayTimeOff = day ? (timeOffMap[dateStr] || []) : [];
                 const isCurrentMonth = day && isSameMonth(day, currentDate);
 
                 return (
                   <div
                     key={idx}
-                    onClick={() => day && setSelectedDay(day)}
+                    onClick={() => day && (setSelectedDay(day), setSelectedDayCity(null))}
                     className={`
-                      min-h-[120px] bg-white p-2 cursor-pointer transition-colors
+                      min-h-[140px] bg-white p-2 cursor-pointer transition-colors border border-gray-100
                       ${!isCurrentMonth && 'bg-gray-50'}
-                      ${selectedDay && day && isSameDay(selectedDay, day) ? 'ring-2 ring-violet-500' : 'hover:bg-gray-50'}
+                      ${selectedDay && day && isSameDay(selectedDay, day) ? 'ring-2 ring-violet-500' : ''}
                     `}
                   >
                     {day && (
                       <>
-                        <div className={`text-xs font-semibold mb-1 ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}`}>
+                        <div className={`text-xs font-bold mb-2 ${isCurrentMonth ? 'text-gray-900' : 'text-gray-400'}`}>
                           {format(day, 'd')}
                         </div>
                         <div className="space-y-1">
-                          {dayEvents.map(e => (
-                            <div key={e.id} className={`text-[10px] px-1.5 py-0.5 rounded border truncate ${getEventColor(e.status)}`}>
-                              {e.event_name}
-                            </div>
-                          ))}
-                          {dayTimeOff.map(t => (
-                            <div key={t.id} className={`text-[10px] px-1.5 py-0.5 rounded border truncate ${t.status === 'approved' ? 'bg-orange-50 text-orange-700 border-orange-200' : 'bg-amber-50 text-amber-700 border-amber-200'}`}>
-                              {t.staff_name.split(' ')[0]}
-                            </div>
-                          ))}
+                          {CITIES.map(city => {
+                            const cityEvents = (events[dateStr] || []).filter(e => e.city === city);
+                            const count = cityEvents.length;
+                            if (count === 0) return null;
+                            const statusCounts = {};
+                            cityEvents.forEach(e => {
+                              statusCounts[e.status] = (statusCounts[e.status] || 0) + 1;
+                            });
+                            return (
+                              <div key={city} className="text-[10px] font-semibold text-gray-700 px-1.5 py-1 bg-gray-100 rounded">
+                                {city}: {count}
+                              </div>
+                            );
+                          })}
                         </div>
                       </>
                     )}
@@ -280,62 +285,87 @@ export default function Calendar() {
 
       {/* Day Detail Drawer */}
       {selectedDay && (
-        <Drawer open={!!selectedDay} onOpenChange={(open) => !open && setSelectedDay(null)}>
+        <Drawer open={!!selectedDay} onOpenChange={(open) => !open && (setSelectedDay(null), setSelectedDayCity(null))}>
           <DrawerContent>
-            <DrawerHeader>
+            <DrawerHeader className="flex items-center justify-between">
               <DrawerTitle>{format(selectedDay, 'MMMM d, yyyy')}</DrawerTitle>
+              {!selectedDayCity && selectedDayAllEvents.length > 0 && (
+                <div className="text-xs text-gray-500">
+                  {selectedDayAllEvents.length} event{selectedDayAllEvents.length !== 1 ? 's' : ''}
+                </div>
+              )}
             </DrawerHeader>
-            <div className="px-4 py-4 space-y-6 max-h-[60vh] overflow-y-auto">
-              {/* Events */}
-              {selectedDayEvents.length > 0 ? (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Events ({selectedDayEvents.length})</h3>
-                  <div className="space-y-2">
-                    {selectedDayEvents.map(e => (
-                      <div key={e.id} className={`p-3 rounded-lg border ${getEventColor(e.status)}`}>
-                        <div className="font-medium text-sm">{e.event_name}</div>
-                        {e.start_time && <div className="text-xs text-gray-600 mt-1">{e.start_time}</div>}
-                        {e.venue_name && <div className="text-xs text-gray-600">{e.venue_name}</div>}
-                        {e.assigned_dj && <div className="text-xs text-gray-600 mt-1">DJ: {e.assigned_dj}</div>}
-                      </div>
-                    ))}
-                  </div>
-                </div>
-              ) : (
-                <div className="text-sm text-gray-500">No events</div>
-              )}
 
-              {/* Time Off */}
-              {selectedDayTimeOff.length > 0 && (
-                <div>
-                  <h3 className="text-sm font-semibold text-gray-900 mb-3">Time Off ({selectedDayTimeOff.length})</h3>
-                  <div className="space-y-2">
-                    {selectedDayTimeOff.map(t => (
-                      <div key={t.id} className={`p-3 rounded-lg border space-y-2 ${t.status === 'approved' ? 'bg-orange-50 border-orange-200' : 'bg-amber-50 border-amber-200'}`}>
-                        <div className="flex items-center justify-between gap-2">
-                          <div>
-                            <div className="font-medium text-sm">{t.staff_name}</div>
-                            <div className="text-xs text-gray-600">{t.date_from} to {t.date_to}</div>
-                            {t.reason && <div className="text-xs text-gray-600 mt-1">{t.reason}</div>}
+            {!selectedDayCity ? (
+              // City List
+              <div className="px-4 py-4 space-y-2 max-h-[60vh] overflow-y-auto">
+                {CITIES.map(city => {
+                  const cityEvents = selectedDayAllEvents.filter(e => e.city === city);
+                  if (cityEvents.length === 0) return null;
+                  return (
+                    <button
+                      key={city}
+                      onClick={() => setSelectedDayCity(city)}
+                      className="w-full text-left p-3 rounded-lg bg-gray-50 hover:bg-gray-100 border border-gray-200 transition-colors"
+                    >
+                      <div className="font-semibold text-gray-900">{city}</div>
+                      <div className="text-sm text-gray-600">{cityEvents.length} event{cityEvents.length !== 1 ? 's' : ''}</div>
+                    </button>
+                  );
+                })}
+                {selectedDayTimeOff.length > 0 && (
+                  <div className="mt-6 pt-6 border-t">
+                    <h3 className="text-sm font-semibold text-gray-900 mb-3">Time Off</h3>
+                    <div className="space-y-2">
+                      {selectedDayTimeOff.map(t => (
+                        <div key={t.id} className={`p-3 rounded-lg border space-y-2 ${t.status === 'approved' ? 'bg-orange-50 border-orange-200' : 'bg-amber-50 border-amber-200'}`}>
+                          <div className="flex items-center justify-between gap-2">
+                            <div>
+                              <div className="font-medium text-sm">{t.staff_name}</div>
+                              <div className="text-xs text-gray-600">{t.date_from} to {t.date_to}</div>
+                              {t.reason && <div className="text-xs text-gray-600 mt-1">{t.reason}</div>}
+                            </div>
+                            <Badge variant="secondary" className="text-[10px] capitalize">{t.status}</Badge>
                           </div>
-                          <Badge variant="secondary" className="text-[10px] capitalize">{t.status}</Badge>
+                          {canApproveTimeOff && t.status === 'pending' && (
+                            <div className="flex gap-2 pt-2">
+                              <Button size="sm" variant="outline" onClick={() => handleDenyTimeOff(t.id)} disabled={approvingId === t.id} className="flex-1">
+                                {approvingId === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
+                              </Button>
+                              <Button size="sm" onClick={() => handleApproveTimeOff(t.id)} disabled={approvingId === t.id} className="flex-1 bg-green-600 hover:bg-green-700">
+                                {approvingId === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                              </Button>
+                            </div>
+                          )}
                         </div>
-                        {canApproveTimeOff && t.status === 'pending' && (
-                          <div className="flex gap-2 pt-2">
-                            <Button size="sm" variant="outline" onClick={() => handleDenyTimeOff(t.id)} disabled={approvingId === t.id} className="flex-1">
-                              {approvingId === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <X className="w-3 h-3" />}
-                            </Button>
-                            <Button size="sm" onClick={() => handleApproveTimeOff(t.id)} disabled={approvingId === t.id} className="flex-1 bg-green-600 hover:bg-green-700">
-                              {approvingId === t.id ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
-                            </Button>
-                          </div>
-                        )}
-                      </div>
-                    ))}
+                      ))}
+                    </div>
                   </div>
-                </div>
-              )}
-            </div>
+                )}
+              </div>
+            ) : (
+              // City Events Detail
+              <div className="px-4 py-4 space-y-4 max-h-[60vh] overflow-y-auto">
+                <button
+                  onClick={() => setSelectedDayCity(null)}
+                  className="text-sm text-violet-600 hover:text-violet-700 font-medium"
+                >
+                  ← Back to cities
+                </button>
+                {selectedDayAllEvents
+                  .filter(e => e.city === selectedDayCity)
+                  .map(e => (
+                    <div key={e.id} className="p-4 rounded-lg bg-gray-50 border border-gray-200 space-y-2">
+                      <div className="font-semibold text-gray-900">{e.event_name}</div>
+                      {e.start_time && <div className="text-sm text-gray-700">{e.start_time} - {e.end_time || 'TBD'}</div>}
+                      {e.venue_name && <div className="text-sm text-gray-600">{e.venue_name}</div>}
+                      {e.assigned_dj && <div className="text-sm text-gray-600">DJ: {e.assigned_dj}</div>}
+                      <Badge variant="outline" className="text-[10px] capitalize">{e.status.replace(/_/g, ' ')}</Badge>
+                    </div>
+                  ))}
+              </div>
+            )}
+
             <div className="p-4 border-t">
               <DrawerClose asChild>
                 <Button variant="outline" className="w-full">Close</Button>
