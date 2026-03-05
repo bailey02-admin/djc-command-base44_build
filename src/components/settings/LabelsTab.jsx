@@ -74,12 +74,49 @@ export default function LabelsTab() {
   const [wiping, setWiping] = useState(false);
   const [seedResult, setSeedResult] = useState(null);
 
+  const [eventStatusSubTab, setEventStatusSubTab] = useState("statuses"); // "statuses" | "groups"
+  const [editingGroup, setEditingGroup] = useState(null); // group being edited
+  const [groupStatuses, setGroupStatuses] = useState([]); // statuses[] for editingGroup
+  const [savingGroup, setSavingGroup] = useState(false);
+
   const { data: records = [], isLoading } = useQuery({
     queryKey: ["label_map"],
     queryFn: () => base44.entities.LabelMap.list("sort_order", 200),
   });
 
+  const { data: statusSettings, isLoading: isLoadingGroups } = useQuery({
+    queryKey: ["status-settings"],
+    queryFn: async () => {
+      const res = await base44.functions.invoke("getStatusSettings", {});
+      return res.data;
+    },
+  });
+
+  const allEventStatuses = statusSettings?.all_statuses || [];
+  const eventGroups = (statusSettings?.groups || []).filter(g => (g.entity_key || "event") === "event");
+
   const filtered = records.filter(r => r.category === activeCategory).sort((a, b) => (a.sort_order || 99) - (b.sort_order || 99));
+
+  const handleEditGroup = (group) => {
+    setEditingGroup(group);
+    setGroupStatuses(group.statuses || []);
+  };
+
+  const handleSaveGroup = async () => {
+    if (editingGroup.key === "official_booked" && groupStatuses.length === 0) {
+      toast.error("official_booked group cannot be empty");
+      return;
+    }
+    setSavingGroup(true);
+    await base44.functions.invoke("saveStatusSettings", {
+      action: "upsert_group",
+      data: { ...editingGroup, statuses: groupStatuses, entity_key: "event" },
+    });
+    qc.invalidateQueries(["status-settings"]);
+    setEditingGroup(null);
+    setSavingGroup(false);
+    toast.success("Group saved");
+  };
 
   const handleSave = async (id, data) => {
     await base44.entities.LabelMap.update(id, data);
