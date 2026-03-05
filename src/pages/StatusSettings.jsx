@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -16,7 +16,7 @@ export default function StatusSettings() {
   const [statusForm, setStatusForm] = useState({ key: "", label: "", color: "", sort_order: 0, is_active: true });
   const [groupForm, setGroupForm] = useState({ key: "", label: "", description: "", statuses: [], required: false });
 
-  React.useEffect(() => {
+  useEffect(() => {
     base44.auth.me().then(setUser).catch(() => {});
   }, []);
 
