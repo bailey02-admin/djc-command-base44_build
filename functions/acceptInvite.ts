@@ -40,6 +40,18 @@ Deno.serve(async (req) => {
       last_login_at: new Date().toISOString(),
     });
 
+    // Audit log
+    await base44.asServiceRole.entities.Activity.create({
+      type: 'system',
+      subject: 'Invite Accepted / Password Set',
+      description: `User ${targetUser.email} accepted invite and set their password.`,
+      performed_by: targetUser.email,
+      related_type: 'contact',
+      related_id: 'user_management',
+      related_name: 'User Management',
+      is_internal: true,
+    }).catch(() => null);
+
     return Response.json({ ok: true, email: targetUser.email });
   } catch (e) {
     return Response.json({ error: e.message }, { status: 500 });
