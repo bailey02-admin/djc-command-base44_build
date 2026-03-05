@@ -5,7 +5,8 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Switch } from "@/components/ui/switch";
-import { Plus, Loader2, Pencil, Check, X, Trash2, AlertTriangle, Sprout, Flame } from "lucide-react";
+import { Badge } from "@/components/ui/badge";
+import { Plus, Loader2, Pencil, Check, X, Trash2, AlertTriangle, Sprout, Flame, Edit2 } from "lucide-react";
 import { toast } from "sonner";
 import { AdminAPI } from "../api/secureApi";
 
