@@ -37,10 +37,10 @@ Deno.serve(async (req) => {
         invite_status: 'not_invited',
         invited_at: '',
         last_login_at: '',
+        notes: data.notes || '',
+        contact_id: data.contact_id || '',
+        default_city: data.default_city || '',
       };
-      if (data.default_city) createPayload.default_city = data.default_city;
-      if (data.contact_id) createPayload.contact_id = data.contact_id;
-      if (data.notes) createPayload.notes = data.notes;
 
       const newUser = await base44.asServiceRole.entities.User.create(createPayload);
       await auditLog(base44, actor, 'User Created',
