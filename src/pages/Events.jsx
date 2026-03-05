@@ -241,6 +241,8 @@ export default function Events() {
   const canImpersonate = user && ALLOWED_IMPERSONATE.has(user.role);
   const canSeeFinance  = user && FINANCE_ROLES.has(user.role);
 
+  const { statusColor, statusLabel, statusOptions } = useStatusSettings();
+
   // ── column config state ───────────────────────────────────────────────────
   const [customizerOpen, setCustomizerOpen] = useState(false);
   const [activeConfigId, setActiveConfigId] = useState(null);
