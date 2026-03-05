@@ -77,11 +77,15 @@ export default function StatusSettings() {
     setEditingGroup(null);
   };
 
-  const handleDeleteGroup = async (id) => {
-    if (confirm("Delete this group?")) {
+  const handleDeleteGroup = async (group) => {
+    if (group.key === "official_booked") {
+      alert("The official_booked group is required and cannot be deleted.");
+      return;
+    }
+    if (confirm(`Delete group "${group.label}"?`)) {
       await base44.functions.invoke("saveStatusSettings", {
         action: "delete_group",
-        data: { id },
+        data: { id: group.id },
       });
       queryClient.invalidateQueries({ queryKey: ["status-settings"] });
     }
