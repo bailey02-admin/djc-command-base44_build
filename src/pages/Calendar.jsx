@@ -3,6 +3,7 @@ import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { base44 } from '@/api/base44Client';
 import { Button } from '@/components/ui/button';
 import { Badge } from '@/components/ui/badge';
+import { Input } from '@/components/ui/input';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog';
 import { Drawer, DrawerContent, DrawerHeader, DrawerTitle, DrawerClose } from '@/components/ui/drawer';
@@ -167,8 +168,9 @@ export default function Calendar() {
     }
   };
 
-  const selectedDayEvents = selectedDay ? events[format(selectedDay, 'yyyy-MM-dd')] || [] : [];
-  const selectedDayTimeOff = selectedDay ? timeOffMap[format(selectedDay, 'yyyy-MM-dd')] || [] : [];
+  const selectedDateStr = selectedDay ? format(selectedDay, 'yyyy-MM-dd') : null;
+  const selectedDayAllEvents = selectedDay ? events[selectedDateStr] || [] : [];
+  const selectedDayTimeOff = selectedDay ? timeOffMap[selectedDateStr] || [] : [];
 
   const canApproveTimeOff = ['admin', 'city_manager'].includes(role);
   const canRequestTimeOff = ['dj', 'sales_rep', 'city_manager', 'office_finalizer', 'admin'].includes(role);
@@ -190,23 +192,10 @@ export default function Calendar() {
 
       {/* Filters */}
       <div className="flex items-center gap-4 flex-wrap">
-        <div className="flex items-center gap-2">
-          {['admin', 'city_manager'].includes(role) && (
-            <Select value={selectedCity} onValueChange={setSelectedCity}>
-              <SelectTrigger className="w-32">
-                <SelectValue placeholder="All cities" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value={null}>All cities</SelectItem>
-                {CITIES.map(c => <SelectItem key={c} value={c}>{c}</SelectItem>)}
-              </SelectContent>
-            </Select>
-          )}
-        </div>
         {canApproveTimeOff && (
           <label className="flex items-center gap-2 cursor-pointer text-sm">
             <input type="checkbox" checked={showPending} onChange={e => setShowPending(e.target.checked)} />
-            Show pending requests
+            Show pending time off
           </label>
         )}
       </div>
