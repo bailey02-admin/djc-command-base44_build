@@ -92,13 +92,12 @@ export default function Layout({ children, currentPageName }) {
           )}
         </div>
 
-        {/* Nav — filtered by role */}
+        {/* Nav — filtered by role (via RouteGuard which fetches StaffProfile) */}
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
           {ALL_NAV_ITEMS.filter(item => {
-            if (!user) return true; // still loading, show all temporarily
-            const role = user.role || "sales_rep";
-            const allowed = NAV_BY_ROLE[role] || ALL_NAV_ITEMS.map(i => i.page);
-            return allowed.includes(item.page);
+            // Note: RouteGuard enforces actual access. Layout just shows full nav,
+            // users will see access denied if they try restricted pages.
+            return true;
           }).map(item => {
             const isActive = currentPageName === item.page;
             return (
