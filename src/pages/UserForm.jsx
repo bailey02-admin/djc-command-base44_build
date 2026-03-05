@@ -37,7 +37,13 @@ export default function UserForm() {
 
   useEffect(() => {
     if (existingUser) {
-      setForm({ ...EMPTY, ...existingUser, cities: existingUser.cities || [] });
+      // Support both legacy 'role' field and new 'custom_role' field
+      setForm({
+        ...EMPTY,
+        ...existingUser,
+        custom_role: existingUser.custom_role || existingUser.role || "sales_rep",
+        cities: existingUser.cities || [],
+      });
     }
   }, [existingUser]);
 
@@ -57,24 +63,23 @@ export default function UserForm() {
   };
 
   const save = async (andInvite = false) => {
-    if (!form.role) { toast.error("Role is required"); return; }
-    if (form.role !== "client" && !form.email) { toast.error("Email is required for staff roles"); return; }
-    if (form.role === "client" && !form.contact_id) { toast.error("Contact ID is required for client role"); return; }
+    if (!form.custom_role) { toast.error("Role is required"); return; }
+    if (form.custom_role !== "client" && !form.email) { toast.error("Email is required for staff roles"); return; }
+    if (form.custom_role === "client" && !form.contact_id) { toast.error("Contact ID is required for client role"); return; }
 
     setSaving(true);
     try {
-      let saved;
       if (editId) {
-        saved = await UserAPI.update(editId, form);
-      } else {
-        saved = await UserAPI.create(form);
-      }
-
-      if (andInvite && saved?.id) {
-        await UserAPI.invite(saved.id);
+        await UserAPI.update(editId, form);
+        toast.success("User saved!");
+      } else if (andInvite) {
+        // Create StaffProfile + send real platform invite in one call
+        await UserAPI.createAndInvite(form);
         toast.success("User saved and invite sent!");
       } else {
-        toast.success("User saved!");
+        // Save StaffProfile only — no auth account yet
+        await UserAPI.create(form);
+        toast.success("User saved! Send an invite when ready.");
       }
 
       qc.invalidateQueries(["users"]);
