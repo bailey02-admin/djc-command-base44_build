@@ -1,4 +1,4 @@
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useStatusSettings } from "@/components/hooks/useStatusSettings";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
@@ -58,7 +58,9 @@ export default function EventDetail() {
   const [user, setUser] = useState(null);
   const [impersonating, setImpersonating] = useState(false);
   const [impersonateError, setImpersonateError] = useState(null);
-  React.useEffect(() => { base44.auth.me().then(setUser).catch(() => {}); }, []);
+  useEffect(() => { base44.auth.me().then(setUser).catch(() => {}); }, []);
+
+  const { statusColor, statusLabel, statusOptions } = useStatusSettings();
 
   const canImpersonate = user && ["admin","city_manager","office_finalizer"].includes(user.role);
   const canSeeFinance = user && ["admin","city_manager","sales_manager","finance"].includes(user.role);
