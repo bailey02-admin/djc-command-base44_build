@@ -148,7 +148,7 @@ export default function Users() {
                     <div className="font-medium text-gray-900">{u.full_name || "—"}</div>
                   </td>
                   <td className="px-4 py-3">
-                    <Badge variant="secondary" className="text-xs capitalize">{u.role?.replace(/_/g, " ")}</Badge>
+                    <Badge variant="secondary" className="text-xs capitalize">{(u.custom_role || u.role)?.replace(/_/g, " ")}</Badge>
                   </td>
                   <td className="px-4 py-3 hidden md:table-cell text-gray-500 text-xs">
                     {(u.cities || []).join(", ") || u.default_city || "—"}
