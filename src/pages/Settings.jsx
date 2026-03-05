@@ -69,6 +69,7 @@ export default function Settings() {
           <TabsTrigger value="readiness">Readiness</TabsTrigger>
           <TabsTrigger value="labels">Labels &amp; Statuses</TabsTrigger>
           <TabsTrigger value="general">General</TabsTrigger>
+          <TabsTrigger value="rbac">RBAC Debug</TabsTrigger>
         </TabsList>
 
         {/* SLA Settings */}
