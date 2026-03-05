@@ -152,8 +152,8 @@ export default function EventDetail() {
           <div>
             <div className="flex items-center gap-3 flex-wrap">
               <h1 className="text-xl font-bold text-gray-900">{event.event_name}</h1>
-              <Badge variant="outline" className={`text-xs ${STATUS_COLOR[event.status] || ""}`}>
-                {event.status?.replace(/_/g, " ")}
+              <Badge variant="outline" className={`text-xs ${statusColor(event.status)}`}>
+                {statusLabel(event.status)}
                 {event.city ? ` – ${event.city}` : ""}
               </Badge>
               {daysUntil !== null && (
@@ -204,7 +204,7 @@ export default function EventDetail() {
             <Select value={event.status} onValueChange={v => updateEvent("status", v)}>
               <SelectTrigger className="w-48 h-9 text-sm"><SelectValue /></SelectTrigger>
               <SelectContent>
-                {STATUS_OPTIONS.map(s => <SelectItem key={s} value={s}>{s.replace(/_/g, " ")}</SelectItem>)}
+                {statusOptions.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
