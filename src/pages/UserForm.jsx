@@ -16,7 +16,7 @@ import { toast } from "sonner";
 
 const ROLE_OPTIONS = ["admin","sales_manager","sales_rep","city_manager","office_finalizer","finance","dj","client"];
 const CITY_OPTIONS = ["TUL","DFW","HOU","SAT","KC","STL","INDY","NASH","DEN","ATL"];
-const EMPTY = { full_name: "", email: "", phone: "", role: "sales_rep", cities: [], default_city: "", contact_id: "", is_active: true, notes: "" };
+const EMPTY = { full_name: "", email: "", phone: "", custom_role: "sales_rep", cities: [], default_city: "", contact_id: "", is_active: true, notes: "" };
 
 export default function UserForm() {
   const params = new URLSearchParams(window.location.search);

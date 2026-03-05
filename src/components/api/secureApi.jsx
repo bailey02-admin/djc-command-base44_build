@@ -263,11 +263,14 @@ export const UserAPI = {
   create: (data) =>
     invoke("mutateUser", { action: "create", data }).then(r => r.user),
 
+  createAndInvite: (data) =>
+    invoke("mutateUser", { action: "create_and_invite", data }).then(r => r.user),
+
   update: (id, data) =>
     invoke("mutateUser", { action: "update", id, data }).then(r => r.user),
 
   invite: (user_id) =>
-    invoke("inviteUser", { user_id }),
+    invoke("mutateUser", { action: "send_invite", id: user_id }).then(r => r.user),
 
   requestPasswordReset: (email) =>
     invoke("requestPasswordReset", { email }),
