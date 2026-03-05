@@ -27,18 +27,22 @@ Deno.serve(async (req) => {
       if (data.role !== 'client' && !data.email) return Response.json({ error: 'email is required for staff roles' }, { status: 400 });
       if (data.role === 'client' && !data.contact_id) return Response.json({ error: 'contact_id is required for client role' }, { status: 400 });
 
-      const newUser = await base44.asServiceRole.entities.User.create({
+      const createPayload = {
         email: data.email,
         full_name: data.full_name || '',
         phone: data.phone || '',
         role: data.role,
         cities: data.cities || [],
-        default_city: data.default_city || null,
-        contact_id: data.contact_id || null,
-        notes: data.notes || '',
         is_active: data.is_active !== false,
         invite_status: 'not_invited',
-      });
+        invited_at: '',
+        last_login_at: '',
+      };
+      if (data.default_city) createPayload.default_city = data.default_city;
+      if (data.contact_id) createPayload.contact_id = data.contact_id;
+      if (data.notes) createPayload.notes = data.notes;
+
+      const newUser = await base44.asServiceRole.entities.User.create(createPayload);
       await auditLog(base44, actor, 'User Created',
         `Admin ${actor.email} created user ${newUser.email} with role=${newUser.role} cities=${(newUser.cities||[]).join(',') || 'none'}`);
       return Response.json({ user: newUser });
