@@ -56,7 +56,7 @@ Deno.serve(async (req) => {
         cities: data.cities || [],
         default_city: data.default_city || '',
         is_active: data.is_active !== false,
-        invite_status: 'not_invited',
+        invite_status: 'invited',
         contact_id: data.contact_id || '',
         notes: data.notes || '',
       };
@@ -84,7 +84,7 @@ Deno.serve(async (req) => {
         is_active: true,
         contact_id: data.contact_id || '',
         notes: data.notes || '',
-        invite_status: 'not_invited',
+        invite_status: 'invited',
       };
       const profile = await upsertProfile(base44, email, profileData);
 
