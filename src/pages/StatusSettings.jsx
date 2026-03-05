@@ -299,49 +299,64 @@ export default function StatusSettings() {
 
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Groups</CardTitle>
+                <CardTitle className="text-sm font-semibold">Event Groups</CardTitle>
               </CardHeader>
               <CardContent className="space-y-2">
-                {groups.map((g) => (
-                  <div key={g.id} className="p-3 bg-gray-50 rounded-lg">
-                    <div className="flex items-center justify-between mb-2">
-                      <div>
-                        <div className="font-medium text-sm">{g.label}</div>
-                        <div className="text-xs text-gray-400">{g.key}</div>
-                        {g.required && <Badge variant="secondary" className="text-[10px] mt-1">Required</Badge>}
+                {groups.length === 0 && (
+                  <p className="text-xs text-gray-400 text-center py-4">No groups yet. Groups are seeded automatically on first load.</p>
+                )}
+                {groups.map((g) => {
+                  const isOfficialBooked = g.key === "official_booked";
+                  return (
+                    <div key={g.id} className={`p-3 rounded-lg border ${isOfficialBooked ? "bg-violet-50 border-violet-200" : "bg-gray-50 border-transparent"}`}>
+                      <div className="flex items-center justify-between mb-2">
+                        <div>
+                          <div className="font-medium text-sm flex items-center gap-2">
+                            {g.label}
+                            {isOfficialBooked && <Badge className="text-[10px] bg-violet-100 text-violet-700 border-violet-300">System</Badge>}
+                          </div>
+                          <div className="text-xs text-gray-400">{g.key}</div>
+                          {g.required && <Badge variant="secondary" className="text-[10px] mt-1">Required</Badge>}
+                          {g.description && <div className="text-xs text-gray-500 mt-1">{g.description}</div>}
+                        </div>
+                        <div className="flex gap-1">
+                          <Button
+                            size="icon"
+                            variant="ghost"
+                            onClick={() => {
+                              setEditingGroup(g);
+                              setGroupForm({ ...g });
+                            }}
+                          >
+                            <Edit2 className="w-3.5 h-3.5 text-gray-400" />
+                          </Button>
+                          {!isOfficialBooked && (
+                            <Button
+                              size="icon"
+                              variant="ghost"
+                              onClick={() => handleDeleteGroup(g)}
+                            >
+                              <Trash2 className="w-3.5 h-3.5 text-red-400" />
+                            </Button>
+                          )}
+                        </div>
                       </div>
-                      <div className="flex gap-1">
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => {
-                            setEditingGroup(g);
-                            setGroupForm(g);
-                          }}
-                        >
-                          <Edit2 className="w-3.5 h-3.5 text-gray-400" />
-                        </Button>
-                        <Button
-                          size="icon"
-                          variant="ghost"
-                          onClick={() => handleDeleteGroup(g.id)}
-                        >
-                          <Trash2 className="w-3.5 h-3.5 text-red-400" />
-                        </Button>
+                      <div className="flex flex-wrap gap-1">
+                        {(g.statuses || []).map((statusKey) => {
+                          const status = allStatuses.find(s => s.key === statusKey);
+                          return (
+                            <Badge key={statusKey} variant="outline" className="text-[10px]">
+                              {status ? status.label : statusKey}
+                            </Badge>
+                          );
+                        })}
+                        {(!g.statuses || g.statuses.length === 0) && (
+                          <span className="text-xs text-red-500">No statuses assigned</span>
+                        )}
                       </div>
                     </div>
-                    <div className="flex flex-wrap gap-1">
-                      {g.statuses.map((statusKey) => {
-                        const status = allStatuses.find(s => s.key === statusKey);
-                        return status ? (
-                          <Badge key={statusKey} variant="outline" className="text-[10px]">
-                            {status.label}
-                          </Badge>
-                        ) : null;
-                      })}
-                    </div>
-                  </div>
-                ))}
+                  );
+                })}
               </CardContent>
             </Card>
           </div>
