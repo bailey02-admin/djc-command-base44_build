@@ -6,11 +6,14 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: 'Unauthorized' }, { status: 401 });
 
-    // Resolve caller's effective role from StaffProfile (fallback to platform role)
-    const callerProfiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email });
+    // Resolve caller's effective role from StaffProfile
+    const callerProfiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email.trim().toLowerCase() });
     const callerRole = callerProfiles?.[0]?.custom_role || user.role || 'sales_rep';
 
-    if (!['admin', 'city_manager', 'sales_manager', 'office_finalizer'].includes(callerRole)) {
+    // admin platform role always has access; otherwise check custom_role
+    const hasAccess = user.role === 'admin' ||
+      ['admin', 'city_manager', 'sales_manager', 'office_finalizer'].includes(callerRole);
+    if (!hasAccess) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
