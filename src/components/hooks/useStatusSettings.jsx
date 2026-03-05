@@ -53,11 +53,16 @@ export function useStatusSettings() {
     ? activeStatuses.map(s => ({ key: s.key, label: s.label }))
     : Object.entries(FALLBACK_STATUS_MAP).map(([key, v]) => ({ key, label: v.label }));
 
-  // Group lookup
-  function getGroupStatuses(groupKey) {
-    const g = groups.find(g => g.key === groupKey);
-    return g?.statuses || null;
+  // Group lookup — scoped to entity_key="event" (supports legacy records with no entity_key)
+  function getGroupStatuses(groupKey, entityKey = "event") {
+    const g = groups.find(g =>
+      g.key === groupKey && (g.entity_key === entityKey || (!g.entity_key && entityKey === "event"))
+    );
+    return g?.statuses?.length > 0 ? g.statuses : null;
   }
 
-  return { statusColor, statusLabel, statusOptions, groups, isLoading, getGroupStatuses };
+  // Event groups only (for UI/dropdowns)
+  const eventGroups = groups.filter(g => (g.entity_key || "event") === "event");
+
+  return { statusColor, statusLabel, statusOptions, groups, eventGroups, isLoading, getGroupStatuses };
 }
