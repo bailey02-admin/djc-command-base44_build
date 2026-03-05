@@ -46,6 +46,18 @@ Deno.serve(async (req) => {
     const appUrl = Deno.env.get('APP_URL') || 'https://app.base44.com';
     const resetLink = `${appUrl}/ResetPassword?token=${plainToken}`;
 
+    // Audit log — reset requested
+    await base44.asServiceRole.entities.Activity.create({
+      type: 'system',
+      subject: 'Password Reset Requested',
+      description: `Password reset requested for ${targetUser.email}.`,
+      performed_by: targetUser.email,
+      related_type: 'contact',
+      related_id: 'user_management',
+      related_name: 'User Management',
+      is_internal: true,
+    }).catch(() => null);
+
     await base44.asServiceRole.integrations.Core.SendEmail({
       to: targetUser.email,
       subject: 'DJ Command — Password Reset',
