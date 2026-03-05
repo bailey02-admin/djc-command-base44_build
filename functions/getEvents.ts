@@ -246,11 +246,10 @@ Deno.serve(async (req) => {
       const src = e.lead_source || lead?.lead_source || null;
       e.inquiry_source_label = src ? (LEAD_SOURCE_LABELS[src] || src) : null;
 
-      // add-ons from event snapshot (PHASE D: now from event.add_ons, not quote)
-      const { summary, count, total_qty } = buildAddOnsSummary(e.add_ons);
-      e.add_ons_count     = count;
-      e.add_ons_total_qty = total_qty;
-      e.add_ons_summary   = summary;
+      // add-ons: Event doesn't have add_ons field, skip for now
+      e.add_ons_count     = 0;
+      e.add_ons_total_qty = 0;
+      e.add_ons_summary   = null;
     }
 
     // Post-enrichment filters
