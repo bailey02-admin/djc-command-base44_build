@@ -215,10 +215,16 @@ export default function StatusSettings() {
 
         {/* Groups Tab */}
         <TabsContent value="groups">
+          <p className="text-xs text-gray-500 mb-4">
+            Event Groups let you classify statuses into logical sets. The <strong>official_booked</strong> group
+            is required — it determines when a quote snapshot and payment schedule are triggered.
+          </p>
           <div className="grid lg:grid-cols-2 gap-6">
             <Card className="border-0 shadow-sm">
               <CardHeader className="pb-2">
-                <CardTitle className="text-sm font-semibold">Manage Groups</CardTitle>
+                <CardTitle className="text-sm font-semibold">
+                  {editingGroup ? `Edit: ${editingGroup.label}` : "Create New Group"}
+                </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
                 <div className="space-y-2">
