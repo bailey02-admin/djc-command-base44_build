@@ -10,7 +10,7 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Skeleton } from "@/components/ui/skeleton";
 import { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger } from "@/components/ui/dropdown-menu";
-import { UserPlus, MoreHorizontal, Search, Mail, UserX, UserCheck, Edit, Shield } from "lucide-react";
+import { UserPlus, MoreHorizontal, Search, Mail, RotateCcw, UserX, UserCheck, Edit, Shield } from "lucide-react";
 import { toast } from "sonner";
 import RbacSelfTest from "@/components/users/RbacSelfTest";
 
@@ -58,9 +58,11 @@ export default function Users() {
       if (action === "deactivate") await UserAPI.deactivate(userId);
       else if (action === "reactivate") await UserAPI.reactivate(userId);
       else if (action === "invite") await UserAPI.invite(userId);
+      else if (action === "reset") await UserAPI.requestPasswordReset(users.find(u => u.id === userId)?.email);
       qc.invalidateQueries(["users"]);
       toast.success(
         action === "invite" ? "Sign-in link sent!" :
+        action === "reset" ? "Password reset email sent!" :
         action === "deactivate" ? "User deactivated" : "User reactivated"
       );
     } catch (e) {
@@ -176,9 +178,12 @@ export default function Users() {
                           </Link>
                         </DropdownMenuItem>
                         <DropdownMenuItem onClick={() => handleAction("invite", u.id)} className="gap-2">
-                           <Mail className="w-4 h-4" />
-                           {u.invite_status === 'accepted' ? 'Resend Sign-In Link' : u.invite_status === 'invited' ? 'Resend Invite' : 'Send Sign-In Link'}
-                         </DropdownMenuItem>
+                          <Mail className="w-4 h-4" />
+                          {u.invite_status === 'accepted' ? 'Resend Sign-In Link' : u.invite_status === 'invited' ? 'Resend Invite' : 'Send Sign-In Link'}
+                        </DropdownMenuItem>
+                        <DropdownMenuItem onClick={() => handleAction("reset", u.id)} className="gap-2">
+                          <RotateCcw className="w-4 h-4" /> Send Password Reset
+                        </DropdownMenuItem>
                         {u.is_active !== false
                           ? <DropdownMenuItem onClick={() => handleAction("deactivate", u.id)} className="gap-2 text-red-600">
                               <UserX className="w-4 h-4" /> Deactivate

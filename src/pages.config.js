@@ -47,88 +47,14 @@
  *
  * The mainPage value must match a key in the PAGES object exactly.
  */
-import AcceptInvite from './pages/AcceptInvite';
-import ArchivedRecords from './pages/ArchivedRecords';
-import ClientPortal from './pages/ClientPortal';
-import ContactDetail from './pages/ContactDetail';
-import ContactForm from './pages/ContactForm';
-import Contacts from './pages/Contacts';
-import Contracts from './pages/Contracts';
-import DJDetail from './pages/DJDetail';
-import DJRoster from './pages/DJRoster';
-import DJView from './pages/DJView';
-import Dashboard from './pages/Dashboard';
-import EventDetail from './pages/EventDetail';
-import EventForm from './pages/EventForm';
-import Events from './pages/Events';
-import FinalizerQueue from './pages/FinalizerQueue';
-import ForgotPassword from './pages/ForgotPassword';
-import LeadDetail from './pages/LeadDetail';
-import LeadForm from './pages/LeadForm';
-import Leads from './pages/Leads';
-import MessageTemplates from './pages/MessageTemplates';
-import MusicPlanner from './pages/MusicPlanner';
-import Payments from './pages/Payments';
-import Reports from './pages/Reports';
-import ResetPassword from './pages/ResetPassword';
-import Settings from './pages/Settings';
-import StaffMusicManager from './pages/StaffMusicManager';
-import StaffPlanningHub from './pages/StaffPlanningHub';
-import StaffPrint from './pages/StaffPrint';
-import StaffSpecialSongsList from './pages/StaffSpecialSongsList';
-import StaffTimelineManager from './pages/StaffTimelineManager';
-import StaffTimelineView from './pages/StaffTimelineView';
-import StatusSettings from './pages/StatusSettings';
-import Tasks from './pages/Tasks';
-import TimelineBuilder from './pages/TimelineBuilder';
-import UserForm from './pages/UserForm';
 import Users from './pages/Users';
-import Venues from './pages/Venues';
-import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
-    "AcceptInvite": AcceptInvite,
-    "ArchivedRecords": ArchivedRecords,
-    "ClientPortal": ClientPortal,
-    "ContactDetail": ContactDetail,
-    "ContactForm": ContactForm,
-    "Contacts": Contacts,
-    "Contracts": Contracts,
-    "DJDetail": DJDetail,
-    "DJRoster": DJRoster,
-    "DJView": DJView,
-    "Dashboard": Dashboard,
-    "EventDetail": EventDetail,
-    "EventForm": EventForm,
-    "Events": Events,
-    "FinalizerQueue": FinalizerQueue,
-    "ForgotPassword": ForgotPassword,
-    "LeadDetail": LeadDetail,
-    "LeadForm": LeadForm,
-    "Leads": Leads,
-    "MessageTemplates": MessageTemplates,
-    "MusicPlanner": MusicPlanner,
-    "Payments": Payments,
-    "Reports": Reports,
-    "ResetPassword": ResetPassword,
-    "Settings": Settings,
-    "StaffMusicManager": StaffMusicManager,
-    "StaffPlanningHub": StaffPlanningHub,
-    "StaffPrint": StaffPrint,
-    "StaffSpecialSongsList": StaffSpecialSongsList,
-    "StaffTimelineManager": StaffTimelineManager,
-    "StaffTimelineView": StaffTimelineView,
-    "StatusSettings": StatusSettings,
-    "Tasks": Tasks,
-    "TimelineBuilder": TimelineBuilder,
-    "UserForm": UserForm,
     "Users": Users,
-    "Venues": Venues,
 }
 
 export const pagesConfig = {
-    mainPage: "Dashboard",
+    mainPage: "Users",
     Pages: PAGES,
-    Layout: __Layout,
 };
