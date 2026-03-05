@@ -79,12 +79,19 @@ export default function Users() {
           <h1 className="text-2xl font-bold text-gray-900">Users</h1>
           <p className="text-sm text-gray-500 mt-0.5">{Array.isArray(data) ? data.length : (data?.total ?? "—")} total users</p>
         </div>
-        <Link to={createPageUrl("UserForm")}>
-          <Button className="bg-violet-600 hover:bg-violet-700 text-white gap-2">
-            <UserPlus className="w-4 h-4" /> New User
+        <div className="flex items-center gap-2">
+          <Button variant="outline" size="sm" className="gap-1.5 text-violet-700 border-violet-200" onClick={() => setShowRbac(v => !v)}>
+            <Shield className="w-3.5 h-3.5" /> {showRbac ? "Hide" : "RBAC Test"}
           </Button>
-        </Link>
+          <Link to={createPageUrl("UserForm")}>
+            <Button className="bg-violet-600 hover:bg-violet-700 text-white gap-2">
+              <UserPlus className="w-4 h-4" /> New User
+            </Button>
+          </Link>
+        </div>
       </div>
+
+      {showRbac && <RbacSelfTest currentUser={currentUser} />}
 
       {/* Filters */}
       <div className="flex flex-wrap gap-3">
