@@ -8,9 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Save, Loader2, Plus, RefreshCw } from "lucide-react";
+import { Save, Loader2, Plus, RefreshCw, ShieldCheck } from "lucide-react";
 import { PIPELINE_STAGES, AUTOMATION_TEMPLATES, READINESS_ITEMS } from "../components/crm/pipeline";
 import LabelsTab from "../components/settings/LabelsTab";
+import RbacDebugPanel from "../components/settings/RbacDebugPanel";
 
 const DEFAULT_SETTINGS = [
   { key: "sla_warning_minutes", value: "15", category: "sla", label: "SLA Warning Threshold (minutes)", description: "Show warning badge after this many minutes without response" },
