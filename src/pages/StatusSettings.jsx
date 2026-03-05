@@ -27,7 +27,9 @@ export default function StatusSettings() {
   });
 
   const allStatuses = settings?.data?.all_statuses || [];
-  const groups = settings?.data?.groups || [];
+  const allGroups = settings?.data?.groups || [];
+  // Show only event-scoped groups in the Event Groups tab
+  const groups = allGroups.filter(g => (g.entity_key || "event") === "event");
 
   const handleSaveStatus = async () => {
     if (!statusForm.key || !statusForm.label) {
