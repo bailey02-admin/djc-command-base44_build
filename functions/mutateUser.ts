@@ -27,34 +27,21 @@ Deno.serve(async (req) => {
       if (data.role !== 'client' && !data.email) return Response.json({ error: 'email is required for staff roles' }, { status: 400 });
       if (data.role === 'client' && !data.contact_id) return Response.json({ error: 'contact_id is required for client role' }, { status: 400 });
 
-      // Use base44.users.inviteUser to create the user record (required by platform).
-      // Platform only accepts 'user' or 'admin'; custom role is patched afterwards.
-      const platformRole = data.role === 'admin' ? 'admin' : 'user';
-      await base44.users.inviteUser(data.email, platformRole);
-
-      // Fetch the newly created user by email to get their id
-      const allUsers = await base44.asServiceRole.entities.User.list('-created_date', 500);
-      const newUser = allUsers.find(u => u.email?.toLowerCase() === data.email.toLowerCase());
-      if (!newUser) return Response.json({ error: 'User created but could not be retrieved' }, { status: 500 });
-
-      // Patch extra profile fields
-      const extraFields = {};
-      if (data.full_name) extraFields.full_name = data.full_name;
-      if (data.phone) extraFields.phone = data.phone;
-      if (data.cities?.length) extraFields.cities = data.cities;
-      if (data.default_city) extraFields.default_city = data.default_city;
-      if (data.contact_id) extraFields.contact_id = data.contact_id;
-      if (data.notes) extraFields.notes = data.notes;
-      extraFields.is_active = data.is_active !== false;
-      extraFields.invite_status = 'invited';
-
-      const updated = Object.keys(extraFields).length > 0
-        ? await base44.asServiceRole.entities.User.update(newUser.id, extraFields)
-        : newUser;
-
+      const newUser = await base44.asServiceRole.entities.User.create({
+        email: data.email,
+        full_name: data.full_name || '',
+        phone: data.phone || '',
+        role: data.role,
+        cities: data.cities || [],
+        default_city: data.default_city || null,
+        contact_id: data.contact_id || null,
+        notes: data.notes || '',
+        is_active: data.is_active !== false,
+        invite_status: 'not_invited',
+      });
       await auditLog(base44, actor, 'User Created',
-        `Admin ${actor.email} created user ${updated.email} with role=${data.role} cities=${(data.cities||[]).join(',') || 'none'}`);
-      return Response.json({ user: updated });
+        `Admin ${actor.email} created user ${newUser.email} with role=${newUser.role} cities=${(newUser.cities||[]).join(',') || 'none'}`);
+      return Response.json({ user: newUser });
     }
 
     if (action === 'update') {
