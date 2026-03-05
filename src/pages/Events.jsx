@@ -1,6 +1,7 @@
 import React, { useState, useCallback, useMemo, useRef, useEffect } from "react";
 import { base44 } from "@/api/base44Client";
 import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useStatusSettings } from "@/components/hooks/useStatusSettings";
 import { EventAPI, TableViewConfigAPI } from "@/components/api/secureApi";
 import { useNavigate, Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
