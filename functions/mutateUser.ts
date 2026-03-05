@@ -124,7 +124,7 @@ Deno.serve(async (req) => {
       return Response.json({ user: updated });
     }
 
-    // ── SEND INVITE (for existing profile) ─────────────────────────────────
+    // ── SEND INVITE (for existing profile) — custom token-based sign-in link ──
     if (action === 'send_invite') {
       if (!id) return Response.json({ error: 'id required' }, { status: 400 });
       const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ id });
@@ -134,14 +134,69 @@ Deno.serve(async (req) => {
 
       const email = profile.email.trim().toLowerCase();
 
-      // Platform-native invite handles password setup
-      await base44.users.inviteUser(email, 'user');
+      // Generate a secure token for the AcceptInvite page
+      function generateToken() {
+        const arr = new Uint8Array(32);
+        crypto.getRandomValues(arr);
+        return Array.from(arr).map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+      async function hashToken(token) {
+        const enc = new TextEncoder();
+        const buf = await crypto.subtle.digest('SHA-256', enc.encode(token));
+        return Array.from(new Uint8Array(buf)).map(b => b.toString(16).padStart(2, '0')).join('');
+      }
+
+      // Invalidate old invite tokens for this profile
+      const oldTokens = await base44.asServiceRole.entities.AuthToken.filter({ user_id: id, type: 'invite' });
+      for (const t of oldTokens) {
+        if (!t.used_at) {
+          await base44.asServiceRole.entities.AuthToken.update(t.id, { used_at: new Date().toISOString() }).catch(() => null);
+        }
+      }
+
+      const plainToken = generateToken();
+      const tokenHash = await hashToken(plainToken);
+      const expiresAt = new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(); // 7 days
+
+      await base44.asServiceRole.entities.AuthToken.create({
+        token_hash: tokenHash,
+        type: 'invite',
+        user_id: id, // StaffProfile id
+        expires_at: expiresAt,
+      });
+
+      const appUrl = 'https://djcplanner.base44.app';
+      const inviteLink = `${appUrl}/AcceptInvite?token=${plainToken}`;
+
+      // Send the invite email
+      await base44.asServiceRole.integrations.Core.SendEmail({
+        to: email,
+        subject: 'DJ Command — You\'ve been invited',
+        body: `
+<!DOCTYPE html>
+<html>
+<body style="font-family:sans-serif;max-width:600px;margin:0 auto;padding:24px;color:#111;">
+  <h1 style="font-size:24px;font-weight:700;color:#7c3aed;">DJ Command</h1>
+  <h2 style="font-size:20px;">You've been invited!</h2>
+  <p>Hi ${profile.full_name || email},</p>
+  <p>You've been invited to DJ Command, the event CRM platform. Click the button below to set your password and activate your account:</p>
+  <div style="margin:32px 0;">
+    <a href="${inviteLink}" style="background:#7c3aed;color:#fff;padding:14px 28px;border-radius:8px;text-decoration:none;font-weight:600;font-size:16px;">
+      Accept Invitation & Set Password
+    </a>
+  </div>
+  <p style="color:#6b7280;font-size:14px;">This link expires in 7 days.</p>
+  <p style="color:#6b7280;font-size:14px;">If you weren't expecting this invitation, you can safely ignore this email.</p>
+</body>
+</html>
+        `.trim(),
+      });
 
       const updated = await base44.asServiceRole.entities.StaffProfile.update(id, {
         invite_status: 'invited',
         invited_at: new Date().toISOString(),
       });
-      await auditLog(base44, actor, 'Invite Sent', `Admin ${actor.email} sent invite to ${email}`);
+      await auditLog(base44, actor, 'Invite Sent', `Admin ${actor.email} sent invite link to ${email}`);
       return Response.json({ user: updated });
     }
 
