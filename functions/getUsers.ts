@@ -25,8 +25,23 @@ Deno.serve(async (req) => {
       return Response.json({ user: profile });
     }
 
-    // List all profiles
+    // List all StaffProfiles (and any invited users without profiles yet)
     let profiles = await base44.asServiceRole.entities.StaffProfile.list(sort, 500);
+    
+    // Also check for invited users in platform User entity that don't have StaffProfile yet
+    const allUsers = await base44.asServiceRole.entities.User.list();
+    const profileEmails = new Set(profiles.map(p => p.email?.toLowerCase()));
+    const missingProfiles = allUsers
+      .filter(u => u.email && !profileEmails.has(u.email.toLowerCase()))
+      .map(u => ({
+        email: u.email,
+        full_name: u.full_name,
+        custom_role: 'sales_rep',
+        is_active: true,
+        invite_status: 'accepted',
+        cities: [],
+      }));
+    profiles = [...profiles, ...missingProfiles];
 
     // Apply filters
     if (filters.search) {
