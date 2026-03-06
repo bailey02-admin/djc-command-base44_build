@@ -104,6 +104,10 @@ export default function TimelineTemplates() {
             <SelectItem value="SECONDARY">Secondary</SelectItem>
           </SelectContent>
         </Select>
+        <label className="flex items-center gap-2 ml-auto text-xs text-gray-500 cursor-pointer select-none">
+          <Switch checked={showInactive} onCheckedChange={setShowInactive} />
+          Show inactive
+        </label>
       </div>
 
       {/* List */}
