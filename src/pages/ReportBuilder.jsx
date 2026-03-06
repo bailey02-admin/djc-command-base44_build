@@ -132,9 +132,11 @@ export default function ReportBuilder() {
       setFilters(r.filters || {});
       setSort(r.sort || "");
       setLimit(r.limit || 500);
-      setIsShared(r.is_shared || false);
+      setPerms(r._perms || null);
     }
   }, [defData]);
+
+  const canEdit = !reportId || !perms || perms.can_edit;
 
   // ── Run report ─────────────────────────────────────────────────────────────
   const handleRun = async () => {
