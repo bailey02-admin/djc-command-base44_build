@@ -91,6 +91,7 @@ import UserForm from './pages/UserForm';
 import Users from './pages/Users';
 import Venues from './pages/Venues';
 import FinancePayments from './pages/FinancePayments';
+import FinanceIncoming from './pages/FinanceIncoming';
 import __Layout from './Layout.jsx';
 
 
@@ -139,6 +140,7 @@ export const PAGES = {
     "Users": Users,
     "Venues": Venues,
     "FinancePayments": FinancePayments,
+    "FinanceIncoming": FinanceIncoming,
 }
 
 export const pagesConfig = {
