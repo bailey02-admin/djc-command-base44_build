@@ -47,6 +47,8 @@ const PAGE_ACCESS = {
   TimelineBuilder:          ["admin", "city_manager", "sales_manager", "office_finalizer"],
   TimelineTemplates:        ["admin", "city_manager", "sales_manager", "office_finalizer"],
   TimelineTemplateBuilder:  ["admin", "city_manager", "sales_manager", "office_finalizer"],
+  PackagesSettings:         ["admin", "finance", "city_manager", "sales_manager"],
+  AddOnsSettings:           ["admin", "finance", "city_manager", "sales_manager"],
 };
 
 // Pages that bypass auth entirely
