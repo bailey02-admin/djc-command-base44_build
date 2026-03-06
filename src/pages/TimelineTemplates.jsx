@@ -86,7 +86,7 @@ export default function TimelineTemplates() {
       </div>
 
       {/* Filters */}
-      <div className="flex flex-wrap gap-3">
+      <div className="flex flex-wrap gap-3 items-center">
         <Select value={eventTypeFilter} onValueChange={setEventTypeFilter}>
           <SelectTrigger className="w-44 h-9"><SelectValue placeholder="All Event Types" /></SelectTrigger>
           <SelectContent>
