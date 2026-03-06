@@ -324,57 +324,24 @@ export default function ReportBuilder() {
                 <ColumnPicker
                   available={availableColumns}
                   selected={selectedColumns}
-                  onChange={setSelectedColumns}
+                  onChange={canEdit ? setSelectedColumns : undefined}
+                  readOnly={!canEdit}
                 />
               )}
               {activeTab === "filters" && (
                 <FiltersPanel
                   entityKey={entityKey}
                   filters={filters}
-                  onChange={setFilters}
+                  onChange={canEdit ? setFilters : undefined}
+                  readOnly={!canEdit}
                 />
               )}
               {activeTab === "sort" && (
                 <div className="space-y-4">
                   <div className="space-y-1.5">
                     <Label className="text-xs text-gray-500">Sort By</Label>
-                    <Select value={sort || ""} onValueChange={setSort}>
-                      <SelectTrigger>
-                        <SelectValue placeholder="Default sort" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value={null}>Default</SelectItem>
-                        {sortOptions.map(c => (
-                          <React.Fragment key={c.key}>
-                            <SelectItem value={c.key}>{c.label} ↑ (asc)</SelectItem>
-                            <SelectItem value={`-${c.key}`}>{c.label} ↓ (desc)</SelectItem>
-                          </React.Fragment>
-                        ))}
-                      </SelectContent>
-                    </Select>
-                  </div>
-                  <div className="space-y-1.5">
-                    <Label className="text-xs text-gray-500">Limit</Label>
-                    <div className="flex gap-2 flex-wrap">
-                      {LIMITS.map(l => (
-                        <button
-                          key={l}
-                          onClick={() => setLimit(l)}
-                          className={`px-3 py-1.5 rounded-lg border text-sm transition-colors ${
-                            limit === l
-                              ? "bg-violet-600 text-white border-violet-600"
-                              : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"
-                          }`}
-                        >
-                          {l}
-                        </button>
-                      ))}
-                    </div>
-                  </div>
-                  <div className="flex items-center justify-between">
-                    <Label className="text-xs text-gray-500">Shared with all staff</Label>
-                    <Switch checked={isShared} onCheckedChange={setIsShared} />
-                  </div>
+                    <Select value={sort || ""} onValueChange={canEdit ? setSort : undefined} disabled={!canEdit}>
+...
                 </div>
               )}
             </div>
