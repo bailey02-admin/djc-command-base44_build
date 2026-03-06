@@ -6,7 +6,8 @@ import {
   LayoutDashboard, CalendarDays, ClipboardList,
   FileText, MessageSquare, DollarSign, Building2, ChevronLeft,
   ChevronRight, LogOut, Menu, Disc3, UserCircle, Settings,
-  Layers, Music2, FileSignature, Archive, ScrollText, Users, Shield
+  Layers, Music2, FileSignature, Archive, ScrollText, Users, Shield,
+  TrendingUp
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import GlobalSearch from "./components/layout/GlobalSearch";
