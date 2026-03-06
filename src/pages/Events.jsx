@@ -510,7 +510,7 @@ export default function Events() {
              {serverTotal !== null ? `${serverTotal} total` : `${accumulated.length} loaded`}
              {displayed.length !== accumulated.length ? ` · ${displayed.length} shown` : ""}
            </p>
-           <p className="text-xs text-gray-500 mt-1">DEBUG: Active columns: {visibleColumns.map(c => c.key).join(", ") || "none"}</p>
+
          </div>
         <div className="flex items-center gap-2">
           {/* View selector */}
