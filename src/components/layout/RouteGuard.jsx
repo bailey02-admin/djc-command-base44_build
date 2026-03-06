@@ -51,11 +51,11 @@ const PAGE_ACCESS = {
 const OPEN_PAGES = new Set(["AcceptInvite", "ForgotPassword", "ResetPassword", "ClientPortal", "DJView"]);
 
 const PROFILE_CACHE_KEY = "dj_cmd_rbac_profile";
-const PROFILE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+const PROFILE_CACHE_TTL = 30 * 60 * 1000; // 30 minutes
 
 function getCachedProfile(email) {
   try {
-    const raw = sessionStorage.getItem(PROFILE_CACHE_KEY);
+    const raw = localStorage.getItem(PROFILE_CACHE_KEY);
     if (!raw) return null;
     const { profile, cachedEmail, ts } = JSON.parse(raw);
     if (cachedEmail !== email) return null;
@@ -66,12 +66,12 @@ function getCachedProfile(email) {
 
 function setCachedProfile(email, profile) {
   try {
-    sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({ profile, cachedEmail: email, ts: Date.now() }));
+    localStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({ profile, cachedEmail: email, ts: Date.now() }));
   } catch {}
 }
 
 export function invalidateRbacCache() {
-  try { sessionStorage.removeItem(PROFILE_CACHE_KEY); } catch {}
+  try { localStorage.removeItem(PROFILE_CACHE_KEY); } catch {}
 }
 
 // Shared promise to prevent duplicate in-flight requests
