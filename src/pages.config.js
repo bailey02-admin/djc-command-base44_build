@@ -70,6 +70,7 @@ import Leads from './pages/Leads';
 import MessageTemplates from './pages/MessageTemplates';
 import MusicPlanner from './pages/MusicPlanner';
 import Payments from './pages/Payments';
+import ReportBuilder from './pages/ReportBuilder';
 import Reports from './pages/Reports';
 import ResetPassword from './pages/ResetPassword';
 import Settings from './pages/Settings';
@@ -85,7 +86,6 @@ import TimelineBuilder from './pages/TimelineBuilder';
 import UserForm from './pages/UserForm';
 import Users from './pages/Users';
 import Venues from './pages/Venues';
-import ReportBuilder from './pages/ReportBuilder';
 import __Layout from './Layout.jsx';
 
 
@@ -113,6 +113,7 @@ export const PAGES = {
     "MessageTemplates": MessageTemplates,
     "MusicPlanner": MusicPlanner,
     "Payments": Payments,
+    "ReportBuilder": ReportBuilder,
     "Reports": Reports,
     "ResetPassword": ResetPassword,
     "Settings": Settings,
@@ -128,7 +129,6 @@ export const PAGES = {
     "UserForm": UserForm,
     "Users": Users,
     "Venues": Venues,
-    "ReportBuilder": ReportBuilder,
 }
 
 export const pagesConfig = {

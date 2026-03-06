@@ -108,7 +108,7 @@ export default function ReportBuilder() {
   const [filters, setFilters] = useState({});
   const [sort, setSort] = useState("-event_date");
   const [limit, setLimit] = useState(500);
-  const [isShared, setIsShared] = useState(false);
+  const [perms, setPerms] = useState(null); // _perms from server
   const [results, setResults] = useState(null);
   const [resultColumns, setResultColumns] = useState([]);
   const [running, setRunning] = useState(false);
