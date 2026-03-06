@@ -25,6 +25,7 @@ const ALL_NAV_ITEMS = [
   { name: "DJ Roster",       icon: Music2,          page: "DJRoster" },
   { name: "Venues",          icon: Building2,       page: "Venues" },
   { name: "Payments",        icon: DollarSign,      page: "Payments" },
+  { name: "Finance",         icon: TrendingUp,      page: "FinanceIncoming", roles: ["admin", "finance", "city_manager"] },
   { name: "Templates",       icon: MessageSquare,   page: "MessageTemplates" },
   { name: "Reports",         icon: FileText,        page: "Reports" },
   // ReportBuilder is accessed from Reports page, not shown in nav
