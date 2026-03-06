@@ -22,24 +22,28 @@ export default function Dashboard() {
   const queryClient = useQueryClient();
 
   const { data: leads = [] } = useQuery({
-    queryKey: ["leads"],
+    queryKey: ["leads", "dashboard"],
     queryFn: () => LeadAPI.list({}, "-created_date", 50),
+    staleTime: 60_000,
   });
 
   const { data: eventsData } = useQuery({
-    queryKey: ["events"],
+    queryKey: ["events", "dashboard"],
     queryFn: () => EventAPI.list({}, "-event_date", 50),
+    staleTime: 60_000,
   });
   const events = eventsData?.events ?? [];
 
   const { data: tasks = [] } = useQuery({
-    queryKey: ["tasks"],
+    queryKey: ["tasks", "dashboard"],
     queryFn: () => TaskAPI.list({ status: "pending" }, "-due_date", 20),
+    staleTime: 60_000,
   });
 
   const { data: payments = [] } = useQuery({
-    queryKey: ["payments"],
+    queryKey: ["payments", "dashboard"],
     queryFn: () => PaymentAPI.list(100),
+    staleTime: 60_000,
   });
 
   const [user, setUser] = useState(null);
