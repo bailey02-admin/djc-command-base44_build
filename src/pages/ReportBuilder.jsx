@@ -9,7 +9,7 @@ import { Switch } from "@/components/ui/switch";
 import { Badge } from "@/components/ui/badge";
 import {
   Play, Save, Download, Trash2, ChevronLeft, Loader2, FileText,
-  Settings2, Filter, SortAsc
+  Settings2, Filter, SortAsc, Lock
 } from "lucide-react";
 import { useNavigate } from "react-router-dom";
 import { createPageUrl } from "@/utils";
