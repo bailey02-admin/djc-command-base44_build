@@ -64,8 +64,6 @@ import EventDetail from './pages/EventDetail';
 import EventForm from './pages/EventForm';
 import Events from './pages/Events';
 import FinalizerQueue from './pages/FinalizerQueue';
-import FinanceIncoming from './pages/FinanceIncoming';
-import FinancePayments from './pages/FinancePayments';
 import ForgotPassword from './pages/ForgotPassword';
 import LeadDetail from './pages/LeadDetail';
 import LeadForm from './pages/LeadForm';
@@ -114,8 +112,6 @@ export const PAGES = {
     "EventForm": EventForm,
     "Events": Events,
     "FinalizerQueue": FinalizerQueue,
-    "FinanceIncoming": FinanceIncoming,
-    "FinancePayments": FinancePayments,
     "ForgotPassword": ForgotPassword,
     "LeadDetail": LeadDetail,
     "LeadForm": LeadForm,
