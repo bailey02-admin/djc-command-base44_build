@@ -221,6 +221,50 @@ export default function Settings() {
           </div>
         </TabsContent>
 
+        {/* Packages */}
+        <TabsContent value="packages" className="mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Packages Catalog</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Manage DJ packages used in quotes</p>
+            </div>
+            <Link to={createPageUrl("PackagesSettings")}>
+              <button className="flex items-center gap-1.5 text-xs text-violet-600 hover:text-violet-800 font-medium">
+                <Package className="w-3.5 h-3.5" /> Manage Packages →
+              </button>
+            </Link>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-6 text-center text-sm text-gray-500">
+            <Package className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+            <p>Create and manage packages that can be applied to lead quotes.</p>
+            <Link to={createPageUrl("PackagesSettings")}>
+              <button className="mt-3 text-xs text-violet-600 hover:underline">Open Packages Catalog →</button>
+            </Link>
+          </div>
+        </TabsContent>
+
+        {/* Add-Ons */}
+        <TabsContent value="addons" className="mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Add-Ons Catalog</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Manage upgrades and extras for quotes</p>
+            </div>
+            <Link to={createPageUrl("AddOnsSettings")}>
+              <button className="flex items-center gap-1.5 text-xs text-violet-600 hover:text-violet-800 font-medium">
+                <Sparkles className="w-3.5 h-3.5" /> Manage Add-Ons →
+              </button>
+            </Link>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-6 text-center text-sm text-gray-500">
+            <Sparkles className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+            <p>Define add-ons like uplighting, photo booths, and extras with pricing.</p>
+            <Link to={createPageUrl("AddOnsSettings")}>
+              <button className="mt-3 text-xs text-violet-600 hover:underline">Open Add-Ons Catalog →</button>
+            </Link>
+          </div>
+        </TabsContent>
+
         {/* General */}
         <TabsContent value="general" className="mt-6 space-y-4">
           <Card className="border-0 shadow-sm">
