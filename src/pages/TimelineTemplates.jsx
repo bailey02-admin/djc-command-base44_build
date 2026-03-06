@@ -18,6 +18,7 @@ export default function TimelineTemplates() {
   const qc = useQueryClient();
   const [eventTypeFilter, setEventTypeFilter] = useState("");
   const [timelineTypeFilter, setTimelineTypeFilter] = useState("");
+  const [showInactive, setShowInactive] = useState(false);
   const [currentUser, setCurrentUser] = useState(null);
 
   React.useEffect(() => {
