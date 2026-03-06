@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Save, Loader2, Plus, RefreshCw, ShieldCheck, LayoutList } from "lucide-react";
+import { Save, Loader2, Plus, RefreshCw, ShieldCheck, LayoutList, Package, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { PIPELINE_STAGES, AUTOMATION_TEMPLATES, READINESS_ITEMS } from "../components/crm/pipeline";
