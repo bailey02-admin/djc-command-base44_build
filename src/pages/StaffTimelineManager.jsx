@@ -16,7 +16,8 @@ import {
   AlertDialog, AlertDialogContent, AlertDialogHeader, AlertDialogTitle,
   AlertDialogDescription, AlertDialogFooter, AlertDialogCancel, AlertDialogAction
 } from "@/components/ui/alert-dialog";
-import { ArrowLeft, Save, Trash2, ChevronUp, ChevronDown, Plus, Eye, Loader2 } from "lucide-react";
+import { ArrowLeft, Save, Trash2, ChevronUp, ChevronDown, Plus, Eye, Loader2, LayoutList } from "lucide-react";
+import ApplyTemplateModal from "@/components/timeline/ApplyTemplateModal";
 
 export default function StaffTimelineManager() {
   const urlParams = new URLSearchParams(window.location.search);
