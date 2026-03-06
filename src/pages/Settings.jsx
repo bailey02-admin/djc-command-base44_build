@@ -197,6 +197,28 @@ export default function Settings() {
           <RbacDebugPanel />
         </TabsContent>
 
+        {/* Timeline Templates */}
+        <TabsContent value="timeline-templates" className="mt-6">
+          <div className="flex items-center justify-between mb-4">
+            <div>
+              <h2 className="text-sm font-semibold text-gray-900">Timeline Templates</h2>
+              <p className="text-xs text-gray-400 mt-0.5">Create and manage reusable timeline structures by event type</p>
+            </div>
+            <Link to={createPageUrl("TimelineTemplates")}>
+              <button className="flex items-center gap-1.5 text-xs text-violet-600 hover:text-violet-800 font-medium">
+                <LayoutList className="w-3.5 h-3.5" /> Manage Templates →
+              </button>
+            </Link>
+          </div>
+          <div className="bg-gray-50 rounded-lg p-6 text-center text-sm text-gray-500">
+            <LayoutList className="w-8 h-8 mx-auto mb-2 text-gray-300" />
+            <p>Use the Templates page to create, edit, and organize timeline templates.</p>
+            <Link to={createPageUrl("TimelineTemplates")}>
+              <button className="mt-3 text-xs text-violet-600 hover:underline">Open Timeline Templates →</button>
+            </Link>
+          </div>
+        </TabsContent>
+
         {/* General */}
         <TabsContent value="general" className="mt-6 space-y-4">
           <Card className="border-0 shadow-sm">
