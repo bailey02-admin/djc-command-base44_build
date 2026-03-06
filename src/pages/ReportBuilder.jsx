@@ -136,7 +136,8 @@ export default function ReportBuilder() {
     }
   }, [defData]);
 
-  const canEdit = !reportId || !perms || perms.can_edit;
+  // If loading a saved report, respect server-side can_edit; new reports always editable
+  const canEdit = !reportId || !perms || perms.can_edit === true;
 
   // ── Run report ─────────────────────────────────────────────────────────────
   const handleRun = async () => {
