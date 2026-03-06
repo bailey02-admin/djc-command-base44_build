@@ -1,15 +1,23 @@
 /**
- * PHASE D: Fallback snapshot trigger — applies only if event is missing financial snapshot fields.
+ * PHASE D: Fallback snapshot trigger — applies financial snapshot from Quote → Event.
  * Idempotent: checks if snapshot already exists before applying.
- * Fired by mutateEvent when event status ∈ groups["official_booked"] (entity_key="event").
- *
- * Safe fallback: if StatusGroup settings are missing or official_booked group is not found,
- * falls back to legacy hardcoded defaults so snapshot logic never silently stops.
+ * Supports new add_ons structure {add_on_id, name, qty, unit_price, line_total}
+ * and normalizes legacy {name, price} items safely.
  */
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
-// Legacy fallback: used only if the configured group is missing or empty
 const LEGACY_OFFICIAL_BOOKED = new Set(["booked_pending", "booked"]);
+
+function normalizeAddOn(a) {
+  if (a.unit_price !== undefined) {
+    const qty = Number(a.qty) || 1;
+    const unit_price = Number(a.unit_price) || 0;
+    return { ...a, qty, unit_price, line_total: qty * unit_price };
+  }
+  // Legacy: { name, price }
+  const price = Number(a.price) || 0;
+  return { name: a.name, qty: 1, unit_price: price, line_total: price };
+}
 
 Deno.serve(async (req) => {
   try {
@@ -23,7 +31,6 @@ Deno.serve(async (req) => {
       return Response.json({ error: "event_id and lead_id required" }, { status: 400 });
     }
 
-    // Fetch current event and official_booked group (scoped to entity_key=event) in parallel
     const [eventRows, groupRows] = await Promise.all([
       base44.asServiceRole.entities.Event.filter({ id: event_id }),
       base44.asServiceRole.entities.StatusGroup.list("key", 100).catch(() => []),
@@ -34,8 +41,6 @@ Deno.serve(async (req) => {
       return Response.json({ error: "Event not found" }, { status: 404 });
     }
 
-    // Find official_booked group scoped to entity_key="event"
-    // Support legacy records that have no entity_key set
     const officialBookedGroup = groupRows.find(g =>
       g.key === "official_booked" && (g.entity_key === "event" || !g.entity_key)
     );
@@ -43,10 +48,8 @@ Deno.serve(async (req) => {
     let officialBookedStatuses;
     if (officialBookedGroup?.statuses?.length > 0) {
       officialBookedStatuses = new Set(officialBookedGroup.statuses);
-      console.log(`[snapshotQuoteToEvent] Using configured official_booked group: ${[...officialBookedStatuses].join(", ")}`);
     } else {
       officialBookedStatuses = LEGACY_OFFICIAL_BOOKED;
-      console.warn("[snapshotQuoteToEvent] official_booked group missing or empty — falling back to legacy defaults:", [...LEGACY_OFFICIAL_BOOKED].join(", "));
     }
 
     const isOfficialBooked = officialBookedStatuses.has(event.status);
@@ -54,32 +57,30 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, skipped: true, reason: `Event status "${event.status}" not in official_booked group` });
     }
 
-    // Idempotency: check if snapshot already exists
-    const hasSnapshot = event.total_fee && event.total_fee > 0;
-    if (hasSnapshot) {
+    // Idempotency: skip if snapshot already present
+    if (event.total_fee && event.total_fee > 0) {
       return Response.json({ ok: true, skipped: true, reason: "Snapshot already present" });
     }
 
     // Load quote
-    let quoteSnapshot = {
-      add_ons: [],
-      discount_amount: 0,
-      discount_reason: "",
-      tax_amount: 0,
-      total_fee: 0,
-    };
+    let quoteSnapshot = { add_ons: [], discount_amount: 0, discount_reason: "", tax_amount: 0, total_fee: 0 };
 
     try {
-      const quoteRes = await base44.asServiceRole.functions.invoke("getQuotes", { lead_id });
+      const quoteRes = await base44.asServiceRole.functions.invoke("getQuotes", { lead_id, slim: false });
       const quotes = quoteRes.quotes || [];
       if (quotes.length > 0) {
         const quote = quotes[0];
+        const normalizedAddOns = (quote.add_ons || []).map(normalizeAddOn);
         quoteSnapshot = {
-          add_ons: quote.add_ons || [],
-          discount_amount: quote.discount_amount || 0,
+          package_id: quote.package_id || null,
+          package_name: quote.package_name || quote.package_name || null,
+          package_price: Number(quote.package_price || quote.base_price) || 0,
+          add_ons: normalizedAddOns,
+          discount_amount: Number(quote.discount_amount) || 0,
           discount_reason: quote.discount_reason || "",
-          tax_amount: quote.tax_amount || 0,
-          total_fee: quote.total_amount || 0,
+          tax_amount: Number(quote.tax_amount) || 0,
+          travel_fee: Number(quote.travel_fee) || 0,
+          total_fee: Number(quote.total_fee || quote.total_amount) || 0,
         };
       }
     } catch (e) {
@@ -87,9 +88,7 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, skipped: true, reason: "No quote found" });
     }
 
-    // Apply snapshot
     await base44.asServiceRole.entities.Event.update(event_id, quoteSnapshot);
-
     return Response.json({ ok: true, snapshot_applied: true });
   } catch (err) {
     console.error("[snapshotQuoteToEvent] error:", err.message);
