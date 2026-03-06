@@ -180,7 +180,7 @@ export default function ReportBuilder() {
       id: reportId || undefined,
       name, entity_key: entityKey,
       columns: selectedColumns,
-      filters, sort, limit, is_shared: isShared,
+      filters, sort, limit,
     });
   };
 
