@@ -44,7 +44,9 @@ const PAGE_ACCESS = {
   ClientPortal:    ["client", "admin"],
   DJView:          ["dj", "admin"],
   MusicPlanner:    ["admin", "city_manager", "sales_manager", "office_finalizer"],
-  TimelineBuilder: ["admin", "city_manager", "sales_manager", "office_finalizer"],
+  TimelineBuilder:          ["admin", "city_manager", "sales_manager", "office_finalizer"],
+  TimelineTemplates:        ["admin", "city_manager", "sales_manager", "office_finalizer"],
+  TimelineTemplateBuilder:  ["admin", "city_manager", "sales_manager", "office_finalizer"],
 };
 
 // Pages that bypass auth entirely
