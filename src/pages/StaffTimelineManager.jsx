@@ -224,6 +224,15 @@ export default function StaffTimelineManager() {
         </div>
       </div>
 
+      <ApplyTemplateModal
+        open={showApplyTemplate}
+        onClose={() => setShowApplyTemplate(false)}
+        eventId={eventId}
+        eventType={eventData?.event_type}
+        timelineType={timelineType}
+        onApplied={() => qc.invalidateQueries(["staff-timeline", eventId, timelineType])}
+      />
+
       <AlertDialog open={confirmClear} onOpenChange={setConfirmClear}>
         <AlertDialogContent>
           <AlertDialogHeader>
