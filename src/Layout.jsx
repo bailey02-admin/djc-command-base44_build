@@ -105,11 +105,13 @@ export default function Layout({ children, currentPageName }) {
             // users will see access denied if they try restricted pages.
             return true;
           }).filter(item => {
+            const role = user?.custom_role;
             // Hide Reports from dj/client entirely
             if (item.page === "Reports" || item.page === "ReportBuilder") {
-              const role = user?.custom_role;
               if (role === "dj" || role === "client") return false;
             }
+            // Items with explicit roles array: hide if user's role not included
+            if (item.roles && role && !item.roles.includes(role)) return false;
             return true;
           }).map(item => {
             const isActive = currentPageName === item.page;
