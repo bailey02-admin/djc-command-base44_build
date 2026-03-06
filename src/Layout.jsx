@@ -28,10 +28,17 @@ const ALL_NAV_ITEMS = [
   { name: "Finance",         icon: TrendingUp,      page: "FinanceIncoming", roles: ["admin", "finance", "city_manager"] },
   { name: "Templates",       icon: MessageSquare,   page: "MessageTemplates" },
   { name: "Reports",         icon: FileText,        page: "Reports" },
-  // ReportBuilder is accessed from Reports page, not shown in nav
   { name: "Archive",         icon: Archive,         page: "ArchivedRecords" },
   { name: "Users",           icon: Users,           page: "Users" },
-  { name: "Settings",        icon: Settings,        page: "Settings" },
+  // Settings is rendered as a group — see SETTINGS_SUBNAV below
+];
+
+const SETTINGS_SUBNAV = [
+  { name: "General & SLA",        icon: Sliders,      page: "Settings",            roles: ["admin"] },
+  { name: "Timeline Templates",   icon: LayoutList,   page: "TimelineTemplates",   roles: ["admin", "city_manager", "sales_manager", "office_finalizer"] },
+  { name: "Packages",             icon: Package,      page: "PackagesSettings",    roles: ["admin", "finance", "city_manager", "sales_manager"] },
+  { name: "Add-Ons",              icon: Sparkles,     page: "AddOnsSettings",      roles: ["admin", "finance", "city_manager", "sales_manager"] },
+  { name: "Admin Tools",          icon: Wrench,       page: "SettingsAdminTools",  roles: ["admin"] },
 ];
 
 // Staff planning pages — not in sidebar nav, accessible via EventDetail
