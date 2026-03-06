@@ -64,6 +64,8 @@ import EventDetail from './pages/EventDetail';
 import EventForm from './pages/EventForm';
 import Events from './pages/Events';
 import FinalizerQueue from './pages/FinalizerQueue';
+import FinanceIncoming from './pages/FinanceIncoming';
+import FinancePayments from './pages/FinancePayments';
 import ForgotPassword from './pages/ForgotPassword';
 import LeadDetail from './pages/LeadDetail';
 import LeadForm from './pages/LeadForm';
@@ -75,6 +77,8 @@ import Payments from './pages/Payments';
 import ReportBuilder from './pages/ReportBuilder';
 import Reports from './pages/Reports';
 import ResetPassword from './pages/ResetPassword';
+import Settings from './pages/Settings';
+import SettingsAdminTools from './pages/SettingsAdminTools';
 import StaffMusicManager from './pages/StaffMusicManager';
 import StaffPlanningHub from './pages/StaffPlanningHub';
 import StaffPrint from './pages/StaffPrint';
@@ -89,10 +93,6 @@ import TimelineTemplates from './pages/TimelineTemplates';
 import UserForm from './pages/UserForm';
 import Users from './pages/Users';
 import Venues from './pages/Venues';
-import FinancePayments from './pages/FinancePayments';
-import FinanceIncoming from './pages/FinanceIncoming';
-import SettingsAdminTools from './pages/SettingsAdminTools';
-import Settings from './pages/Settings';
 import __Layout from './Layout.jsx';
 
 
@@ -114,6 +114,8 @@ export const PAGES = {
     "EventForm": EventForm,
     "Events": Events,
     "FinalizerQueue": FinalizerQueue,
+    "FinanceIncoming": FinanceIncoming,
+    "FinancePayments": FinancePayments,
     "ForgotPassword": ForgotPassword,
     "LeadDetail": LeadDetail,
     "LeadForm": LeadForm,
@@ -125,6 +127,8 @@ export const PAGES = {
     "ReportBuilder": ReportBuilder,
     "Reports": Reports,
     "ResetPassword": ResetPassword,
+    "Settings": Settings,
+    "SettingsAdminTools": SettingsAdminTools,
     "StaffMusicManager": StaffMusicManager,
     "StaffPlanningHub": StaffPlanningHub,
     "StaffPrint": StaffPrint,
@@ -139,10 +143,6 @@ export const PAGES = {
     "UserForm": UserForm,
     "Users": Users,
     "Venues": Venues,
-    "FinancePayments": FinancePayments,
-    "FinanceIncoming": FinanceIncoming,
-    "SettingsAdminTools": SettingsAdminTools,
-    "Settings": Settings,
 }
 
 export const pagesConfig = {
