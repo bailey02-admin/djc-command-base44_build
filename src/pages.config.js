@@ -48,6 +48,7 @@
  * The mainPage value must match a key in the PAGES object exactly.
  */
 import AcceptInvite from './pages/AcceptInvite';
+import AddOnsSettings from './pages/AddOnsSettings';
 import ArchivedRecords from './pages/ArchivedRecords';
 import Calendar from './pages/Calendar';
 import ClientPortal from './pages/ClientPortal';
@@ -69,6 +70,7 @@ import LeadForm from './pages/LeadForm';
 import Leads from './pages/Leads';
 import MessageTemplates from './pages/MessageTemplates';
 import MusicPlanner from './pages/MusicPlanner';
+import PackagesSettings from './pages/PackagesSettings';
 import Payments from './pages/Payments';
 import ReportBuilder from './pages/ReportBuilder';
 import Reports from './pages/Reports';
@@ -83,18 +85,17 @@ import StaffTimelineView from './pages/StaffTimelineView';
 import StatusSettings from './pages/StatusSettings';
 import Tasks from './pages/Tasks';
 import TimelineBuilder from './pages/TimelineBuilder';
+import TimelineTemplateBuilder from './pages/TimelineTemplateBuilder';
+import TimelineTemplates from './pages/TimelineTemplates';
 import UserForm from './pages/UserForm';
 import Users from './pages/Users';
 import Venues from './pages/Venues';
-import TimelineTemplates from './pages/TimelineTemplates';
-import TimelineTemplateBuilder from './pages/TimelineTemplateBuilder';
-import PackagesSettings from './pages/PackagesSettings';
-import AddOnsSettings from './pages/AddOnsSettings';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
     "AcceptInvite": AcceptInvite,
+    "AddOnsSettings": AddOnsSettings,
     "ArchivedRecords": ArchivedRecords,
     "Calendar": Calendar,
     "ClientPortal": ClientPortal,
@@ -116,6 +117,7 @@ export const PAGES = {
     "Leads": Leads,
     "MessageTemplates": MessageTemplates,
     "MusicPlanner": MusicPlanner,
+    "PackagesSettings": PackagesSettings,
     "Payments": Payments,
     "ReportBuilder": ReportBuilder,
     "Reports": Reports,
@@ -130,13 +132,11 @@ export const PAGES = {
     "StatusSettings": StatusSettings,
     "Tasks": Tasks,
     "TimelineBuilder": TimelineBuilder,
+    "TimelineTemplateBuilder": TimelineTemplateBuilder,
+    "TimelineTemplates": TimelineTemplates,
     "UserForm": UserForm,
     "Users": Users,
     "Venues": Venues,
-    "TimelineTemplates": TimelineTemplates,
-    "TimelineTemplateBuilder": TimelineTemplateBuilder,
-    "PackagesSettings": PackagesSettings,
-    "AddOnsSettings": AddOnsSettings,
 }
 
 export const pagesConfig = {
