@@ -1,5 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
+const BLOCKED_ROLES = new Set(['dj', 'client']);
+
 Deno.serve(async (req) => {
   try {
     const base44 = createClientFromRequest(req);
@@ -12,6 +14,10 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    if (BLOCKED_ROLES.has(profile.custom_role)) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const { id } = await req.json();
     if (!id) return Response.json({ error: 'id is required' }, { status: 400 });
 
@@ -20,7 +26,9 @@ Deno.serve(async (req) => {
     if (!record) return Response.json({ error: 'Not found' }, { status: 404 });
 
     // Only owner or admin can delete
-    if (record.created_by_staff_profile_id !== profile.id && profile.custom_role !== 'admin') {
+    const isOwner = record.created_by_staff_profile_id === profile.id;
+    const isAdmin = profile.custom_role === 'admin';
+    if (!isOwner && !isAdmin) {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 

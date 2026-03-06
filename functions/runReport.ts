@@ -1,5 +1,7 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
+const BLOCKED_ROLES = new Set(['dj', 'client']);
+
 // ── Allowlists ──────────────────────────────────────────────────────────────
 const COLUMNS = {
   events: [
@@ -67,7 +69,6 @@ const ENTITY_MAP = {
   payments: 'Payment',
 };
 
-// ── Helpers ──────────────────────────────────────────────────────────────────
 function pickColumns(row, keys) {
   const out = {};
   for (const k of keys) out[k] = row[k] ?? null;
@@ -82,14 +83,12 @@ function applyFilters(rows, filters, entity_key) {
     if (filters.event_type && row.event_type !== filters.event_type) return false;
     if (filters.payment_type && row.payment_type !== filters.payment_type) return false;
 
-    // Date range filtering
     const dateField = entity_key === 'events' ? 'event_date'
                     : entity_key === 'leads'   ? 'created_date'
                     : 'paid_date';
     const rowDate = row[dateField];
     if (filters.date_from && rowDate && rowDate < filters.date_from) return false;
     if (filters.date_to   && rowDate && rowDate > filters.date_to)   return false;
-
     return true;
   });
 }
@@ -107,6 +106,15 @@ function sortRows(rows, sort) {
   });
 }
 
+function canRunReport(report, profile) {
+  const isAdmin = profile.custom_role === 'admin';
+  const isOwner = report.created_by_staff_profile_id === profile.id;
+  const inSharedWith = (report.shared_with || []).includes(profile.id);
+  return isOwner || isAdmin ||
+    report.visibility === 'org' ||
+    (report.visibility === 'shared' && inSharedWith);
+}
+
 // ── Handler ──────────────────────────────────────────────────────────────────
 Deno.serve(async (req) => {
   try {
@@ -120,6 +128,11 @@ Deno.serve(async (req) => {
       return Response.json({ error: 'Forbidden' }, { status: 403 });
     }
 
+    // Block dj and client entirely
+    if (BLOCKED_ROLES.has(profile.custom_role)) {
+      return Response.json({ error: 'Forbidden' }, { status: 403 });
+    }
+
     const body = await req.json();
     let { report_definition_id, entity_key, columns, filters, sort, limit } = body;
 
@@ -128,8 +141,9 @@ Deno.serve(async (req) => {
       const defs = await base44.asServiceRole.entities.ReportDefinition.filter({ id: report_definition_id });
       const def = defs?.[0];
       if (!def) return Response.json({ error: 'Report not found' }, { status: 404 });
-      const canRun = def.is_shared || def.created_by_staff_profile_id === profile.id || profile.custom_role === 'admin';
-      if (!canRun) return Response.json({ error: 'Forbidden' }, { status: 403 });
+      if (!canRunReport(def, profile)) {
+        return Response.json({ error: 'Forbidden' }, { status: 403 });
+      }
       entity_key = def.entity_key;
       columns = def.columns;
       filters = def.filters || {};
@@ -153,18 +167,10 @@ Deno.serve(async (req) => {
     // ── RBAC / city scoping ──────────────────────────────────────────────────
     const role = profile.custom_role;
     const isAdmin = role === 'admin';
-    const staffCities = profile.cities || [];
+    const staffCities = [...(profile.cities || [])];
     if (profile.default_city && !staffCities.includes(profile.default_city)) {
       staffCities.push(profile.default_city);
     }
-
-    // DJ: can only run events report, limited to their assigned events
-    if (role === 'dj' && entity_key !== 'events') {
-      return Response.json({ error: 'DJs can only run event reports' }, { status: 403 });
-    }
-
-    // Finance: payments only + events readonly
-    // (no additional field gating needed for v1 allowlist)
 
     // Fetch raw data
     const entityName = ENTITY_MAP[entity_key];
@@ -180,19 +186,8 @@ Deno.serve(async (req) => {
       }
     }
 
-    // DJ scoping: only their assigned events
-    if (role === 'dj') {
-      const djEmail = user.email.toLowerCase();
-      rows = rows.filter(r => {
-        const djField = (r.assigned_dj || '').toLowerCase();
-        const djId = (r.assigned_dj_id || '').toLowerCase();
-        return djField.includes(djEmail) || djId === profile.id;
-      });
-    }
-
     // Apply user-specified filters
     if (filters && Object.keys(filters).length > 0) {
-      // Enforce: non-admin city filter must still be within allowed cities
       if (!isAdmin && filters.city && staffCities.length > 0 && !staffCities.includes(filters.city)) {
         return Response.json({ error: 'Forbidden: city out of scope' }, { status: 403 });
       }
