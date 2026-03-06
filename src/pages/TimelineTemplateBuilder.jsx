@@ -42,18 +42,20 @@ export default function TimelineTemplateBuilder() {
     base44.auth.me().then(setCurrentUser).catch(() => {});
   }, []);
 
-  const { isLoading } = useQuery({
+  const { isLoading, data: detailData } = useQuery({
     queryKey: ["timeline-template-detail", templateId],
     queryFn: async () => {
       const r = await base44.functions.invoke("getTimelineTemplateDetail", { template_id: templateId });
       return r.data;
     },
     enabled: !isNew && !!templateId,
-    onSuccess: (data) => {
-      if (data?.template) setTemplate(data.template);
-      if (data?.items) setRows(data.items);
-    },
+    staleTime: 30_000,
   });
+
+  useEffect(() => {
+    if (detailData?.template) setTemplate(detailData.template);
+    if (detailData?.items) setRows(detailData.items);
+  }, [detailData]);
 
   const isManager = MANAGER_ROLES.has(currentUser?.role);
 
