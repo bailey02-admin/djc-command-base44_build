@@ -150,7 +150,7 @@ export default function TimelineTemplates() {
                     </Button>
                     <Button variant="outline" size="sm" className="h-8 px-2" onClick={() => handleDeactivate(t)}
                       title={t.is_active ? "Deactivate" : "Reactivate"}>
-                      <EyeOff className="w-3.5 h-3.5" />
+                      {t.is_active ? <EyeOff className="w-3.5 h-3.5" /> : <Eye className="w-3.5 h-3.5 text-violet-600" />}
                     </Button>
                   </>
                 )}
