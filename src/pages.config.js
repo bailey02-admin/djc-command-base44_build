@@ -49,6 +49,7 @@
  */
 import AcceptInvite from './pages/AcceptInvite';
 import ArchivedRecords from './pages/ArchivedRecords';
+import Calendar from './pages/Calendar';
 import ClientPortal from './pages/ClientPortal';
 import ContactDetail from './pages/ContactDetail';
 import ContactForm from './pages/ContactForm';
@@ -84,13 +85,13 @@ import TimelineBuilder from './pages/TimelineBuilder';
 import UserForm from './pages/UserForm';
 import Users from './pages/Users';
 import Venues from './pages/Venues';
-import Calendar from './pages/Calendar';
 import __Layout from './Layout.jsx';
 
 
 export const PAGES = {
     "AcceptInvite": AcceptInvite,
     "ArchivedRecords": ArchivedRecords,
+    "Calendar": Calendar,
     "ClientPortal": ClientPortal,
     "ContactDetail": ContactDetail,
     "ContactForm": ContactForm,
@@ -126,7 +127,6 @@ export const PAGES = {
     "UserForm": UserForm,
     "Users": Users,
     "Venues": Venues,
-    "Calendar": Calendar,
 }
 
 export const pagesConfig = {
