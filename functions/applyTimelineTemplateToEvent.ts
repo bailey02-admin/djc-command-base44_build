@@ -11,23 +11,52 @@ Deno.serve(async (req) => {
     }
 
     const { event_id, template_id, apply_header = false, replace_existing = false } = await req.json();
-    if (!event_id || !template_id) return Response.json({ error: "event_id and template_id required" }, { status: 400 });
+    if (!event_id || !template_id) {
+      return Response.json({ error: "event_id and template_id required" }, { status: 400 });
+    }
 
     const svc = base44.asServiceRole;
 
-    // Load template + items
+    // --- VALIDATE EVERYTHING BEFORE TOUCHING DATA ---
+
+    // 1. Check planning lock
+    const events = await svc.entities.Event.filter({ id: event_id });
+    const event = events[0];
+    if (!event) return Response.json({ error: "Event not found" }, { status: 404 });
+
+    if (event.planning_lock_at) {
+      const lockTime = new Date(event.planning_lock_at).getTime();
+      if (!isNaN(lockTime) && Date.now() >= lockTime) {
+        return Response.json(
+          { error: "PLANNING_LOCKED", message: "Planning is locked; cannot apply template." },
+          { status: 422 }
+        );
+      }
+    }
+
+    // 2. Load template
     const templates = await svc.entities.TimelineTemplate.filter({ id: template_id, is_active: true });
-    if (!templates[0]) return Response.json({ error: "Template not found or inactive" }, { status: 404 });
+    if (!templates[0]) {
+      return Response.json({ error: "Template not found or inactive" }, { status: 404 });
+    }
     const template = templates[0];
 
+    // 3. Load template items
     const templateItems = await svc.entities.TimelineTemplateItem.filter({ template_id }, "sort_order", 200);
 
-    // Upsert StaffTimeline header
+    // 4. Load or prepare StaffTimeline (validation only — no writes yet)
     const existing = await svc.entities.StaffTimeline.filter({ event_id, timeline_type: template.timeline_type });
+
+    // --- ALL VALIDATION PASSED — NOW PERFORM WRITES ATOMICALLY ---
+
+    // Upsert StaffTimeline header
     let timeline;
     if (existing[0]) {
       const updateData = apply_header
-        ? { header_title: template.header_title || existing[0].header_title, header_subtitle: template.header_subtitle || existing[0].header_subtitle }
+        ? {
+            header_title: template.header_title || existing[0].header_title,
+            header_subtitle: template.header_subtitle || existing[0].header_subtitle,
+          }
         : {};
       if (Object.keys(updateData).length > 0) {
         timeline = await svc.entities.StaffTimeline.update(existing[0].id, updateData);
@@ -43,15 +72,17 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Replace existing activities if requested
+    // Delete old activities (only after timeline row is confirmed)
     if (replace_existing) {
-      const oldActivities = await svc.entities.StaffTimelineActivity.filter({ timeline_id: timeline.id }, "sort_order", 500);
+      const oldActivities = await svc.entities.StaffTimelineActivity.filter(
+        { timeline_id: timeline.id }, "sort_order", 500
+      );
       for (const a of oldActivities) {
         await svc.entities.StaffTimelineActivity.delete(a.id);
       }
     }
 
-    // Create activities from template items
+    // Insert new activities from template items
     const savedActivities = [];
     for (let i = 0; i < templateItems.length; i++) {
       const item = templateItems[i];
