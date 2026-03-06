@@ -51,6 +51,7 @@ const PAGE_ACCESS = {
   AddOnsSettings:           ["admin", "finance", "city_manager", "sales_manager"],
   FinancePayments:          ["admin", "finance", "city_manager"],
   FinanceIncoming:          ["admin", "finance", "city_manager"],
+  SettingsAdminTools:       ["admin"],
 };
 
 // Pages that bypass auth entirely
