@@ -73,6 +73,8 @@ export default function Settings() {
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="rbac">RBAC Debug</TabsTrigger>
           <TabsTrigger value="timeline-templates">Timeline Templates</TabsTrigger>
+          <TabsTrigger value="packages">Packages</TabsTrigger>
+          <TabsTrigger value="addons">Add-Ons</TabsTrigger>
         </TabsList>
 
         {/* SLA Settings */}
