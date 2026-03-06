@@ -88,6 +88,8 @@ import Users from './pages/Users';
 import Venues from './pages/Venues';
 import TimelineTemplates from './pages/TimelineTemplates';
 import TimelineTemplateBuilder from './pages/TimelineTemplateBuilder';
+import PackagesSettings from './pages/PackagesSettings';
+import AddOnsSettings from './pages/AddOnsSettings';
 import __Layout from './Layout.jsx';
 
 
@@ -133,6 +135,8 @@ export const PAGES = {
     "Venues": Venues,
     "TimelineTemplates": TimelineTemplates,
     "TimelineTemplateBuilder": TimelineTemplateBuilder,
+    "PackagesSettings": PackagesSettings,
+    "AddOnsSettings": AddOnsSettings,
 }
 
 export const pagesConfig = {
