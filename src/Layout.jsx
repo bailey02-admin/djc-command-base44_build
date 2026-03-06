@@ -114,16 +114,10 @@ export default function Layout({ children, currentPageName }) {
         {/* Nav — filtered by role (via RouteGuard which fetches StaffProfile) */}
         <nav className="flex-1 py-4 px-3 space-y-1 overflow-y-auto">
           {ALL_NAV_ITEMS.filter(item => {
-            // Note: RouteGuard enforces actual access. Layout just shows full nav,
-            // users will see access denied if they try restricted pages.
-            return true;
-          }).filter(item => {
             const role = user?.custom_role;
-            // Hide Reports from dj/client entirely
             if (item.page === "Reports" || item.page === "ReportBuilder") {
               if (role === "dj" || role === "client") return false;
             }
-            // Items with explicit roles array: hide if user's role not included
             if (item.roles && role && !item.roles.includes(role)) return false;
             return true;
           }).map(item => {
@@ -136,10 +130,7 @@ export default function Layout({ children, currentPageName }) {
                 className={`
                   flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
                   transition-all duration-150
-                  ${isActive
-                    ? "bg-violet-50 text-violet-700"
-                    : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"
-                  }
+                  ${isActive ? "bg-violet-50 text-violet-700" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}
                   ${collapsed ? "justify-center px-0" : ""}
                 `}
               >
@@ -148,6 +139,65 @@ export default function Layout({ children, currentPageName }) {
               </Link>
             );
           })}
+
+          {/* Settings group — shown if user has access to at least one settings item */}
+          {(() => {
+            const role = user?.custom_role;
+            const visibleSubNav = SETTINGS_SUBNAV.filter(item =>
+              !item.roles || !role || item.roles.includes(role)
+            );
+            if (visibleSubNav.length === 0) return null;
+
+            const isInSettings = SETTINGS_PAGES.has(currentPageName);
+
+            return (
+              <div>
+                {/* Settings parent row */}
+                <Link
+                  to={createPageUrl("Settings")}
+                  onClick={() => setMobileOpen(false)}
+                  className={`
+                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                    transition-all duration-150
+                    ${isInSettings ? "bg-violet-50 text-violet-700" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}
+                    ${collapsed ? "justify-center px-0" : ""}
+                  `}
+                >
+                  <Settings className={`w-[18px] h-[18px] flex-shrink-0 ${isInSettings ? "text-violet-600" : ""}`} />
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1">Settings</span>
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isInSettings ? "rotate-0" : "-rotate-90"}`} />
+                    </>
+                  )}
+                </Link>
+
+                {/* Submenu — only expand when in settings area */}
+                {isInSettings && !collapsed && (
+                  <div className="ml-3 mt-0.5 pl-3 border-l border-gray-200 space-y-0.5">
+                    {visibleSubNav.map(item => {
+                      const isActive = currentPageName === item.page;
+                      return (
+                        <Link
+                          key={item.page}
+                          to={createPageUrl(item.page)}
+                          onClick={() => setMobileOpen(false)}
+                          className={`
+                            flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium
+                            transition-all duration-150
+                            ${isActive ? "bg-violet-50 text-violet-700" : "text-gray-400 hover:bg-gray-50 hover:text-gray-800"}
+                          `}
+                        >
+                          <item.icon className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? "text-violet-600" : ""}`} />
+                          <span>{item.name}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
         </nav>
 
         {/* Collapse button */}
