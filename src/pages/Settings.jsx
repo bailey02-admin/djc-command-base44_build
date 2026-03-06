@@ -14,6 +14,7 @@ import { createPageUrl } from "@/utils";
 import { PIPELINE_STAGES, AUTOMATION_TEMPLATES, READINESS_ITEMS } from "../components/crm/pipeline";
 import LabelsTab from "../components/settings/LabelsTab";
 import RbacDebugPanel from "@/components/settings/RbacDebugPanel";
+import BackfillSnapshotsPanel from "@/components/settings/BackfillSnapshotsPanel";
 
 const DEFAULT_SETTINGS = [
   { key: "sla_warning_minutes", value: "15", category: "sla", label: "SLA Warning Threshold (minutes)", description: "Show warning badge after this many minutes without response" },
