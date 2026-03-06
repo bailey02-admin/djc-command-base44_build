@@ -75,7 +75,6 @@ import Payments from './pages/Payments';
 import ReportBuilder from './pages/ReportBuilder';
 import Reports from './pages/Reports';
 import ResetPassword from './pages/ResetPassword';
-import Settings from './pages/Settings';
 import StaffMusicManager from './pages/StaffMusicManager';
 import StaffPlanningHub from './pages/StaffPlanningHub';
 import StaffPrint from './pages/StaffPrint';
@@ -125,7 +124,6 @@ export const PAGES = {
     "ReportBuilder": ReportBuilder,
     "Reports": Reports,
     "ResetPassword": ResetPassword,
-    "Settings": Settings,
     "StaffMusicManager": StaffMusicManager,
     "StaffPlanningHub": StaffPlanningHub,
     "StaffPrint": StaffPrint,
