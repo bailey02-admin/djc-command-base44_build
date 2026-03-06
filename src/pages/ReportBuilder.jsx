@@ -352,8 +352,8 @@ export default function ReportBuilder() {
                             <SelectItem value={`-${c.key}`}>{c.label} ↓ (desc)</SelectItem>
                           </React.Fragment>
                         ))}
-                      </SelectContent>
-                    </Select>
+                        </SelectContent>
+                        </Select>
                   </div>
                   <div className="space-y-1.5">
                     <Label className="text-xs text-gray-500">Limit</Label>
