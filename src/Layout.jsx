@@ -26,6 +26,7 @@ const ALL_NAV_ITEMS = [
   { name: "Payments",        icon: DollarSign,      page: "Payments" },
   { name: "Templates",       icon: MessageSquare,   page: "MessageTemplates" },
   { name: "Reports",         icon: FileText,        page: "Reports" },
+  // ReportBuilder is accessed from Reports page, not shown in nav
   { name: "Archive",         icon: Archive,         page: "ArchivedRecords" },
   { name: "Users",           icon: Users,           page: "Users" },
   { name: "Settings",        icon: Settings,        page: "Settings" },
