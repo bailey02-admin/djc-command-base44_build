@@ -9,7 +9,6 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Save, Loader2, Plus, RefreshCw, ShieldCheck, LayoutList, Package, Sparkles, Wrench, CheckCircle2, AlertCircle, SkipForward } from "lucide-react";
-import { useState as useLocalState } from "react";
 import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { PIPELINE_STAGES, AUTOMATION_TEMPLATES, READINESS_ITEMS } from "../components/crm/pipeline";
