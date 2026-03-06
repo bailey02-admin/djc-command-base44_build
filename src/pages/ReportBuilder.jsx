@@ -286,7 +286,7 @@ export default function ReportBuilder() {
           {/* Entity */}
           <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-3">
             <h3 className="text-sm font-semibold text-gray-700">Data Source</h3>
-            <Select value={entityKey} onValueChange={handleEntityChange}>
+            <Select value={entityKey} onValueChange={canEdit ? handleEntityChange : undefined} disabled={!canEdit}>
               <SelectTrigger>
                 <SelectValue />
               </SelectTrigger>
