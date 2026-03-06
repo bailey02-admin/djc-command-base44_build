@@ -5,16 +5,11 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Save, Loader2, Plus, RefreshCw, ShieldCheck, LayoutList, Package, Sparkles, Wrench, CheckCircle2, AlertCircle, SkipForward } from "lucide-react";
-import { Link } from "react-router-dom";
-import { createPageUrl } from "@/utils";
+import { Save, Loader2 } from "lucide-react";
 import { PIPELINE_STAGES, AUTOMATION_TEMPLATES, READINESS_ITEMS } from "../components/crm/pipeline";
 import LabelsTab from "../components/settings/LabelsTab";
-import RbacDebugPanel from "@/components/settings/RbacDebugPanel";
-import BackfillSnapshotsPanel from "@/components/settings/BackfillSnapshotsPanel";
 
 const DEFAULT_SETTINGS = [
   { key: "sla_warning_minutes", value: "15", category: "sla", label: "SLA Warning Threshold (minutes)", description: "Show warning badge after this many minutes without response" },
@@ -27,6 +22,7 @@ const DEFAULT_SETTINGS = [
 export default function Settings() {
   const queryClient = useQueryClient();
   const [saving, setSaving] = useState(null);
+  const [localValues, setLocalValues] = useState({});
 
   const { data: settings = [] } = useQuery({
     queryKey: ["settings"],
@@ -37,8 +33,6 @@ export default function Settings() {
     const found = settings.find(s => s.key === key);
     return found ? found.value : DEFAULT_SETTINGS.find(d => d.key === key)?.value || "";
   };
-
-  const [localValues, setLocalValues] = useState({});
 
   const getValue = (key) => localValues[key] !== undefined ? localValues[key] : getSettingValue(key);
 
@@ -72,14 +66,9 @@ export default function Settings() {
           <TabsTrigger value="readiness">Readiness</TabsTrigger>
           <TabsTrigger value="labels">Labels &amp; Statuses</TabsTrigger>
           <TabsTrigger value="general">General</TabsTrigger>
-          <TabsTrigger value="rbac">RBAC Debug</TabsTrigger>
-          <TabsTrigger value="timeline-templates">Timeline Templates</TabsTrigger>
-          <TabsTrigger value="packages">Packages</TabsTrigger>
-          <TabsTrigger value="addons">Add-Ons</TabsTrigger>
-          <TabsTrigger value="admin-tools">Admin Tools</TabsTrigger>
         </TabsList>
 
-        {/* SLA Settings */}
+        {/* SLA */}
         <TabsContent value="sla" className="mt-6 space-y-4">
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">SLA Configuration</CardTitle></CardHeader>
@@ -89,11 +78,7 @@ export default function Settings() {
                   <div className="flex-1">
                     <Label className="text-xs">{setting.label}</Label>
                     <p className="text-[10px] text-gray-400 mt-0.5">{setting.description}</p>
-                    <Input
-                      className="mt-1"
-                      value={getValue(setting.key)}
-                      onChange={e => setLocalValues(p => ({...p, [setting.key]: e.target.value}))}
-                    />
+                    <Input className="mt-1" value={getValue(setting.key)} onChange={e => setLocalValues(p => ({...p, [setting.key]: e.target.value}))} />
                   </div>
                   <Button size="sm" onClick={() => saveSetting(setting.key, "sla")} disabled={saving === setting.key} className="mb-0.5 bg-violet-600 hover:bg-violet-700">
                     {saving === setting.key ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -104,7 +89,7 @@ export default function Settings() {
           </Card>
         </TabsContent>
 
-        {/* Pipeline Stages Reference */}
+        {/* Pipeline */}
         <TabsContent value="pipeline" className="mt-6 space-y-4">
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Pipeline Stage Definitions</CardTitle></CardHeader>
@@ -119,11 +104,9 @@ export default function Settings() {
                         <Badge variant="secondary" className={`text-[10px] ${stage.color}`}>{stage.key}</Badge>
                       </div>
                       <div className="mt-1 flex flex-wrap gap-1">
-                        {stage.required_fields.length > 0 ? (
-                          stage.required_fields.map(f => (
-                            <Badge key={f} variant="outline" className="text-[10px]">{f.replace(/_/g, " ")}</Badge>
-                          ))
-                        ) : <span className="text-[10px] text-gray-400">No required fields</span>}
+                        {stage.required_fields.length > 0
+                          ? stage.required_fields.map(f => <Badge key={f} variant="outline" className="text-[10px]">{f.replace(/_/g, " ")}</Badge>)
+                          : <span className="text-[10px] text-gray-400">No required fields</span>}
                       </div>
                     </div>
                   </div>
@@ -133,7 +116,7 @@ export default function Settings() {
           </Card>
         </TabsContent>
 
-        {/* Automation Templates */}
+        {/* Automations */}
         <TabsContent value="automations" className="mt-6 space-y-4">
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-2">
@@ -151,10 +134,7 @@ export default function Settings() {
                     <div className="space-y-1.5">
                       {tasks.map((t, i) => (
                         <div key={i} className="flex items-center gap-2 text-xs text-gray-600">
-                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${
-                            t.priority === "urgent" ? "bg-red-400" :
-                            t.priority === "high" ? "bg-amber-400" : "bg-blue-400"
-                          }`} />
+                          <span className={`w-1.5 h-1.5 rounded-full flex-shrink-0 ${t.priority === "urgent" ? "bg-red-400" : t.priority === "high" ? "bg-amber-400" : "bg-blue-400"}`} />
                           {t.title}
                           <span className="text-gray-400 ml-auto">{t.offset_hours === 0 ? "immediate" : `+${t.offset_hours}h`}</span>
                         </div>
@@ -167,7 +147,7 @@ export default function Settings() {
           </Card>
         </TabsContent>
 
-        {/* Readiness scoring */}
+        {/* Readiness */}
         <TabsContent value="readiness" className="mt-6">
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Event Readiness Scoring</CardTitle></CardHeader>
@@ -196,82 +176,6 @@ export default function Settings() {
           <LabelsTab />
         </TabsContent>
 
-        {/* RBAC Debug */}
-        <TabsContent value="rbac" className="mt-6">
-          <RbacDebugPanel />
-        </TabsContent>
-
-        {/* Timeline Templates */}
-        <TabsContent value="timeline-templates" className="mt-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-sm font-semibold text-gray-900">Timeline Templates</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Create and manage reusable timeline structures by event type</p>
-            </div>
-            <Link to={createPageUrl("TimelineTemplates")}>
-              <button className="flex items-center gap-1.5 text-xs text-violet-600 hover:text-violet-800 font-medium">
-                <LayoutList className="w-3.5 h-3.5" /> Manage Templates →
-              </button>
-            </Link>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-6 text-center text-sm text-gray-500">
-            <LayoutList className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-            <p>Use the Templates page to create, edit, and organize timeline templates.</p>
-            <Link to={createPageUrl("TimelineTemplates")}>
-              <button className="mt-3 text-xs text-violet-600 hover:underline">Open Timeline Templates →</button>
-            </Link>
-          </div>
-        </TabsContent>
-
-        {/* Packages */}
-        <TabsContent value="packages" className="mt-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-sm font-semibold text-gray-900">Packages Catalog</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Manage DJ packages used in quotes</p>
-            </div>
-            <Link to={createPageUrl("PackagesSettings")}>
-              <button className="flex items-center gap-1.5 text-xs text-violet-600 hover:text-violet-800 font-medium">
-                <Package className="w-3.5 h-3.5" /> Manage Packages →
-              </button>
-            </Link>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-6 text-center text-sm text-gray-500">
-            <Package className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-            <p>Create and manage packages that can be applied to lead quotes.</p>
-            <Link to={createPageUrl("PackagesSettings")}>
-              <button className="mt-3 text-xs text-violet-600 hover:underline">Open Packages Catalog →</button>
-            </Link>
-          </div>
-        </TabsContent>
-
-        {/* Add-Ons */}
-        <TabsContent value="addons" className="mt-6">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h2 className="text-sm font-semibold text-gray-900">Add-Ons Catalog</h2>
-              <p className="text-xs text-gray-400 mt-0.5">Manage upgrades and extras for quotes</p>
-            </div>
-            <Link to={createPageUrl("AddOnsSettings")}>
-              <button className="flex items-center gap-1.5 text-xs text-violet-600 hover:text-violet-800 font-medium">
-                <Sparkles className="w-3.5 h-3.5" /> Manage Add-Ons →
-              </button>
-            </Link>
-          </div>
-          <div className="bg-gray-50 rounded-lg p-6 text-center text-sm text-gray-500">
-            <Sparkles className="w-8 h-8 mx-auto mb-2 text-gray-300" />
-            <p>Define add-ons like uplighting, photo booths, and extras with pricing.</p>
-            <Link to={createPageUrl("AddOnsSettings")}>
-              <button className="mt-3 text-xs text-violet-600 hover:underline">Open Add-Ons Catalog →</button>
-            </Link>
-          </div>
-        </TabsContent>
-
-        {/* Admin Tools */}
-        <TabsContent value="admin-tools" className="mt-6 space-y-4">
-          <BackfillSnapshotsPanel />
-        </TabsContent>
-
         {/* General */}
         <TabsContent value="general" className="mt-6 space-y-4">
           <Card className="border-0 shadow-sm">
@@ -282,11 +186,7 @@ export default function Settings() {
                   <div className="flex-1">
                     <Label className="text-xs">{setting.label}</Label>
                     <p className="text-[10px] text-gray-400 mt-0.5">{setting.description}</p>
-                    <Input
-                      className="mt-1"
-                      value={getValue(setting.key)}
-                      onChange={e => setLocalValues(p => ({...p, [setting.key]: e.target.value}))}
-                    />
+                    <Input className="mt-1" value={getValue(setting.key)} onChange={e => setLocalValues(p => ({...p, [setting.key]: e.target.value}))} />
                   </div>
                   <Button size="sm" onClick={() => saveSetting(setting.key, setting.category)} disabled={saving === setting.key} className="mb-0.5 bg-violet-600 hover:bg-violet-700">
                     {saving === setting.key ? <Loader2 className="w-4 h-4 animate-spin" /> : <Save className="w-4 h-4" />}
@@ -296,7 +196,6 @@ export default function Settings() {
             </CardContent>
           </Card>
 
-          {/* Permission Matrix */}
           <Card className="border-0 shadow-sm">
             <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Role Permission Matrix</CardTitle></CardHeader>
             <CardContent className="overflow-x-auto">
