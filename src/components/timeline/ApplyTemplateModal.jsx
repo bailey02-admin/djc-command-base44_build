@@ -37,17 +37,28 @@ export default function ApplyTemplateModal({ open, onClose, eventId, eventType, 
     if (!selectedTemplateId) { toast.error("Select a template first"); return; }
     setApplying(true);
     try {
-      await base44.functions.invoke("applyTimelineTemplateToEvent", {
+      const res = await base44.functions.invoke("applyTimelineTemplateToEvent", {
         event_id: eventId,
         template_id: selectedTemplateId,
         apply_header: applyHeader,
         replace_existing: replaceExisting,
       });
-      toast.success("Template applied!");
+      const body = res?.data;
+      // Handle 422 PLANNING_LOCKED (axios doesn't throw on 4xx by default — check body)
+      if (body?.error === "PLANNING_LOCKED") {
+        toast.error(body.message || "Planning is locked; cannot apply template.");
+        return;
+      }
+      toast.success(`Template applied — ${body?.applied ?? ""} activities added.`);
       onApplied?.();
       onClose();
     } catch (e) {
-      toast.error(e.message || "Failed to apply template");
+      const msg = e?.response?.data?.message || e?.response?.data?.error || e.message || "Failed to apply template";
+      if (msg === "PLANNING_LOCKED" || e?.response?.status === 422) {
+        toast.error("Planning is locked; cannot apply template.");
+      } else {
+        toast.error(msg);
+      }
     } finally {
       setApplying(false);
     }
