@@ -226,16 +226,22 @@ export default function ReportBuilder() {
         <div className="flex-1 flex items-center gap-3 min-w-0">
           <Input
             value={name}
-            onChange={e => setName(e.target.value)}
-            className="font-semibold text-base max-w-xs"
+            onChange={e => canEdit && setName(e.target.value)}
+            readOnly={!canEdit}
+            className={`font-semibold text-base max-w-xs ${!canEdit ? "opacity-60 cursor-default" : ""}`}
             placeholder="Report name…"
           />
           <Badge className="bg-gray-100 text-gray-600 border border-gray-200">
             {ENTITY_LABELS[entityKey]}
           </Badge>
+          {!canEdit && (
+            <Badge className="bg-amber-50 text-amber-700 border border-amber-200 gap-1 text-xs">
+              <Lock className="w-3 h-3" /> View only
+            </Badge>
+          )}
         </div>
         <div className="flex items-center gap-2">
-          {reportId && (
+          {reportId && perms?.can_delete && (
             <Button
               variant="ghost"
               size="sm"
@@ -245,10 +251,12 @@ export default function ReportBuilder() {
               <Trash2 className="w-4 h-4" />
             </Button>
           )}
+          {canEdit && (
           <Button variant="outline" size="sm" onClick={handleSave} disabled={saveMutation.isPending} className="gap-1.5">
             {saveMutation.isPending ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Save className="w-3.5 h-3.5" />}
             {reportId ? "Save" : "Save Report"}
           </Button>
+          )}
           <Button
             size="sm"
             className="bg-violet-600 hover:bg-violet-700 gap-1.5"
