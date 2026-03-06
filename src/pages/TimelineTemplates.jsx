@@ -40,7 +40,8 @@ export default function TimelineTemplates() {
     staleTime: 30_000,
   });
 
-  const templates = data?.templates || [];
+  const allTemplates = data?.templates || [];
+  const templates = showInactive ? allTemplates : allTemplates.filter(t => t.is_active !== false);
 
   const handleDuplicate = async (t) => {
     try {
