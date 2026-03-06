@@ -72,6 +72,7 @@ export default function Settings() {
           <TabsTrigger value="labels">Labels &amp; Statuses</TabsTrigger>
           <TabsTrigger value="general">General</TabsTrigger>
           <TabsTrigger value="rbac">RBAC Debug</TabsTrigger>
+          <TabsTrigger value="timeline-templates">Timeline Templates</TabsTrigger>
         </TabsList>
 
         {/* SLA Settings */}
