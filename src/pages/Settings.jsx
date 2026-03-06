@@ -75,6 +75,7 @@ export default function Settings() {
           <TabsTrigger value="timeline-templates">Timeline Templates</TabsTrigger>
           <TabsTrigger value="packages">Packages</TabsTrigger>
           <TabsTrigger value="addons">Add-Ons</TabsTrigger>
+          <TabsTrigger value="admin-tools">Admin Tools</TabsTrigger>
         </TabsList>
 
         {/* SLA Settings */}
