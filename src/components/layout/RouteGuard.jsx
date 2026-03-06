@@ -33,6 +33,7 @@ const PAGE_ACCESS = {
   Payments:        ["admin", "city_manager", "sales_manager", "finance"],
   MessageTemplates:["admin", "city_manager", "sales_manager"],
   Reports:         ["admin", "city_manager", "sales_manager", "finance"],
+  ReportBuilder:   ["admin", "city_manager", "sales_manager", "finance", "dj"],
   ArchivedRecords: ["admin", "city_manager"],
   Users:           ["admin", "city_manager"],
   UserForm:        ["admin"],
