@@ -38,6 +38,8 @@ const STAFF_PLANNING_PAGES = new Set([
   "StaffTimelineManager","StaffTimelineView","StaffPrint"
 ]);
 
+const NO_SIDEBAR_PAGES = new Set(["ReportBuilder"]);
+
 const AUTH_PAGES = new Set(["AcceptInvite","ForgotPassword","ResetPassword"]);
 
 // Role-scoped nav — only show items the role can reach
