@@ -50,6 +50,33 @@ const PAGE_ACCESS = {
 // Pages that bypass auth entirely
 const OPEN_PAGES = new Set(["AcceptInvite", "ForgotPassword", "ResetPassword", "ClientPortal", "DJView"]);
 
+const PROFILE_CACHE_KEY = "dj_cmd_rbac_profile";
+const PROFILE_CACHE_TTL = 5 * 60 * 1000; // 5 minutes
+
+function getCachedProfile(email) {
+  try {
+    const raw = sessionStorage.getItem(PROFILE_CACHE_KEY);
+    if (!raw) return null;
+    const { profile, cachedEmail, ts } = JSON.parse(raw);
+    if (cachedEmail !== email) return null;
+    if (Date.now() - ts > PROFILE_CACHE_TTL) return null;
+    return profile;
+  } catch { return null; }
+}
+
+function setCachedProfile(email, profile) {
+  try {
+    sessionStorage.setItem(PROFILE_CACHE_KEY, JSON.stringify({ profile, cachedEmail: email, ts: Date.now() }));
+  } catch {}
+}
+
+export function invalidateRbacCache() {
+  try { sessionStorage.removeItem(PROFILE_CACHE_KEY); } catch {}
+}
+
+// Shared promise to prevent duplicate in-flight requests
+let _inflightPromise = null;
+
 export default function RouteGuard({ pageName, children }) {
   const [state, setState] = useState({ loading: true, profile: null, authEmail: null });
 
@@ -64,10 +91,25 @@ export default function RouteGuard({ pageName, children }) {
         setState({ loading: false, profile: null, authEmail: null });
         return;
       }
+
+      // Check cache first — avoids re-fetching on every page navigation
+      const cached = getCachedProfile(user.email);
+      if (cached) {
+        setState({ loading: false, profile: cached, authEmail: user.email });
+        return;
+      }
+
+      // Deduplicate in-flight requests (e.g. layout + routeguard both fire)
+      if (!_inflightPromise) {
+        _inflightPromise = base44.functions.invoke("rbacDebug", {})
+          .finally(() => { _inflightPromise = null; });
+      }
+
       try {
-        // rbacDebug: resolves StaffProfile by normalized email, auto-accepts invite_status
-        const res = await base44.functions.invoke("rbacDebug", {});
-        setState({ loading: false, profile: res?.data || null, authEmail: user.email });
+        const res = await _inflightPromise;
+        const profile = res?.data || null;
+        if (profile) setCachedProfile(user.email, profile);
+        setState({ loading: false, profile, authEmail: user.email });
       } catch {
         setState({ loading: false, profile: null, authEmail: user.email });
       }
