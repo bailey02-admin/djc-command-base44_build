@@ -266,6 +266,11 @@ export default function Settings() {
           </div>
         </TabsContent>
 
+        {/* Admin Tools */}
+        <TabsContent value="admin-tools" className="mt-6 space-y-4">
+          <BackfillSnapshotsPanel />
+        </TabsContent>
+
         {/* General */}
         <TabsContent value="general" className="mt-6 space-y-4">
           <Card className="border-0 shadow-sm">
