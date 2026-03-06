@@ -41,6 +41,12 @@ const SETTINGS_SUBNAV = [
   { name: "Admin Tools",          icon: Wrench,       page: "SettingsAdminTools",  roles: ["admin"] },
 ];
 
+// Pages that belong to the Settings group
+const SETTINGS_PAGES = new Set([
+  "Settings", "TimelineTemplates", "TimelineTemplateBuilder",
+  "PackagesSettings", "AddOnsSettings", "SettingsAdminTools",
+]);
+
 // Staff planning pages — not in sidebar nav, accessible via EventDetail
 const STAFF_PLANNING_PAGES = new Set([
   "StaffPlanningHub","StaffMusicManager","StaffSpecialSongsList",
