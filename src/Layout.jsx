@@ -102,6 +102,13 @@ export default function Layout({ children, currentPageName }) {
             // Note: RouteGuard enforces actual access. Layout just shows full nav,
             // users will see access denied if they try restricted pages.
             return true;
+          }).filter(item => {
+            // Hide Reports from dj/client entirely
+            if (item.page === "Reports" || item.page === "ReportBuilder") {
+              const role = user?.custom_role;
+              if (role === "dj" || role === "client") return false;
+            }
+            return true;
           }).map(item => {
             const isActive = currentPageName === item.page;
             return (
