@@ -31,6 +31,14 @@ export default function StaffTimelineManager() {
   const [saving, setSaving] = useState(false);
   const [dirty, setDirty] = useState(false);
   const [confirmClear, setConfirmClear] = useState(false);
+  const [showApplyTemplate, setShowApplyTemplate] = useState(false);
+  const [eventData, setEventData] = useState(null);
+
+  useEffect(() => {
+    if (eventId) {
+      base44.entities.Event.filter({ id: eventId }).then(events => setEventData(events[0] || null)).catch(() => {});
+    }
+  }, [eventId]);
 
   const { data, isLoading } = useQuery({
     queryKey: ["staff-timeline", eventId, timelineType],
