@@ -92,6 +92,7 @@ import Users from './pages/Users';
 import Venues from './pages/Venues';
 import FinancePayments from './pages/FinancePayments';
 import FinanceIncoming from './pages/FinanceIncoming';
+import SettingsAdminTools from './pages/SettingsAdminTools';
 import __Layout from './Layout.jsx';
 
 
@@ -141,6 +142,7 @@ export const PAGES = {
     "Venues": Venues,
     "FinancePayments": FinancePayments,
     "FinanceIncoming": FinanceIncoming,
+    "SettingsAdminTools": SettingsAdminTools,
 }
 
 export const pagesConfig = {
