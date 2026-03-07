@@ -99,7 +99,7 @@ export default function LabelsTab() {
   const eventGroups = (statusSettings?.groups || []).filter(g => (g.entity_key || "event") === "event");
 
   // Sync financeStatuses from loaded settings (once)
-  React.useEffect(() => {
+  useEffect(() => {
     if (!statusSettings || financeStatuses !== null) return;
     const financeGroup = (statusSettings.groups || []).find(g => g.key === "finance_visible");
     if (financeGroup) {
