@@ -37,7 +37,7 @@ Deno.serve(async (req) => {
     const {
       year: rawYear,
       city,
-      finance_statuses, // optional override from Settings
+      finance_statuses, // optional override (e.g. from tests)
     } = body;
 
     const year = Number(rawYear) || new Date().getFullYear();
@@ -51,9 +51,21 @@ Deno.serve(async (req) => {
       ? (filterCity && scopedCities.includes(filterCity) ? filterCity : null)
       : filterCity;
 
-    const financeStatuses = Array.isArray(finance_statuses) && finance_statuses.length > 0
-      ? new Set(finance_statuses)
-      : DEFAULT_FINANCE_STATUSES;
+    // Load finance_visible group from settings (unless caller passed explicit override)
+    let resolvedStatuses = DEFAULT_FINANCE_STATUSES;
+    if (Array.isArray(finance_statuses) && finance_statuses.length > 0) {
+      resolvedStatuses = new Set(finance_statuses);
+    } else {
+      try {
+        const groups = await base44.asServiceRole.entities.StatusGroup.filter({ key: "finance_visible" });
+        const financeGroup = groups?.[0];
+        if (financeGroup?.statuses?.length > 0) {
+          resolvedStatuses = new Set(financeGroup.statuses);
+        }
+      } catch (_) { /* fall back to defaults */ }
+    }
+
+    const financeStatuses = resolvedStatuses;
 
     const t0 = Date.now();
 
