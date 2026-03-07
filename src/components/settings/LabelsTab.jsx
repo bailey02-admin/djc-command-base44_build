@@ -451,8 +451,8 @@ export default function LabelsTab() {
             )}
           </div>
 
-          {/* Add new — hide when on groups sub-tab */}
-          {(activeCategory !== "event_status" || eventStatusSubTab !== "groups") && adding ? (
+          {/* Add new — hide when on groups or finance sub-tab */}
+          {(activeCategory !== "event_status" || (eventStatusSubTab !== "groups" && eventStatusSubTab !== "finance")) && adding ? (
             <div className="mt-4 flex items-center gap-2 p-3 bg-gray-50 rounded-lg border">
               <Input
                 placeholder="canonical_key"
