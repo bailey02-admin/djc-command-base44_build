@@ -199,6 +199,17 @@ export default function SurveyResponsesReport() {
         )}
       </div>
 
+      {/* Pagination */}
+      {totalPages > 1 && (
+        <div className="flex items-center justify-between text-sm text-gray-500">
+          <span>{total} total · page {page + 1} of {totalPages}</span>
+          <div className="flex items-center gap-2">
+            <Button variant="outline" size="sm" onClick={() => setPage(p => p - 1)} disabled={page === 0}>← Prev</Button>
+            <Button variant="outline" size="sm" onClick={() => setPage(p => p + 1)} disabled={page >= totalPages - 1}>Next →</Button>
+          </div>
+        </div>
+      )}
+
       {viewingResponse && (
         <SurveyResponseModal
           eventId={viewingResponse.event_id}
