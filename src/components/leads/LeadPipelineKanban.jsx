@@ -3,7 +3,7 @@ import { Link } from "react-router-dom";
 import { createPageUrl } from "@/utils";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
-import { base44 } from "@/api/base44Client";
+import { LeadAPI } from "@/components/api/secureApi";
 import { Phone, Mail, Calendar } from "lucide-react";
 
 const PIPELINE_STAGES = [
