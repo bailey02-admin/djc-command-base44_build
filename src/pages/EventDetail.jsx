@@ -24,6 +24,7 @@ import ChangeHistoryPanel from "@/components/events/ChangeHistoryPanel";
 import EventNextBestAction from "@/components/events/EventNextBestAction";
 import ActivityFeed from "@/components/leads/ActivityFeed";
 import SendMessageModal from "@/components/communication/SendMessageModal";
+import EventSurveyCard from "@/components/surveys/EventSurveyCard";
 import { calculateReadinessScore } from "@/components/crm/pipeline";
 import { trackEventChanges } from "@/components/crm/changeTracker";
 
@@ -348,6 +349,7 @@ export default function EventDetail() {
               {canManageStaff && (
                 <StaffAssignmentCard event={event} onSaved={() => queryClient.invalidateQueries(["event-bundle", id])} />
               )}
+              <EventSurveyCard event={event} />
               <Card className="border-0 shadow-sm">
                 <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Readiness</CardTitle></CardHeader>
                 <CardContent>
