@@ -265,14 +265,32 @@ Deno.serve(async (req) => {
 });
 
 async function enforceOwnershipScope(base44, user, role, id, lead = null) {
+  // Resolve StaffProfile for city scoping (source of truth: StaffProfile.cities[])
+  let profileCities = [];
+  try {
+    const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email });
+    const profile = profiles?.[0];
+    if (profile) {
+      profileCities = profile.cities?.length > 0
+        ? profile.cities
+        : (profile.default_city ? [profile.default_city] : []);
+    }
+  } catch (_) {}
+
   if (role === "sales_rep") {
     const target = lead || (await base44.asServiceRole.entities.Lead.filter({ id }))[0];
     if (!target) return; // will 404 later
-    const allowed = target.assigned_rep === user.email || (user.city && target.city === user.city);
-    if (!allowed) throw Object.assign(new Error("Forbidden: not your lead or city"), { _status: 403 });
+    const inCity = profileCities.length > 0 && profileCities.includes(target.city);
+    const assigned = target.assigned_rep === user.email;
+    if (!inCity && !assigned) {
+      throw Object.assign(new Error("Forbidden: not your lead or city"), { _status: 403 });
+    }
   }
-  if (role === "city_manager" && user.city) {
+
+  if (role === "city_manager" && profileCities.length > 0) {
     const target = lead || (await base44.asServiceRole.entities.Lead.filter({ id }))[0];
-    if (target && target.city !== user.city) throw Object.assign(new Error("Forbidden: outside your city"), { _status: 403 });
+    if (target && !profileCities.includes(target.city)) {
+      throw Object.assign(new Error("Forbidden: outside your city"), { _status: 403 });
+    }
   }
 }
