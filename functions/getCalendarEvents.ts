@@ -34,23 +34,34 @@ Deno.serve(async (req) => {
       is_deleted: false
     };
 
-    // Role-based city scoping
-    if (role === 'city_manager' && staffProfile?.default_city) {
-      filter.city = staffProfile.default_city;
-    } else if (role === 'dj') {
-      filter.assigned_dj_id = staffProfile?.id;
-    } else if (role === 'sales_rep' && staffProfile?.default_city) {
-      filter.city = staffProfile.default_city;
-    } else if (role === 'office_finalizer' && staffProfile?.default_city) {
-      filter.city = staffProfile.default_city;
+    // City scoping using StaffProfile.cities[] array (canonical per Truth Doc)
+    const profileCities = staffProfile?.cities?.length > 0
+      ? staffProfile.cities
+      : (staffProfile?.default_city ? [staffProfile.default_city] : []);
+
+    if (role === 'dj') {
+      // DJs see only their own assigned events
+      filter.assigned_dj_id = staffProfile?.id || '__none__';
+    } else if (['city_manager', 'sales_rep', 'office_finalizer'].includes(role)) {
+      // Single-city: push to DB. Multi-city: filter in-memory below.
+      if (profileCities.length === 1) {
+        filter.city = profileCities[0];
+      }
     }
 
-    // If city param provided and user is admin/city_manager, apply it
+    // Admin/city_manager explicit city filter override
     if (city && (role === 'admin' || role === 'city_manager')) {
       filter.city = city;
     }
 
-    const events = await base44.asServiceRole.entities.Event.filter(filter, 'event_date', 500);
+    const allEvents = await base44.asServiceRole.entities.Event.filter(filter, 'event_date', 500);
+
+    // Multi-city filtering for city_manager/sales_rep/office_finalizer
+    let events = allEvents;
+    if (['city_manager', 'sales_rep', 'office_finalizer'].includes(role) && profileCities.length > 1 && !city) {
+      const citySet = new Set(profileCities);
+      events = allEvents.filter(e => citySet.has(e.city));
+    }
 
     const minimal = events.map(e => ({
       id: e.id,
