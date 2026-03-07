@@ -13,9 +13,22 @@
  *
  * Idempotent: if lead.event_id already exists, returns existing event.
  */
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 const CONVERT_ALLOWED = new Set(["admin", "city_manager", "sales_manager", "sales_rep"]);
+
+// Resolve StaffProfile custom_role — same pattern as mutateEvent
+async function resolveRole(base44, user) {
+  try {
+    const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email });
+    const profile = profiles?.[0];
+    if (profile) {
+      if (profile.is_active === false) return { role: null, deactivated: true, profile };
+      return { role: profile.custom_role || user.role || "sales_rep", deactivated: false, profile };
+    }
+  } catch (_) { /* fall through */ }
+  return { role: user.role || "sales_rep", deactivated: false, profile: null };
+}
 
 Deno.serve(async (req) => {
   try {
@@ -23,7 +36,8 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const role = user.role || "sales_rep";
+    const { role, deactivated, profile } = await resolveRole(base44, user);
+    if (deactivated) return Response.json({ error: "Account deactivated" }, { status: 403 });
     if (!CONVERT_ALLOWED.has(role)) return Response.json({ error: "Forbidden" }, { status: 403 });
 
     const body = await req.json().catch(() => ({}));
@@ -36,9 +50,14 @@ Deno.serve(async (req) => {
     if (!lead) return Response.json({ error: "Lead not found" }, { status: 404 });
     if (lead.is_deleted) return Response.json({ error: "Lead is deleted" }, { status: 410 });
 
-    // City scoping for city_manager
-    if (role === "city_manager" && user.city && lead.city && lead.city !== user.city) {
-      return Response.json({ error: "Forbidden: lead is outside your city" }, { status: 403 });
+    // City scoping for city_manager — use StaffProfile.cities array (canonical)
+    if (role === "city_manager") {
+      const allowedCities = profile?.cities?.length > 0
+        ? profile.cities
+        : (profile?.default_city ? [profile.default_city] : null);
+      if (allowedCities && lead.city && !allowedCities.includes(lead.city)) {
+        return Response.json({ error: "Forbidden: lead is outside your city scope" }, { status: 403 });
+      }
     }
 
     // ── Idempotency: already converted ───────────────────────────
