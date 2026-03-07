@@ -39,12 +39,29 @@ const SURVEY_REPORT_LINKS = [
 export default function SurveyReports() {
   const navigate = useNavigate();
 
-  const { data, isLoading } = useQuery({
-    queryKey: ["survey-responses-report-recent"],
-    queryFn: () => base44.functions.invoke("getSurveyResponsesReport", { limit: 10, skip: 0 }).then(r => r.data),
+  // Fetch all responses for KPI computation (limit 2000, no filters)
+  const { data: kpiData, isLoading: kpiLoading } = useQuery({
+    queryKey: ["survey-kpi-all"],
+    queryFn: () => base44.functions.invoke("getSurveyResponsesReport", { limit: 2000, skip: 0 }).then(r => r.data),
   });
 
-  const rows = data?.rows || [];
+  // Fetch open recovery tasks for KPI
+  const { data: recoveryData } = useQuery({
+    queryKey: ["survey-recovery-open"],
+    queryFn: () => base44.functions.invoke("getLowScoreRecoveryQueue", { task_status: "pending", limit: 500, skip: 0 }).then(r => r.data),
+  });
+
+  const allRows = kpiData?.rows || [];
+  const total = kpiData?.total ?? allRows.length;
+  const scored = allRows.filter(r => r.average_score != null);
+  const avgScore = scored.length > 0
+    ? Math.round((scored.reduce((s, r) => s + r.average_score, 0) / scored.length) * 10) / 10
+    : null;
+  const lowScoreCount = allRows.filter(r => r.low_score_flag).length;
+  const openRecoveryCount = recoveryData?.total ?? (recoveryData?.rows?.length ?? 0);
+
+  // Latest 10 for the preview table
+  const rows = allRows.slice(0, 10);
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
