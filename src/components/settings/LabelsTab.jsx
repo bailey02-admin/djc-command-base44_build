@@ -473,7 +473,7 @@ export default function LabelsTab() {
                 <X className="w-3 h-3" />
               </Button>
             </div>
-          ) : (activeCategory !== "event_status" || eventStatusSubTab !== "groups") ? (
+          ) : (activeCategory !== "event_status" || (eventStatusSubTab !== "groups" && eventStatusSubTab !== "finance")) ? (
             <Button size="sm" variant="outline" className="mt-3 gap-1" onClick={() => setAdding(true)}>
               <Plus className="w-3 h-3" /> Add Label
             </Button>
