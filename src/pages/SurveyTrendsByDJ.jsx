@@ -59,6 +59,29 @@ export default function SurveyTrendsByDJ() {
     return "bg-red-400";
   };
 
+  // Chart data: top 15 DJs by survey count, sorted by avg score desc
+  const chartData = rows
+    .filter(r => r.average_score != null)
+    .slice(0, 15)
+    .map(r => ({
+      name: r.assigned_dj_name?.split(" ")[0] || "?",
+      full_name: r.assigned_dj_name,
+      score: r.average_score,
+      low: r.low_score_count,
+    }));
+
+  const CustomTooltip = ({ active, payload }) => {
+    if (!active || !payload?.length) return null;
+    const d = payload[0].payload;
+    return (
+      <div className="bg-white border border-gray-200 rounded-lg shadow-lg px-3 py-2 text-xs">
+        <p className="font-semibold text-gray-900">{d.full_name}</p>
+        <p className="text-gray-600">Avg Score: <span className="font-bold">{d.score}/10</span></p>
+        {d.low > 0 && <p className="text-red-600">Low scores: {d.low}</p>}
+      </div>
+    );
+  };
+
   return (
     <div className="p-6 max-w-7xl mx-auto space-y-5">
       {/* Header */}
