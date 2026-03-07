@@ -7,7 +7,8 @@ import {
   FileText, MessageSquare, DollarSign, Building2, ChevronLeft,
   ChevronRight, LogOut, Menu, Disc3, UserCircle, Settings,
   Layers, Music2, FileSignature, Archive, Users,
-  TrendingUp, Sliders, Package, Sparkles, LayoutList, Wrench, ChevronDown
+  TrendingUp, Sliders, Package, Sparkles, LayoutList, Wrench, ChevronDown,
+  AlertTriangle
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import GlobalSearch from "./components/layout/GlobalSearch";
@@ -32,6 +33,17 @@ const ALL_NAV_ITEMS = [
   { name: "Users",           icon: Users,           page: "Users" },
   // Settings is rendered as a group — see SETTINGS_SUBNAV below
 ];
+
+const REPORTS_SUBNAV = [
+  { name: "Survey Reports",  icon: ClipboardList,  page: "SurveyReports",  roles: ["admin", "city_manager", "sales_manager", "production_manager", "office_finalizer", "finance"] },
+  { name: "Custom Reports",  icon: FileText,        page: "Reports",        roles: ["admin", "city_manager", "sales_manager", "production_manager", "office_finalizer", "finance"] },
+];
+
+// Pages that belong to the Reports group
+const REPORTS_PAGES = new Set([
+  "Reports", "ReportBuilder",
+  "SurveyReports", "SurveyResponsesReport", "SurveyTrendsByDJ", "SurveyLowScoreQueue",
+]);
 
 const SETTINGS_SUBNAV = [
   { name: "General & SLA",        icon: Sliders,      page: "Settings",            roles: ["admin"] },
