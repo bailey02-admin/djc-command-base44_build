@@ -92,7 +92,7 @@ export default function SurveyResponsesReport() {
       {/* Filters */}
       <SurveyReportFilters
         filters={filters}
-        onChange={setFilters}
+        onChange={handleFilterChange}
         djs={djData || []}
         templates={templateData || []}
         showSearch
