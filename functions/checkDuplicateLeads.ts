@@ -9,7 +9,7 @@
  * Returns: { duplicates: Lead[], risk: "high"|"medium"|"low"|"none" }
  * Never blocks creation — caller decides.
  */
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 function normalize(str) {
   return (str || "").toLowerCase().replace(/\D/g, ""); // strip non-alphanum for phone

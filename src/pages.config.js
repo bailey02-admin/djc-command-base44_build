@@ -84,6 +84,12 @@ import StaffSpecialSongsList from './pages/StaffSpecialSongsList';
 import StaffTimelineManager from './pages/StaffTimelineManager';
 import StaffTimelineView from './pages/StaffTimelineView';
 import StatusSettings from './pages/StatusSettings';
+import SurveyLowScoreQueue from './pages/SurveyLowScoreQueue';
+import SurveyReports from './pages/SurveyReports';
+import SurveyResponsesReport from './pages/SurveyResponsesReport';
+import SurveyTemplateBuilder from './pages/SurveyTemplateBuilder';
+import SurveyTemplates from './pages/SurveyTemplates';
+import SurveyTrendsByDJ from './pages/SurveyTrendsByDJ';
 import Tasks from './pages/Tasks';
 import TimelineBuilder from './pages/TimelineBuilder';
 import TimelineTemplateBuilder from './pages/TimelineTemplateBuilder';
@@ -91,12 +97,6 @@ import TimelineTemplates from './pages/TimelineTemplates';
 import UserForm from './pages/UserForm';
 import Users from './pages/Users';
 import Venues from './pages/Venues';
-import SurveyTemplates from './pages/SurveyTemplates';
-import SurveyTemplateBuilder from './pages/SurveyTemplateBuilder';
-import SurveyResponsesReport from './pages/SurveyResponsesReport';
-import SurveyTrendsByDJ from './pages/SurveyTrendsByDJ';
-import SurveyLowScoreQueue from './pages/SurveyLowScoreQueue';
-import SurveyReports from './pages/SurveyReports';
 import __Layout from './Layout.jsx';
 
 
@@ -138,6 +138,12 @@ export const PAGES = {
     "StaffTimelineManager": StaffTimelineManager,
     "StaffTimelineView": StaffTimelineView,
     "StatusSettings": StatusSettings,
+    "SurveyLowScoreQueue": SurveyLowScoreQueue,
+    "SurveyReports": SurveyReports,
+    "SurveyResponsesReport": SurveyResponsesReport,
+    "SurveyTemplateBuilder": SurveyTemplateBuilder,
+    "SurveyTemplates": SurveyTemplates,
+    "SurveyTrendsByDJ": SurveyTrendsByDJ,
     "Tasks": Tasks,
     "TimelineBuilder": TimelineBuilder,
     "TimelineTemplateBuilder": TimelineTemplateBuilder,
@@ -145,12 +151,6 @@ export const PAGES = {
     "UserForm": UserForm,
     "Users": Users,
     "Venues": Venues,
-    "SurveyTemplates": SurveyTemplates,
-    "SurveyTemplateBuilder": SurveyTemplateBuilder,
-    "SurveyResponsesReport": SurveyResponsesReport,
-    "SurveyTrendsByDJ": SurveyTrendsByDJ,
-    "SurveyLowScoreQueue": SurveyLowScoreQueue,
-    "SurveyReports": SurveyReports,
 }
 
 export const pagesConfig = {
