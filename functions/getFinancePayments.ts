@@ -68,6 +68,16 @@ Deno.serve(async (req) => {
       ? (filterCity && scopedCities.includes(filterCity) ? filterCity : null)
       : filterCity;
 
+    // ── Step 1b: Load finance_visible statuses from settings ──────────────────
+    let configuredFinanceStatuses = [...FINANCE_VISIBLE_STATUSES];
+    try {
+      const groups = await base44.asServiceRole.entities.StatusGroup.filter({ key: "finance_visible" });
+      const financeGroup = groups?.[0];
+      if (financeGroup?.statuses?.length > 0) {
+        configuredFinanceStatuses = financeGroup.statuses;
+      }
+    } catch (_) { /* fall back to defaults */ }
+
     // ── Step 2: Fetch events (lean) for city scoping + enrichment ─────────────
     const eventFilter = { is_deleted: false };
     if (effectiveCity) {
@@ -77,7 +87,7 @@ Deno.serve(async (req) => {
     // Finance visible statuses filter — applied if event_status not explicitly set
     const financeStatuses = event_status && event_status !== "all"
       ? [event_status]
-      : [...FINANCE_VISIBLE_STATUSES];
+      : configuredFinanceStatuses;
 
     // Fetch all events (we need for enrichment anyway; ~few hundred max for most orgs)
     const t0 = Date.now();
