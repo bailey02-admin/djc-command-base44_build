@@ -4,38 +4,11 @@ import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
-import { Plus, Play, Pencil, Trash2, Search, FileText, Share2, Lock, Globe, ClipboardList, TrendingUp, AlertTriangle, ChevronRight } from "lucide-react";
+import { Plus, Play, Pencil, Trash2, Search, FileText, Share2, Lock, Globe } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";
 import ShareModal from "@/components/reports/ShareModal";
-
-const SURVEY_REPORT_LINKS = [
-  {
-    page: "SurveyResponsesReport",
-    icon: ClipboardList,
-    label: "Survey Responses",
-    description: "All submitted surveys with scores, DJ, event, and recovery status",
-    color: "text-violet-600",
-    bg: "bg-violet-50 border-violet-200",
-  },
-  {
-    page: "SurveyTrendsByDJ",
-    icon: TrendingUp,
-    label: "DJ Survey Trends",
-    description: "Aggregated score trends per DJ with low-score tracking",
-    color: "text-blue-600",
-    bg: "bg-blue-50 border-blue-200",
-  },
-  {
-    page: "SurveyLowScoreQueue",
-    icon: AlertTriangle,
-    label: "Low Score / Recovery Queue",
-    description: "All low-scoring surveys and their service recovery task status",
-    color: "text-red-600",
-    bg: "bg-red-50 border-red-200",
-  },
-];
 
 const ENTITY_LABELS = { events: "Events", leads: "Leads", payments: "Payments" };
 const ENTITY_COLORS = {
@@ -110,7 +83,7 @@ export default function Reports() {
       {/* Header */}
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-2xl font-bold text-gray-900">Reports</h1>
+          <h1 className="text-2xl font-bold text-gray-900">Custom Reports</h1>
           <p className="text-sm text-gray-500 mt-1">Build, run, and save custom reports</p>
         </div>
         {isManager && (
@@ -118,34 +91,6 @@ export default function Reports() {
             <Plus className="w-4 h-4" /> New Report
           </Button>
         )}
-      </div>
-
-      {/* Survey Reports section */}
-      <div>
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Survey Reports</h2>
-        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
-          {SURVEY_REPORT_LINKS.map(item => {
-            const Icon = item.icon;
-            return (
-              <button
-                key={item.page}
-                onClick={() => navigate(createPageUrl(item.page))}
-                className={`flex items-start gap-3 p-4 rounded-xl border text-left hover:shadow-sm transition-all ${item.bg}`}
-              >
-                <Icon className={`w-5 h-5 mt-0.5 flex-shrink-0 ${item.color}`} />
-                <div className="flex-1 min-w-0">
-                  <p className={`text-sm font-semibold ${item.color}`}>{item.label}</p>
-                  <p className="text-xs text-gray-500 mt-0.5 leading-relaxed">{item.description}</p>
-                </div>
-                <ChevronRight className="w-4 h-4 text-gray-400 flex-shrink-0 mt-0.5" />
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div className="border-t border-gray-100 pt-2">
-        <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wide mb-3">Custom Reports</h2>
       </div>
 
       {/* Filters */}
