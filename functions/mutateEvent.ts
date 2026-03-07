@@ -217,13 +217,29 @@ Deno.serve(async (req) => {
         return Response.json({ error: "Event not found" }, { status: 404 });
       }
 
-      // Access check via inlined rule
-      if (!canAccessEvent(user, preUpdateEvent, role)) {
+      // Access check via city-scoped inlined rule
+      if (!canAccessEvent(user, preUpdateEvent, role, profile)) {
         await logDenial(base44, user, action, id, "outside city or not assigned");
-        return Response.json({ error: "Forbidden: access denied" }, { status: 403 });
+        return Response.json({ error: "Forbidden: access denied for this event's city" }, { status: 403 });
       }
 
       const cleaned = stripProtectedFields(data, role);
+
+      // ── Status transition gate ────────────────────────────────
+      // Reject invalid status transitions regardless of how the request was made
+      if (cleaned.status && cleaned.status !== preUpdateEvent.status) {
+        const allowedNext = EVENT_STATUS_TRANSITIONS[preUpdateEvent.status];
+        if (allowedNext && !allowedNext.has(cleaned.status)) {
+          await logDenial(base44, user, action, id,
+            `invalid status transition ${preUpdateEvent.status} → ${cleaned.status}`);
+          return Response.json({
+            error: `Status transition not allowed: ${preUpdateEvent.status} → ${cleaned.status}`,
+            current_status: preUpdateEvent.status,
+            requested_status: cleaned.status,
+            allowed_next: allowedNext ? [...allowedNext] : [],
+          }, { status: 422 });
+        }
+      }
 
       // ── Finalization gate ─────────────────────────────────────
       // If status is being set to "finalized", check all readiness items
