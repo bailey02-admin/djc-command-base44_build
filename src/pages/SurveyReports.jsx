@@ -71,6 +71,51 @@ export default function SurveyReports() {
         <p className="text-sm text-gray-500 mt-1">Post-event feedback analytics and service recovery tracking</p>
       </div>
 
+      {/* KPI Cards */}
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+        {/* Total Responses */}
+        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-1">
+          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Total Responses</p>
+          {kpiLoading ? (
+            <div className="h-8 w-16 bg-gray-100 rounded animate-pulse" />
+          ) : (
+            <p className="text-2xl font-bold text-gray-900">{total}</p>
+          )}
+          <p className="text-[11px] text-gray-400 flex items-center gap-1"><ClipboardList className="w-3 h-3" /> All time</p>
+        </div>
+
+        {/* Avg Score */}
+        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-1">
+          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Avg Score</p>
+          {kpiLoading ? (
+            <div className="h-8 w-16 bg-gray-100 rounded animate-pulse" />
+          ) : (
+            <p className={`text-2xl font-bold ${avgScore == null ? "text-gray-300" : avgScore >= 8 ? "text-emerald-700" : avgScore >= 6 ? "text-amber-700" : "text-red-700"}`}>
+              {avgScore != null ? <>{avgScore}<span className="text-sm font-normal text-gray-400">/10</span></> : "—"}
+            </p>
+          )}
+          <p className="text-[11px] text-gray-400 flex items-center gap-1"><Star className="w-3 h-3" /> Across {scored.length} scored</p>
+        </div>
+
+        {/* Low Score Count */}
+        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-1">
+          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Low Scores</p>
+          {kpiLoading ? (
+            <div className="h-8 w-16 bg-gray-100 rounded animate-pulse" />
+          ) : (
+            <p className={`text-2xl font-bold ${lowScoreCount > 0 ? "text-red-700" : "text-gray-900"}`}>{lowScoreCount}</p>
+          )}
+          <p className="text-[11px] text-gray-400 flex items-center gap-1"><AlertTriangle className="w-3 h-3" /> Flagged responses</p>
+        </div>
+
+        {/* Open Recovery Tasks */}
+        <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-1">
+          <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Open Recovery</p>
+          <p className={`text-2xl font-bold ${openRecoveryCount > 0 ? "text-amber-700" : "text-gray-900"}`}>{openRecoveryCount}</p>
+          <p className="text-[11px] text-gray-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Pending tasks</p>
+        </div>
+      </div>
+
       {/* Report Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
         {SURVEY_REPORT_LINKS.map(item => {
