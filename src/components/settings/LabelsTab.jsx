@@ -274,6 +274,12 @@ export default function LabelsTab() {
                 >
                   Groups {eventGroups.length > 0 && <span className="ml-1 opacity-70">({eventGroups.length})</span>}
                 </button>
+                <button
+                  onClick={() => setEventStatusSubTab("finance")}
+                  className={`px-3 py-1 rounded text-xs font-medium border transition-colors ${eventStatusSubTab === "finance" ? "bg-emerald-600 text-white border-emerald-600" : "bg-white text-gray-600 border-gray-200 hover:bg-gray-50"}`}
+                >
+                  Finance
+                </button>
               </div>
 
               {/* DEBUG BANNER */}
