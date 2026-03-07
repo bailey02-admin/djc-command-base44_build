@@ -117,6 +117,25 @@ export default function LabelsTab() {
     setGroupStatuses(group.statuses || []);
   };
 
+  const handleSaveFinanceStatuses = async () => {
+    setSavingFinance(true);
+    await base44.functions.invoke("saveStatusSettings", {
+      action: "upsert_group",
+      data: {
+        id: financeGroupId || undefined,
+        key: "finance_visible",
+        label: "Finance Visible Statuses",
+        description: "Events in these statuses appear in Finance reports (Payments list, Income by Month, A/R). Cancelled and Postponed are excluded by default.",
+        statuses: financeStatuses,
+        entity_key: "event",
+        required: true,
+      },
+    });
+    qc.invalidateQueries(["status-settings"]);
+    setSavingFinance(false);
+    toast.success("Finance status settings saved");
+  };
+
   const handleSaveGroup = async () => {
     if (editingGroup.key === "official_booked" && groupStatuses.length === 0) {
       toast.error("official_booked group cannot be empty");
