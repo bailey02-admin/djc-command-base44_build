@@ -369,8 +369,75 @@ export default function LabelsTab() {
             </div>
           )}
 
-          {/* Label rows — hidden when viewing groups sub-tab */}
-          <div className="min-h-[200px]" style={{ display: activeCategory === "event_status" && eventStatusSubTab === "groups" ? "none" : undefined }}>
+          {/* Finance sub-tab panel */}
+          {activeCategory === "event_status" && eventStatusSubTab === "finance" && (
+            <div className="space-y-4">
+              <div className="rounded-lg border border-emerald-200 bg-emerald-50/60 p-4">
+                <div className="flex items-start gap-3 mb-4">
+                  <div className="flex-1">
+                    <p className="text-sm font-semibold text-emerald-900">Finance Visible Statuses</p>
+                    <p className="text-xs text-emerald-700 mt-0.5">
+                      Only events with these statuses appear in Finance reports — Payments list, Income by Month, and future A/R pages.
+                      Changes take effect immediately on the next report load.
+                    </p>
+                  </div>
+                </div>
+
+                {financeStatuses === null ? (
+                  <div className="flex items-center gap-2 text-gray-400 py-2">
+                    <Loader2 className="w-4 h-4 animate-spin" /> Loading…
+                  </div>
+                ) : (
+                  <div className="space-y-3">
+                    <div className="flex flex-wrap gap-2">
+                      {allEventStatuses.map(s => {
+                        const active = financeStatuses.includes(s.key);
+                        return (
+                          <button
+                            key={s.key}
+                            onClick={() => setFinanceStatuses(prev =>
+                              active ? prev.filter(k => k !== s.key) : [...prev, s.key]
+                            )}
+                            className={`px-3 py-1.5 rounded-lg text-xs font-medium border transition-colors ${
+                              active
+                                ? "bg-emerald-600 text-white border-emerald-600"
+                                : "bg-white text-gray-500 border-gray-200 hover:bg-gray-50"
+                            }`}
+                          >
+                            {s.label || s.key}
+                          </button>
+                        );
+                      })}
+                    </div>
+
+                    {financeStatuses.length === 0 && (
+                      <p className="text-xs text-red-600">⚠️ At least one status must be selected — finance reports require a visible set.</p>
+                    )}
+
+                    <div className="flex items-center gap-2 pt-1 border-t border-emerald-200">
+                      <Button
+                        size="sm"
+                        className="bg-emerald-600 hover:bg-emerald-700 gap-1.5 h-8 text-xs"
+                        onClick={handleSaveFinanceStatuses}
+                        disabled={savingFinance || financeStatuses.length === 0}
+                      >
+                        {savingFinance ? <Loader2 className="w-3 h-3 animate-spin" /> : <Check className="w-3 h-3" />}
+                        Save Finance Statuses
+                      </Button>
+                      <span className="text-xs text-emerald-700 opacity-70">{financeStatuses.length} status{financeStatuses.length !== 1 ? "es" : ""} selected</span>
+                    </div>
+                  </div>
+                )}
+              </div>
+
+              <div className="rounded-lg bg-gray-50 border border-gray-200 p-3 text-xs text-gray-500">
+                <strong>Tip:</strong> Cancelled and Postponed are excluded by default. Enable them if you need to include refunded or rescheduled events in financial totals.
+              </div>
+            </div>
+          )}
+
+          {/* Label rows — hidden when viewing groups or finance sub-tab */}
+          <div className="min-h-[200px]" style={{ display: activeCategory === "event_status" && (eventStatusSubTab === "groups" || eventStatusSubTab === "finance") ? "none" : undefined }}>
             {isLoading ? (
               <div className="flex items-center justify-center h-32 text-gray-400">
                 <Loader2 className="w-5 h-5 animate-spin mr-2" /> Loading...
