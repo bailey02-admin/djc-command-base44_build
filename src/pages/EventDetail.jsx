@@ -57,16 +57,24 @@ export default function EventDetail() {
   const queryClient = useQueryClient();
   const [sendMsgOpen, setSendMsgOpen] = useState(false);
   const [user, setUser] = useState(null);
+  const [staffRole, setStaffRole] = useState(null);
   const [impersonating, setImpersonating] = useState(false);
   const [impersonateError, setImpersonateError] = useState(null);
-  useEffect(() => { base44.auth.me().then(setUser).catch(() => {}); }, []);
+  useEffect(() => {
+    base44.auth.me().then(setUser).catch(() => {});
+    // Resolve custom_role from StaffProfile (Truth Doc: always use StaffProfile.custom_role)
+    base44.functions.invoke("getCurrentStaffProfile", {}).then(res => {
+      setStaffRole(res.data?.profile?.custom_role || res.data?.user?.role || null);
+    }).catch(() => {});
+  }, []);
 
   const { statusColor, statusLabel, statusOptions } = useStatusSettings();
 
-  const canImpersonate = user && ["admin","city_manager","office_finalizer"].includes(user.role);
-  const canSeeFinance = user && ["admin","city_manager","sales_manager","finance"].includes(user.role);
-  const canEditEvent = user && ["admin","city_manager","sales_manager","office_finalizer"].includes(user.role);
-  const canManageStaff = user && ["admin","city_manager","sales_manager"].includes(user.role);
+  // All permission checks use StaffProfile.custom_role (canonical per Truth Doc)
+  const canImpersonate  = staffRole && ["admin","city_manager","office_finalizer"].includes(staffRole);
+  const canSeeFinance   = staffRole && ["admin","city_manager","sales_manager","finance"].includes(staffRole);
+  const canEditEvent    = staffRole && ["admin","city_manager","sales_manager","office_finalizer"].includes(staffRole);
+  const canManageStaff  = staffRole && ["admin","city_manager","sales_manager"].includes(staffRole);
 
   const handleViewAsClient = async () => {
     setImpersonating(true); setImpersonateError(null);
@@ -248,13 +256,27 @@ export default function EventDetail() {
                {/* Quote Summary */}
                {quoteSummary && (
                  <Card className="border-0 shadow-sm">
-                   <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold flex items-center gap-2"><FileText className="w-4 h-4 text-violet-500" />Quote Summary</CardTitle></CardHeader>
+                   <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold flex items-center gap-2"><FileText className="w-4 h-4 text-violet-500" />Financial Snapshot</CardTitle></CardHeader>
                    <CardContent>
                      <div className="grid grid-cols-2 sm:grid-cols-3 gap-x-6 gap-y-3 text-sm">
-                       <InfoRow label="Status" value={quoteSummary.status?.replace(/_/g, " ")} className="capitalize" />
-                       <InfoRow label="Total Amount" value={quoteSummary.total_amount ? `$${quoteSummary.total_amount.toLocaleString()}` : "—"} />
-                       <InfoRow label="Valid Until" value={quoteSummary.valid_until ? format(new Date(quoteSummary.valid_until), "MMM d, yyyy") : "—"} />
+                       <InfoRow label="Package" value={quoteSummary.package_name} />
+                       <InfoRow label="Total Fee" value={quoteSummary.total_amount ? `$${quoteSummary.total_amount.toLocaleString()}` : "—"} />
+                       {quoteSummary.discount_amount > 0 && <InfoRow label="Discount" value={`-$${quoteSummary.discount_amount.toLocaleString()}`} />}
+                       {quoteSummary.tax_amount > 0 && <InfoRow label="Tax" value={`$${quoteSummary.tax_amount.toLocaleString()}`} />}
                      </div>
+                     {quoteSummary.add_ons?.length > 0 && (
+                       <div className="mt-3 pt-3 border-t border-gray-100">
+                         <p className="text-xs font-semibold text-gray-400 uppercase mb-1.5">Add-ons ({quoteSummary.add_ons.length})</p>
+                         <div className="space-y-1">
+                           {quoteSummary.add_ons.map((a, i) => (
+                             <div key={i} className="flex justify-between text-xs text-gray-600">
+                               <span>{a.name}{a.qty > 1 ? ` x${a.qty}` : ""}</span>
+                               <span className="text-gray-400">${((a.unit_price || a.amount || 0) * (a.qty || 1)).toLocaleString()}</span>
+                             </div>
+                           ))}
+                         </div>
+                       </div>
+                     )}
                    </CardContent>
                  </Card>
                )}

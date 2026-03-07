@@ -296,7 +296,8 @@ export default function FinalizerQueue() {
   }, [events]);
 
   const handleMarkReadyForDJ = async (event) => {
-    await EventAPI.update(event.id, { status: "dj_assigned", dj_briefed: true });
+    // "finalized" is the canonical Truth-Doc status for DJ-ready events
+    await EventAPI.update(event.id, { status: "finalized", dj_briefed: true });
     queryClient.invalidateQueries(["finalizer-events"]);
   };
 
