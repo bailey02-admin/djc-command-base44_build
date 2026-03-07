@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { AlertCircle, ChevronRight } from "lucide-react";
 import { PIPELINE_STAGES, getMissingFieldsForStage } from "../crm/pipeline";
+import { LeadAPI } from "@/components/api/secureApi";
 
 const FIELD_LABELS = {
   phone: "Phone Number",
