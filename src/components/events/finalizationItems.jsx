@@ -1,7 +1,10 @@
 /**
- * CANONICAL finalization checklist definition — single source of truth for UI.
- * Backend enforces the same logic in functions/mutateEvent.js (FINALIZATION_REQUIRED).
- * Keep these two in sync manually if adding/removing items.
+ * UI finalization checklist definition — mirrors the backend canonical list.
+ *
+ * IMPORTANT: functions/mutateEvent.js (FINALIZATION_REQUIRED) is the authoritative
+ * server-side copy. This file is UI-only (display + client-side hints).
+ * Any changes to blocking items MUST be applied to both files.
+ * Backend enforcement cannot be bypassed by direct API calls.
  */
 export const FINALIZATION_ITEMS = [
   { key: "contract_signed",         label: "Contract signed",           category: "legal",    blocking: true  },
