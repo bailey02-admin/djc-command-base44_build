@@ -224,6 +224,9 @@ Deno.serve(async (req) => {
       }
 
       const cleaned = stripProtectedFields({ ...data }, role);
+      // readiness_score is always recomputed server-side; never trust client value
+      delete cleaned.readiness_score;
+      cleaned.readiness_score = computeReadinessScore({ ...ev, ...cleaned });
       const updated = await base44.asServiceRole.entities.Event.update(id, cleaned);
       await base44.asServiceRole.entities.Activity.create({
         type: "status_change",
