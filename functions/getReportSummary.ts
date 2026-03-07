@@ -7,9 +7,21 @@
  * - Hard cap: 1000 leads/events max per report (prevents catastrophic scans)
  * - city_filter pushed to DB where possible
  */
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 const REPORT_DENIED = new Set(["client", "dj"]);
+
+async function resolveProfile(base44, user) {
+  try {
+    const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email });
+    const profile = profiles?.[0];
+    if (profile) {
+      if (profile.is_active === false) return { role: null, deactivated: true, profile: null };
+      return { role: profile.custom_role || user.role || "sales_rep", deactivated: false, profile };
+    }
+  } catch (_) {}
+  return { role: user.role || "sales_rep", deactivated: false, profile: null };
+}
 
 Deno.serve(async (req) => {
   try {
@@ -17,8 +29,9 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const role = user.role || "sales_rep";
-    if (REPORT_DENIED.has(role)) {
+    const { role, deactivated, profile } = await resolveProfile(base44, user);
+    if (deactivated) return Response.json({ error: "Account deactivated" }, { status: 403 });
+    if (!role || REPORT_DENIED.has(role)) {
       return Response.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -32,18 +45,27 @@ Deno.serve(async (req) => {
     const fromDate = date_from || defaultFrom;
     const toDate   = date_to   || defaultTo;
 
-    // Build DB filters — push city to DB where possible
+    // Build DB filters — use StaffProfile.cities[] for scoping (canonical)
     const leadDbFilter  = { is_deleted: false };
     const eventDbFilter = { is_deleted: false };
 
-    if (role === "city_manager" && user.city) {
-      leadDbFilter.city  = user.city;
-      eventDbFilter.city = user.city;
+    // City scoping via StaffProfile.cities[] array (Truth Doc canonical)
+    const profileCities = profile?.cities?.length > 0
+      ? profile.cities
+      : (profile?.default_city ? [profile.default_city] : []);
+
+    if (role === "city_manager") {
+      // city_managers are scoped to their cities; if city_filter provided must be within scope
+      if (profileCities.length === 1) {
+        leadDbFilter.city  = profileCities[0];
+        eventDbFilter.city = profileCities[0];
+      }
+      // multi-city city_manager: filter in-memory below
     } else if (role === "sales_rep") {
-      if (user.city) {
-        leadDbFilter.city  = user.city;
-        eventDbFilter.city = user.city;
-      } else {
+      if (profileCities.length === 1) {
+        leadDbFilter.city  = profileCities[0];
+        eventDbFilter.city = profileCities[0];
+      } else if (profileCities.length === 0) {
         leadDbFilter.assigned_rep = user.email;
       }
     } else if (city_filter !== "all") {
@@ -66,10 +88,19 @@ Deno.serve(async (req) => {
       e.event_date ? e.event_date >= fromDate && e.event_date <= toDate : true
     );
 
-    // Apply additional city filter from UI (for admin/manager viewing specific city)
-    if (city_filter !== "all" && !["city_manager", "sales_rep"].includes(role)) {
-      leads  = leads.filter(l => l.city === city_filter);
-      events = events.filter(e => e.city === city_filter);
+    // Apply additional city filter
+    if (city_filter !== "all") {
+      if (!["city_manager", "sales_rep"].includes(role)) {
+        leads  = leads.filter(l => l.city === city_filter);
+        events = events.filter(e => e.city === city_filter);
+      }
+    }
+
+    // Multi-city city_manager scoping — filter to profile.cities[]
+    if (role === "city_manager" && profileCities.length > 1) {
+      const citySet = new Set(profileCities);
+      leads  = leads.filter(l => citySet.has(l.city));
+      events = events.filter(e => citySet.has(e.city));
     }
 
     const fl = leads;
@@ -124,7 +155,7 @@ Deno.serve(async (req) => {
           booked: events.filter(e => e.city === city && ["booked","finalized","completed"].includes(e.status)).length,
           completed: events.filter(e => e.city === city && e.status === "completed").length,
           revenue: realPayments.filter(p => {
-            const ev = events.find(e => e.id === p.event_id);
+            const ev = allEvents.find(e => e.id === p.event_id);
             return ev?.city === city && p.status === "paid";
           }).reduce((s, p) => s + (p.amount || 0), 0),
         }))
@@ -145,8 +176,10 @@ Deno.serve(async (req) => {
     // Key metrics
     const totalRevenue = realPayments.filter(p => p.status === "paid").reduce((s, p) => s + (p.amount || 0), 0);
     const bookingRate = fl.length > 0 ? Math.round((fl.filter(l => l.status === "booked").length / fl.length) * 100) : 0;
-    const avgBookingValue = fe.filter(e => e.package_price).length > 0
-      ? Math.round(fe.filter(e => e.package_price).reduce((s, e) => s + e.package_price, 0) / fe.filter(e => e.package_price).length) : 0;
+    // Use total_fee (canonical snapshot field) — fallback to package_price for legacy records
+    const eventsWithFee = fe.filter(e => e.total_fee || e.package_price);
+    const avgBookingValue = eventsWithFee.length > 0
+      ? Math.round(eventsWithFee.reduce((s, e) => s + (e.total_fee || e.package_price || 0), 0) / eventsWithFee.length) : 0;
     const respondedLeads = fl.filter(l => l.sla_minutes_elapsed != null);
     const avgResponseMin = respondedLeads.length > 0
       ? Math.round(respondedLeads.reduce((s, l) => s + l.sla_minutes_elapsed, 0) / respondedLeads.length) : null;
