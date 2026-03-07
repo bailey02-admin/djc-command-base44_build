@@ -26,7 +26,11 @@ export default function LeadPipelineKanban({ leads, onRefresh }) {
     e.preventDefault();
     const leadId = e.dataTransfer.getData("leadId");
     if (leadId) {
-      await base44.entities.Lead.update(leadId, { pipeline_stage: stage });
+      // Route through mutateLead so all transition + field validation gates apply
+      await LeadAPI.advanceStage(leadId, { pipeline_stage: stage }).catch(() => {
+        // If transition is invalid (e.g. dropping to a non-adjacent stage), silently ignore —
+        // the backend 422 is the authoritative rejection; UI will re-render unchanged on refresh
+      });
       onRefresh?.();
     }
   };
