@@ -7,7 +7,7 @@ import {
   FileText, MessageSquare, DollarSign, Building2, ChevronLeft,
   ChevronRight, LogOut, Menu, Disc3, UserCircle, Settings,
   Layers, Music2, FileSignature, Archive, Users,
-  TrendingUp, Sliders, Package, Sparkles, LayoutList, Wrench, ChevronDown, ClipboardList
+  TrendingUp, Sliders, Package, Sparkles, LayoutList, Wrench, ChevronDown
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import GlobalSearch from "./components/layout/GlobalSearch";
