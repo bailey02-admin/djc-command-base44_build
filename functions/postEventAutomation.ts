@@ -7,7 +7,7 @@
  * Idempotency: checks AutomationLog for existing trigger+event_id before acting.
  * Logs to AutomationLog + Activity feed.
  */
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 const POST_EVENT_TASKS = [
   {
@@ -57,9 +57,11 @@ function addDays(days) {
   return d.toISOString().split("T")[0];
 }
 
-async function isAlreadyFired(base44, trigger, event_id) {
-  const logs = await base44.asServiceRole.entities.AutomationLog.filter({ trigger, related_id: event_id }, "-created_date", 1);
-  return logs.length > 0;
+async function isAlreadyFired(base44, trigger, event_id, idempotency_key = null) {
+  const logs = await base44.asServiceRole.entities.AutomationLog.filter({ trigger, related_id: event_id }, "-created_date", 5);
+  if (!idempotency_key) return logs.length > 0;
+  // Key-scoped: check if this specific key has already fired (e.g. survey response_id)
+  return logs.some(l => l.idempotency_key === idempotency_key);
 }
 
 Deno.serve(async (req) => {
@@ -123,39 +125,51 @@ Deno.serve(async (req) => {
     }
 
     // ── SURVEY RECEIVED ────────────────────────────────────────────
+    // Supports both legacy survey_score field and new SurveyResponse system.
+    // Callers should pass: { action, event_id, survey_score, response_id? }
+    // survey_score is on 1-10 scale (SurveyResponse.average_score).
+    // low_score_threshold defaults to 7.0 (Truth Doc canonical).
     if (action === "survey_received") {
-      const { survey_score } = body;
+      const { survey_score, response_id } = body;
       if (survey_score === undefined || survey_score === null) {
         return Response.json({ error: "survey_score required" }, { status: 400 });
       }
 
-      // Idempotency: only one survey_received log per event
-      const alreadyFired = await isAlreadyFired(base44, "survey_received", event_id);
+      // Idempotency: scoped by response_id when provided (supports multiple surveys per event)
+      // Falls back to event-level idempotency when no response_id (legacy path)
+      const idempotencyKey = response_id || null;
+      const alreadyFired = await isAlreadyFired(base44, "survey_received", event_id, idempotencyKey);
       if (alreadyFired) {
-        return Response.json({ skipped: true, reason: "Survey already processed for this event" });
+        return Response.json({ skipped: true, reason: "Survey already processed", idempotency_key: idempotencyKey });
       }
 
-      const isLowScore = survey_score < 4;
+      // Low score threshold: 7.0 on 1-10 scale (Truth Doc canonical)
+      const LOW_SCORE_THRESHOLD = 7.0;
+      const isLowScore = survey_score < LOW_SCORE_THRESHOLD;
+
       const tasks = isLowScore
         ? LOW_SCORE_TASKS.map(t => ({
             title: t.title,
-            category: t.category,
+            category: "survey",
             priority: t.priority,
             due_date: addDays(t.due_days),
             related_type: "event",
             related_id: event_id,
             related_name: event.event_name,
+            related_id_secondary: response_id || null,
             status: "pending",
           }))
         : [];
 
-      await Promise.all(tasks.map(t => base44.asServiceRole.entities.Task.create(t)));
+      if (tasks.length > 0) {
+        await Promise.all(tasks.map(t => base44.asServiceRole.entities.Task.create(t)));
+      }
 
-      // Update event with survey data
+      // Update event survey summary fields (non-blocking — best effort)
       await base44.asServiceRole.entities.Event.update(event_id, {
-        survey_score,
-        status: survey_score >= 4 ? "survey_sent" : event.status,
-      });
+        survey_avg: survey_score,
+        ...(isLowScore ? { survey_flag: "low_score" } : {}),
+      }).catch(() => {});
 
       await base44.asServiceRole.entities.AutomationLog.create({
         trigger: "survey_received",
@@ -163,14 +177,15 @@ Deno.serve(async (req) => {
         related_id: event_id,
         related_name: event.event_name,
         tasks_created: tasks.length,
-        notes: `Survey score: ${survey_score}/5${isLowScore ? " — LOW SCORE, service recovery tasks created" : ""}`,
+        idempotency_key: idempotencyKey,
+        notes: `Survey score: ${survey_score}/10 (threshold ${LOW_SCORE_THRESHOLD})${isLowScore ? " — LOW SCORE, service recovery tasks created" : ""}`,
       });
 
       await base44.asServiceRole.entities.Activity.create({
         type: "system",
         subject: isLowScore
-          ? `⚠️ Low survey score (${survey_score}/5) — service recovery initiated`
-          : `Survey received — score ${survey_score}/5`,
+          ? `⚠️ Low survey score (${survey_score}/10) — service recovery initiated`
+          : `Survey received — score ${survey_score}/10`,
         description: isLowScore ? `${tasks.length} service recovery tasks created` : undefined,
         related_type: "event",
         related_id: event_id,
@@ -179,7 +194,7 @@ Deno.serve(async (req) => {
         performed_by: "system:survey",
       });
 
-      return Response.json({ ok: true, low_score: isLowScore, tasks_created: tasks.length });
+      return Response.json({ ok: true, low_score: isLowScore, tasks_created: tasks.length, threshold: LOW_SCORE_THRESHOLD });
     }
 
     return Response.json({ error: `Unknown action: ${action}` }, { status: 400 });
