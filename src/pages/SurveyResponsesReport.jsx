@@ -18,9 +18,15 @@ const TASK_STATUS_COLORS = {
   cancelled:   "bg-gray-50 text-gray-400 border-gray-200",
 };
 
+const PAGE_SIZE = 50;
+
 export default function SurveyResponsesReport() {
   const [filters, setFilters] = useState({ date_from: "", date_to: "", city: "", dj_id: "", template_id: "", low_score_only: false, search: "" });
-  const [viewingResponse, setViewingResponse] = useState(null); // { id, event_name }
+  const [page, setPage] = useState(0);
+  const [viewingResponse, setViewingResponse] = useState(null);
+
+  // Reset to page 0 when filters change
+  const handleFilterChange = (f) => { setFilters(f); setPage(0); };
 
   const { data: djData } = useQuery({
     queryKey: ["dj-profiles-list"],
@@ -35,15 +41,20 @@ export default function SurveyResponsesReport() {
   });
 
   const { data, isLoading } = useQuery({
-    queryKey: ["survey-responses-report", filters],
-    queryFn: () => base44.functions.invoke("getSurveyResponsesReport", { ...filters, limit: 500, skip: 0 }).then(r => r.data),
+    queryKey: ["survey-responses-report", filters, page],
+    queryFn: () => base44.functions.invoke("getSurveyResponsesReport", { ...filters, limit: PAGE_SIZE, skip: page * PAGE_SIZE }).then(r => r.data),
     keepPreviousData: true,
   });
 
   const rows = data?.rows || [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.ceil(total / PAGE_SIZE);
 
-  const handleExport = () => {
-    const csvRows = rows.map(r => ({
+  // For export, fetch all without pagination
+  const handleExport = async () => {
+    const allData = await base44.functions.invoke("getSurveyResponsesReport", { ...filters, limit: 2000, skip: 0 }).then(r => r.data);
+    const allRows = allData?.rows || [];
+    const csvRows = allRows.map(r => ({
       "Submitted At": r.submitted_at ? format(new Date(r.submitted_at), "yyyy-MM-dd HH:mm") : "",
       "Event Date": r.event_date || "",
       "Event Name": r.event_name,
@@ -53,7 +64,9 @@ export default function SurveyResponsesReport() {
       "Template": r.template_name,
       "Avg Score": r.average_score ?? "",
       "Low Score Flag": r.low_score_flag ? "Yes" : "No",
+      "Recovery Task": r.recovery_task_title || "",
       "Recovery Task Status": r.recovery_task_status || "None",
+      "Recovery Assigned To": r.recovery_task_assigned_to || "",
       "Comments": r.comments_summary || "",
     }));
     exportToCsv(`survey-responses-${format(new Date(), "yyyy-MM-dd")}.csv`, csvRows);
