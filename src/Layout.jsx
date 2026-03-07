@@ -27,7 +27,7 @@ const ALL_NAV_ITEMS = [
   { name: "Payments",        icon: DollarSign,      page: "Payments" },
   { name: "Finance",         icon: TrendingUp,      page: "FinanceIncoming", roles: ["admin", "finance", "city_manager"] },
   { name: "Templates",       icon: MessageSquare,   page: "MessageTemplates" },
-  { name: "Reports",         icon: FileText,        page: "Reports" },
+  { name: "Reports",         icon: FileText,        page: "Reports",        roles: ["admin", "city_manager", "sales_manager", "production_manager", "office_finalizer", "finance"] },
   { name: "Archive",         icon: Archive,         page: "ArchivedRecords" },
   { name: "Users",           icon: Users,           page: "Users" },
   // Settings is rendered as a group — see SETTINGS_SUBNAV below
