@@ -38,6 +38,7 @@ const SETTINGS_SUBNAV = [
   { name: "Timeline Templates",   icon: LayoutList,   page: "TimelineTemplates",   roles: ["admin", "city_manager", "sales_manager", "office_finalizer"] },
   { name: "Packages",             icon: Package,      page: "PackagesSettings",    roles: ["admin", "finance", "city_manager", "sales_manager"] },
   { name: "Add-Ons",              icon: Sparkles,     page: "AddOnsSettings",      roles: ["admin", "finance", "city_manager", "sales_manager"] },
+  { name: "Surveys",              icon: ClipboardList, page: "SurveyTemplates",   roles: ["admin", "city_manager", "office_finalizer", "sales_manager"] },
   { name: "Admin Tools",          icon: Wrench,       page: "SettingsAdminTools",  roles: ["admin"] },
 ];
 

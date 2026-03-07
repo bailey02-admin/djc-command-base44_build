@@ -52,6 +52,8 @@ const PAGE_ACCESS = {
   FinancePayments:          ["admin", "finance", "city_manager"],
   FinanceIncoming:          ["admin", "finance", "city_manager"],
   SettingsAdminTools:       ["admin"],
+  SurveyTemplates:          ["admin", "city_manager", "office_finalizer", "sales_manager"],
+  SurveyTemplateBuilder:    ["admin", "city_manager", "office_finalizer", "sales_manager"],
 };
 
 // Pages that bypass auth entirely
