@@ -106,6 +106,30 @@ export default function SurveyTrendsByDJ() {
         djs={djData || []}
       />
 
+      {/* DJ Ranking Chart */}
+      {chartData.length > 0 && (
+        <div className="bg-white border border-gray-200 rounded-xl p-5">
+          <h2 className="text-sm font-semibold text-gray-700 mb-4">DJ Score Ranking</h2>
+          <ResponsiveContainer width="100%" height={200}>
+            <BarChart data={chartData} margin={{ top: 4, right: 8, left: -20, bottom: 4 }}>
+              <XAxis dataKey="name" tick={{ fontSize: 11, fill: "#6b7280" }} axisLine={false} tickLine={false} />
+              <YAxis domain={[0, 10]} tick={{ fontSize: 11, fill: "#9ca3af" }} axisLine={false} tickLine={false} />
+              <Tooltip content={<CustomTooltip />} cursor={{ fill: "#f3f4f6" }} />
+              <ReferenceLine y={7} stroke="#fca5a5" strokeDasharray="3 3" label={{ value: "Threshold", position: "right", fontSize: 10, fill: "#ef4444" }} />
+              <Bar dataKey="score" radius={[4, 4, 0, 0]}>
+                {chartData.map((entry, idx) => (
+                  <Cell
+                    key={idx}
+                    fill={entry.score >= 8 ? "#34d399" : entry.score >= 6 ? "#fbbf24" : "#f87171"}
+                  />
+                ))}
+              </Bar>
+            </BarChart>
+          </ResponsiveContainer>
+          <p className="text-[11px] text-gray-400 mt-2">Dashed line = 7.0 low-score threshold · Showing top {chartData.length} DJs by avg score</p>
+        </div>
+      )}
+
       {/* Table */}
       <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
         {isLoading ? (
