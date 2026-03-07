@@ -93,6 +93,9 @@ import Users from './pages/Users';
 import Venues from './pages/Venues';
 import SurveyTemplates from './pages/SurveyTemplates';
 import SurveyTemplateBuilder from './pages/SurveyTemplateBuilder';
+import SurveyResponsesReport from './pages/SurveyResponsesReport';
+import SurveyTrendsByDJ from './pages/SurveyTrendsByDJ';
+import SurveyLowScoreQueue from './pages/SurveyLowScoreQueue';
 import __Layout from './Layout.jsx';
 
 
@@ -143,6 +146,9 @@ export const PAGES = {
     "Venues": Venues,
     "SurveyTemplates": SurveyTemplates,
     "SurveyTemplateBuilder": SurveyTemplateBuilder,
+    "SurveyResponsesReport": SurveyResponsesReport,
+    "SurveyTrendsByDJ": SurveyTrendsByDJ,
+    "SurveyLowScoreQueue": SurveyLowScoreQueue,
 }
 
 export const pagesConfig = {
