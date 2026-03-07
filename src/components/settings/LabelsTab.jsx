@@ -74,10 +74,13 @@ export default function LabelsTab() {
   const [wiping, setWiping] = useState(false);
   const [seedResult, setSeedResult] = useState(null);
 
-  const [eventStatusSubTab, setEventStatusSubTab] = useState("statuses"); // "statuses" | "groups"
+  const [eventStatusSubTab, setEventStatusSubTab] = useState("statuses"); // "statuses" | "groups" | "finance"
   const [editingGroup, setEditingGroup] = useState(null); // group being edited
   const [groupStatuses, setGroupStatuses] = useState([]); // statuses[] for editingGroup
   const [savingGroup, setSavingGroup] = useState(false);
+  const [financeStatuses, setFinanceStatuses] = useState(null); // null = not loaded yet
+  const [financeGroupId, setFinanceGroupId] = useState(null);
+  const [savingFinance, setSavingFinance] = useState(false);
 
   const { data: records = [], isLoading } = useQuery({
     queryKey: ["label_map"],
