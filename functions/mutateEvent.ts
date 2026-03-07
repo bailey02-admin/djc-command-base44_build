@@ -350,6 +350,10 @@ Deno.serve(async (req) => {
         }
       }
 
+      // Recompute readiness_score from the merged state (old + incoming)
+      const mergedForScore = { ...preUpdateEvent, ...cleaned };
+      cleaned.readiness_score = computeReadinessScore(mergedForScore);
+
       const updated = await base44.asServiceRole.entities.Event.update(id, cleaned);
 
       // ── Track client-visible field changes post-DJ-review ─────────
