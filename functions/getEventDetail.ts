@@ -134,14 +134,12 @@ Deno.serve(async (req) => {
         return Response.json({ error: "Forbidden: not your event" }, { status: 403 });
       }
 
-      const [musicSelections, timeline, rawPayments, planning, links, leadRows, quoteRes] = await Promise.all([
+      const [musicSelections, timeline, rawPayments, planning, links] = await Promise.all([
         base44.asServiceRole.entities.MusicSelection.filter({ event_id: id }, "category", 100),
         base44.asServiceRole.entities.TimelineItem.filter({ event_id: id }, "order", 50),
         base44.asServiceRole.entities.Payment.filter({ event_id: id }, "-created_date", 50),
         base44.asServiceRole.entities.EventPlanning.filter({ event_id: id }).then(r => r[0] || null),
         fetchLinks(base44, event),
-        event.lead_id ? base44.asServiceRole.entities.Lead.filter({ id: event.lead_id }) : Promise.resolve([]),
-        event.lead_id ? base44.asServiceRole.functions.invoke("getQuotes", { lead_id: event.lead_id }).catch(() => ({ quotes: [] })) : Promise.resolve({ quotes: [] }),
       ]);
 
       const { amount_paid_total, remaining_balance } = computePaymentSummary(rawPayments, event);
@@ -150,25 +148,21 @@ Deno.serve(async (req) => {
         if (event[f] !== undefined) safeEvent[f] = event[f];
       }
 
-      const lead = leadRows[0] || null;
-      const quoteData = quoteRes.quotes && quoteRes.quotes[0] ? {
-        id: quoteRes.quotes[0].id,
-        status: quoteRes.quotes[0].status,
-        total_amount: quoteRes.quotes[0].total_amount,
-        valid_until: quoteRes.quotes[0].valid_until,
+      // Quote summary — built from Event snapshot fields only (no live Quote read post-conversion)
+      const quoteSnapshot = (event.total_fee || event.package_price) ? {
+        package_name: event.package_name || null,
+        total_amount: event.total_fee || event.package_price || 0,
+        add_ons: event.add_ons || [],
+        discount_amount: event.discount_amount || 0,
+        tax_amount: event.tax_amount || 0,
+        source: "event_snapshot",
       } : null;
 
       return Response.json({
         event: { ...safeEvent, event_id: event.id, amount_paid_total, remaining_balance,
           payment_link: links.payment_link, finalizer_call_link: links.finalizer_call_link },
-        lead_summary: lead ? {
-          id: lead.id,
-          client_name: `${lead.client_first_name} ${lead.client_last_name || ""}`.trim(),
-          assigned_rep: lead.assigned_rep,
-          lead_source: lead.lead_source,
-          inquiry_date: lead.inquiry_date,
-        } : null,
-        quote_summary: quoteData,
+        lead_summary: null,
+        quote_summary: quoteSnapshot,
         timeline, musicSelections, planning, contact: null, activities: [], tasks: [], payments: [],
       });
     }
@@ -183,7 +177,7 @@ Deno.serve(async (req) => {
           .then(r => safeContactSummary(r[0] || null, role))
       : Promise.resolve(null);
 
-    const [rawActivities, tasks, rawPayments, musicSelections, timeline, planningArr, contact, leadRows, quoteRes] = await Promise.all([
+    const [rawActivities, tasks, rawPayments, musicSelections, timeline, planningArr, contact, leadRows] = await Promise.all([
       base44.asServiceRole.entities.Activity.filter({ related_id: id }, "-created_date", 50),
       base44.asServiceRole.entities.Task.filter({ related_id: id }, "-due_date", 20),
       base44.asServiceRole.entities.Payment.filter({ event_id: id }, "-created_date", 50),
@@ -192,7 +186,6 @@ Deno.serve(async (req) => {
       base44.asServiceRole.entities.EventPlanning.filter({ event_id: id }),
       contactPromise,
       event.lead_id ? base44.asServiceRole.entities.Lead.filter({ id: event.lead_id }) : Promise.resolve([]),
-      event.lead_id ? base44.asServiceRole.functions.invoke("getQuotes", { lead_id: event.lead_id }).catch(() => ({ quotes: [] })) : Promise.resolve({ quotes: [] }),
     ]);
 
     let activities;
@@ -206,13 +199,16 @@ Deno.serve(async (req) => {
 
     const redacted = redactEvent(event, role);
 
-    // PHASE D: Prepare lead + quote summaries
+    // Lead summary + quote snapshot from Event fields only (no live Quote read post-conversion)
     const lead = leadRows[0] || null;
-    const quoteData = quoteRes.quotes && quoteRes.quotes[0] ? {
-      id: quoteRes.quotes[0].id,
-      status: quoteRes.quotes[0].status,
-      total_amount: quoteRes.quotes[0].total_amount,
-      valid_until: quoteRes.quotes[0].valid_until,
+    const quoteData = (event.total_fee || event.package_price) ? {
+      package_name: event.package_name || null,
+      total_amount: event.total_fee || event.package_price || 0,
+      add_ons: event.add_ons || [],
+      discount_amount: event.discount_amount || 0,
+      tax_amount: event.tax_amount || 0,
+      travel_fee: event.travel_fee || 0,
+      source: "event_snapshot",
     } : null;
     const leadSummary = lead ? {
       id: lead.id,
