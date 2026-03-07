@@ -26,17 +26,60 @@ const WRITE_PROTECTED_FIELDS = {
   sales_rep: ["package_price", "discount_amount", "total_fee", "deposit_amount", "quote_amount"],
 };
 
-// Valid forward stage order (no skipping more than 2 steps; no backward moves without override)
+// Canonical stage order — index used for forward/backward enforcement
 const STAGE_ORDER = [
   "new_inquiry","attempted_contact","contacted","qualified",
   "consultation_scheduled","consultation_completed","quote_sent",
   "follow_up","deposit_requested","booked","lost","ghosted","disqualified",
 ];
 
-// Required fields per target stage (server-side source of truth)
+// Stages that are "exit" stages — can always be entered regardless of position
+const EXIT_STAGES = new Set(["lost","ghosted","disqualified"]);
+
+// Explicit allowed transitions: from → Set of valid targets
+// Omitted stages default to: forward-only within STAGE_ORDER (no skip > 1 step)
+// Exit stages can be reached from any non-exit stage.
+const ALLOWED_TRANSITIONS = {
+  new_inquiry:            new Set(["attempted_contact","contacted","qualified","lost","ghosted","disqualified"]),
+  attempted_contact:      new Set(["contacted","qualified","lost","ghosted","disqualified"]),
+  contacted:              new Set(["qualified","consultation_scheduled","quote_sent","lost","ghosted","disqualified"]),
+  qualified:              new Set(["consultation_scheduled","consultation_completed","quote_sent","follow_up","lost","ghosted","disqualified"]),
+  consultation_scheduled: new Set(["consultation_completed","quote_sent","follow_up","lost","ghosted","disqualified"]),
+  consultation_completed: new Set(["quote_sent","follow_up","deposit_requested","lost","ghosted","disqualified"]),
+  quote_sent:             new Set(["follow_up","deposit_requested","booked","lost","ghosted","disqualified"]),
+  follow_up:              new Set(["quote_sent","deposit_requested","booked","lost","ghosted","disqualified"]),
+  deposit_requested:      new Set(["booked","lost","ghosted","disqualified"]),
+  booked:                 new Set(["lost","ghosted","disqualified"]),
+  lost:                   new Set(["new_inquiry"]),       // allow re-open
+  ghosted:                new Set(["new_inquiry","attempted_contact"]),
+  disqualified:           new Set(["new_inquiry"]),
+};
+
+// pipeline_stage → status field sync (canonical status that matches a stage)
+const STAGE_TO_STATUS = {
+  new_inquiry:            "new",
+  attempted_contact:      "attempted_contact",
+  contacted:              "contacted",
+  qualified:              "qualified",
+  consultation_scheduled: "consultation_scheduled",
+  consultation_completed: "qualified",
+  quote_sent:             "quote_sent",
+  follow_up:              "follow_up",
+  deposit_requested:      "deposit_requested",
+  booked:                 "booked",
+  lost:                   "lost",
+  ghosted:                "ghosted",
+  disqualified:           "disqualified",
+};
+
+/**
+ * CANONICAL server-side required fields per target stage.
+ * MUST STAY IN SYNC with components/crm/pipeline.js PIPELINE_STAGES[].required_fields.
+ * Backend is the source of truth — UI reads from its own copy for display only.
+ */
 const STAGE_REQUIRED_FIELDS = {
   attempted_contact:      ["phone"],
-  contacted:              ["phone"],
+  contacted:              ["phone","first_response_date"],
   qualified:              ["event_date","city","lead_source"],
   consultation_scheduled: ["event_date","city","consultation_date"],
   consultation_completed: ["event_date","city"],
