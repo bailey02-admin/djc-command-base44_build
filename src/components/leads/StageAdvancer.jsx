@@ -57,6 +57,9 @@ export default function StageAdvancer({ lead, onUpdate }) {
     if (targetStage === "booked" && !lead.booked_date) updates.booked_date = now;
     if (targetStage === "deposit_requested" && !lead.deposit_requested_date) updates.deposit_requested_date = now;
 
+    // Route through advance_stage action so all backend transition gates apply.
+    // onUpdate callback is still called for UI-side side effects (automations, query invalidation).
+    await LeadAPI.advanceStage(lead.id, updates);
     await onUpdate(updates, targetStage);
     setSaving(false);
     setOpen(false);
