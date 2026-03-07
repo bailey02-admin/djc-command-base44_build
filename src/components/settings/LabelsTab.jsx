@@ -282,15 +282,6 @@ export default function LabelsTab() {
                 </button>
               </div>
 
-              {/* DEBUG BANNER */}
-              <div className="mb-3 px-3 py-2 bg-blue-50 border border-blue-200 rounded text-xs text-blue-700 font-mono">
-                🔍 eventGroups count: <strong>{eventGroups.length}</strong>
-                {eventGroups.length > 0 && (
-                  <span> — {eventGroups.map(g => g.key).join(", ")}</span>
-                )}
-                {isLoadingGroups && <span> (loading...)</span>}
-              </div>
-
               {eventStatusSubTab === "groups" && (
                 <div className="space-y-3">
                   {isLoadingGroups ? (
