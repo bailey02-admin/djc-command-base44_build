@@ -3,7 +3,7 @@ import { useQuery } from "@tanstack/react-query";
 import { base44 } from "@/api/base44Client";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
-import { ClipboardList, TrendingUp, AlertTriangle, ChevronRight, Loader2, Eye } from "lucide-react";
+import { ClipboardList, TrendingUp, AlertTriangle, ChevronRight, Loader2, Eye, Star, CheckCircle2 } from "lucide-react";
 import { createPageUrl } from "@/utils";
 import { useNavigate } from "react-router-dom";
 import { format } from "date-fns";

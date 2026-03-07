@@ -10,6 +10,7 @@ import { useNavigate } from "react-router-dom";
 import { exportToCsv } from "@/components/finance/exportCsv";
 import SurveyReportFilters from "@/components/surveys/SurveyReportFilters";
 import SurveyScoreBadge from "@/components/surveys/SurveyScoreBadge";
+import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, ReferenceLine } from "recharts";
 
 export default function SurveyTrendsByDJ() {
   const navigate = useNavigate();

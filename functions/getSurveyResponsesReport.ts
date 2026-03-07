@@ -105,6 +105,8 @@ Deno.serve(async (req) => {
 
         recovery_task_id: task?.id || null,
         recovery_task_status: task?.status || null,
+        recovery_task_title: task?.title || null,
+        recovery_task_assigned_to: task?.assigned_to || null,
       };
 
       // Search filter
