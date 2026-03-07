@@ -87,14 +87,21 @@ Deno.serve(async (req) => {
       staffProfile = profiles?.[0];
     } catch (_) {}
 
-    // Role-based DB scoping
+    // City scoping using StaffProfile.cities[] (canonical per Truth Doc)
+    const profileCities = staffProfile?.cities?.length > 0
+      ? staffProfile.cities
+      : (staffProfile?.default_city ? [staffProfile.default_city] : []);
+
     const fullAccessRoles = new Set(["admin", "sales_manager", "finance", "office_finalizer"]);
     if (!fullAccessRoles.has(role)) {
-      if (role === "city_manager" && staffProfile?.default_city) {
-        dbFilter.city = staffProfile.default_city;
+      if (role === "city_manager") {
+        // Single-city: push to DB. Multi-city: filter in memory after fetch.
+        if (profileCities.length === 1) {
+          dbFilter.city = profileCities[0];
+        }
       } else if (role === "sales_rep") {
-        if (staffProfile?.default_city && !filters.assigned_rep) {
-          dbFilter.city = staffProfile.default_city;
+        if (profileCities.length === 1 && !filters.assigned_rep) {
+          dbFilter.city = profileCities[0];
         } else if (filters.assigned_rep) {
           dbFilter.assigned_rep = filters.assigned_rep;
         } else {
@@ -111,8 +118,14 @@ Deno.serve(async (req) => {
       leads = [];
     }
 
+    // Multi-city city_manager scoping — filter in memory
+    if (role === "city_manager" && profileCities.length > 1) {
+      const citySet = new Set(profileCities);
+      leads = leads.filter(l => citySet.has(l.city));
+    }
+
     // Sales rep: OR logic — also include leads assigned to them even outside city
-    if (role === "sales_rep" && user.city && !filters.assigned_rep) {
+    if (role === "sales_rep" && profileCities.length > 0 && !filters.assigned_rep) {
       try {
         const assignedLeads = await base44.asServiceRole.entities.Lead.filter(
           { is_deleted: false, assigned_rep: user.email }, sort, 100
