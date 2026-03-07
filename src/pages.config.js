@@ -91,6 +91,8 @@ import TimelineTemplates from './pages/TimelineTemplates';
 import UserForm from './pages/UserForm';
 import Users from './pages/Users';
 import Venues from './pages/Venues';
+import SurveyTemplates from './pages/SurveyTemplates';
+import SurveyTemplateBuilder from './pages/SurveyTemplateBuilder';
 import __Layout from './Layout.jsx';
 
 
@@ -139,6 +141,8 @@ export const PAGES = {
     "UserForm": UserForm,
     "Users": Users,
     "Venues": Venues,
+    "SurveyTemplates": SurveyTemplates,
+    "SurveyTemplateBuilder": SurveyTemplateBuilder,
 }
 
 export const pagesConfig = {
