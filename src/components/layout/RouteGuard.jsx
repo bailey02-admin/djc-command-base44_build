@@ -54,6 +54,7 @@ const PAGE_ACCESS = {
   SettingsAdminTools:       ["admin"],
   SurveyTemplates:          ["admin", "city_manager", "office_finalizer", "sales_manager"],
   SurveyTemplateBuilder:    ["admin", "city_manager", "office_finalizer", "sales_manager"],
+  SurveyReports:            ["admin", "city_manager", "office_finalizer", "sales_manager", "finance", "production_manager"],
   SurveyResponsesReport:    ["admin", "city_manager", "office_finalizer", "sales_manager", "finance", "production_manager"],
   SurveyTrendsByDJ:         ["admin", "city_manager", "office_finalizer", "sales_manager", "finance", "production_manager"],
   SurveyLowScoreQueue:      ["admin", "city_manager", "office_finalizer", "sales_manager", "finance", "production_manager"],
