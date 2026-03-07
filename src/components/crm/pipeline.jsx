@@ -1,7 +1,7 @@
 export const PIPELINE_STAGES = [
   { key: "new_inquiry",            label: "New Inquiry",            color: "bg-gray-100 text-gray-700",    dot: "bg-gray-400",    required_fields: [] },
   { key: "attempted_contact",      label: "Attempted Contact",      color: "bg-orange-50 text-orange-700", dot: "bg-orange-400",  required_fields: ["phone"] },
-  { key: "contacted",              label: "Contacted",              color: "bg-yellow-50 text-yellow-700", dot: "bg-yellow-400",  required_fields: ["phone", "first_response_date"] },
+  { key: "contacted",              label: "Contacted",              color: "bg-yellow-50 text-yellow-700", dot: "bg-yellow-400",  required_fields: ["phone","first_response_date"] },
   { key: "qualified",              label: "Qualified",              color: "bg-blue-50 text-blue-700",     dot: "bg-blue-400",    required_fields: ["event_date", "city", "lead_source"] },
   { key: "consultation_scheduled", label: "Consultation Scheduled", color: "bg-indigo-50 text-indigo-700", dot: "bg-indigo-400",  required_fields: ["event_date", "city", "consultation_date"] },
   { key: "consultation_completed", label: "Consultation Completed", color: "bg-violet-50 text-violet-700", dot: "bg-violet-400",  required_fields: ["event_date", "city"] },
