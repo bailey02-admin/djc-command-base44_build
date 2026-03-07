@@ -76,8 +76,11 @@ Deno.serve(async (req) => {
     if (!event_id) return Response.json({ error: "event_id required" }, { status: 400 });
 
     // Fetch event
-    const eventArr = await base44.asServiceRole.entities.Event.filter({ id: event_id });
-    const event = eventArr[0];
+    let event = null;
+    try {
+      const eventArr = await base44.asServiceRole.entities.Event.filter({ id: event_id });
+      event = eventArr[0] || null;
+    } catch (_) { event = null; }
     if (!event) return Response.json({ error: "Event not found" }, { status: 404 });
 
     // ── EVENT COMPLETED ────────────────────────────────────────────

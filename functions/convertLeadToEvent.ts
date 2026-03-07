@@ -45,8 +45,11 @@ Deno.serve(async (req) => {
     if (!lead_id) return Response.json({ error: "lead_id required" }, { status: 400 });
 
     // ── 1. Fetch + validate lead ──────────────────────────────────
-    const leadRows = await base44.asServiceRole.entities.Lead.filter({ id: lead_id });
-    const lead = leadRows[0];
+    let lead = null;
+    try {
+      const rows = await base44.asServiceRole.entities.Lead.filter({ id: lead_id });
+      lead = rows[0] || null;
+    } catch (_) { lead = null; }
     if (!lead) return Response.json({ error: "Lead not found" }, { status: 404 });
     if (lead.is_deleted) return Response.json({ error: "Lead is deleted" }, { status: 410 });
 
