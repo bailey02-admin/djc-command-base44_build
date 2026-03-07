@@ -124,10 +124,9 @@ export default function EventDetail() {
 
   const updateReadinessItem = async (key, value) => {
     const update = { [key]: value };
-    const updatedEvent = { ...event, ...update };
-    const newScore = calculateReadinessScore(updatedEvent);
     await trackEventChanges(event, update, user?.email || "");
-    await EventAPI.toggleReadiness(id, { ...update, readiness_score: newScore });
+    // readiness_score is now computed server-side; do not supply client value
+    await EventAPI.toggleReadiness(id, update);
     queryClient.invalidateQueries(["event-bundle", id]);
     queryClient.invalidateQueries(["change-history", id]);
   };
