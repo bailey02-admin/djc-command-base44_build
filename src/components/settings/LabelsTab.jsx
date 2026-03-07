@@ -98,6 +98,18 @@ export default function LabelsTab() {
   const allEventStatuses = statusSettings?.all_statuses || [];
   const eventGroups = (statusSettings?.groups || []).filter(g => (g.entity_key || "event") === "event");
 
+  // Sync financeStatuses from loaded settings (once)
+  React.useEffect(() => {
+    if (!statusSettings || financeStatuses !== null) return;
+    const financeGroup = (statusSettings.groups || []).find(g => g.key === "finance_visible");
+    if (financeGroup) {
+      setFinanceStatuses(financeGroup.statuses || []);
+      setFinanceGroupId(financeGroup.id || null);
+    } else {
+      setFinanceStatuses(["booked_pending","booked","planning_in_progress","finalized","completed"]);
+    }
+  }, [statusSettings]);
+
   const filtered = records.filter(r => r.category === activeCategory).sort((a, b) => (a.sort_order || 99) - (b.sort_order || 99));
 
   const handleEditGroup = (group) => {
