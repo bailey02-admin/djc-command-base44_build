@@ -166,12 +166,20 @@ export default function SurveyResponsesReport() {
                     </td>
                     <td className="px-4 py-3">
                       {row.recovery_task_status ? (
-                        <Badge variant="outline" className={`text-xs capitalize ${TASK_STATUS_COLORS[row.recovery_task_status] || ""}`}>
-                          {row.recovery_task_status.replace("_", " ")}
-                        </Badge>
+                        <div>
+                          <Badge variant="outline" className={`text-xs capitalize ${TASK_STATUS_COLORS[row.recovery_task_status] || ""}`}>
+                            {row.recovery_task_status.replace("_", " ")}
+                          </Badge>
+                          {row.recovery_task_title && (
+                            <p className="text-[11px] text-gray-400 mt-0.5 truncate max-w-[140px]">{row.recovery_task_title}</p>
+                          )}
+                        </div>
                       ) : (
                         <span className="text-xs text-gray-300">—</span>
                       )}
+                    </td>
+                    <td className="px-4 py-3 text-xs text-gray-500">
+                      {row.recovery_task_assigned_to || <span className="text-gray-300">—</span>}
                     </td>
                     <td className="px-4 py-3 text-right">
                       <Button
