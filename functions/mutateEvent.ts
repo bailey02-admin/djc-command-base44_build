@@ -134,7 +134,7 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me();
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { role, deactivated } = await resolveRole(base44, user);
+    const { role, deactivated, profile } = await resolveRole(base44, user);
     if (deactivated) return Response.json({ error: "Account deactivated" }, { status: 403 });
     const rules = EVENT_WRITE_RULES[role] || { create: false, update: false, delete: false };
 
