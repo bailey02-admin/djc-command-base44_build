@@ -40,6 +40,14 @@ const DEFAULT_EVENT_GROUPS = [
     statuses: ["completed", "cancelled"],
     required: false,
   },
+  {
+    entity_key: "event",
+    key: "finance_visible",
+    label: "Finance Visible Statuses",
+    description: "Events in these statuses appear in Finance reports (Payments list, Income by Month, A/R). Cancelled and Postponed are excluded by default.",
+    statuses: ["booked_pending", "booked", "planning_in_progress", "finalized", "completed"],
+    required: true,
+  },
 ];
 
 async function seedDefaults(base44) {
