@@ -176,7 +176,23 @@ Deno.serve(async (req) => {
       if (!data.lead_id) {
         return Response.json({ error: "LEAD_ID_REQUIRED", details: "All new events must be linked to a lead" }, { status: 422 });
       }
-      const event = await base44.asServiceRole.entities.Event.create(data);
+      // ── Initial status allowlist ──────────────────────────────────
+      // Only booked_pending is a valid starting status. Any other value —
+      // whether supplied by the UI, a script, or a direct API call — is rejected.
+      const ALLOWED_CREATE_STATUSES = new Set(["booked_pending"]);
+      const requestedStatus = data.status || "booked_pending";
+      if (!ALLOWED_CREATE_STATUSES.has(requestedStatus)) {
+        await logDenial(base44, user, "create_event", null,
+          `invalid initial status: ${requestedStatus}`);
+        return Response.json({
+          error: "INVALID_INITIAL_STATUS",
+          details: `Status '${requestedStatus}' is not allowed at creation time`,
+          allowed_statuses: [...ALLOWED_CREATE_STATUSES],
+        }, { status: 422 });
+      }
+      // Strip readiness_score — it's always 0 at creation (no checklist items done yet)
+      const createData = { ...data, status: "booked_pending", readiness_score: 0 };
+      const event = await base44.asServiceRole.entities.Event.create(createData);
       return Response.json({ event });
     }
 
