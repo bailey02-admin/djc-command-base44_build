@@ -16,18 +16,31 @@ async function resolveRole(base44, user) {
     const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email });
     const profile = profiles?.[0];
     if (profile) {
-      if (profile.is_active === false) return { role: null, deactivated: true };
-      return { role: profile.custom_role || user.role || 'sales_rep', deactivated: false };
+      if (profile.is_active === false) return { role: null, deactivated: true, profile: null };
+      return { role: profile.custom_role || user.role || 'sales_rep', deactivated: false, profile };
     }
   } catch (_) { /* StaffProfile unavailable — fall through */ }
-  return { role: user.role || 'sales_rep', deactivated: false };
+  return { role: user.role || 'sales_rep', deactivated: false, profile: null };
 }
 
-function canAccessEvent(user, event, role) {
+function canAccessEvent(user, event, role, profile) {
+  // City scoping via StaffProfile.cities[] (canonical per Truth Doc)
+  const profileCities = profile?.cities?.length > 0
+    ? profile.cities
+    : (profile?.default_city ? [profile.default_city] : []);
+
   switch (role) {
-    case 'admin': case 'sales_manager': case 'sales_rep':
-    case 'city_manager': case 'office_finalizer': case 'finance':
-      return true;
+    case 'admin':
+    case 'sales_manager':
+      return true; // org-wide access
+    case 'finance':
+      return true; // read-only access enforced via write rules; can view any event
+    case 'city_manager':
+    case 'office_finalizer':
+    case 'sales_rep':
+      // Must be in one of the staff's cities
+      if (profileCities.length === 0) return true; // no city configured — don't block
+      return profileCities.includes(event.city);
     case 'dj':
       return event.assigned_dj_id === user.id || event.assigned_dj === user.email ||
              event.assigned_mc_id === user.id || event.assigned_mc === user.email;
@@ -35,6 +48,21 @@ function canAccessEvent(user, event, role) {
       return false;
   }
 }
+
+/**
+ * Canonical event status transition allowlist.
+ * Backend is source of truth — any direct API call bypassing the UI is rejected here.
+ * UI should mirror these rules for good UX, but enforcement is server-side only.
+ */
+const EVENT_STATUS_TRANSITIONS = {
+  booked_pending:       new Set(["booked","planning_in_progress","cancelled","postponed"]),
+  booked:               new Set(["planning_in_progress","finalized","cancelled","postponed"]),
+  planning_in_progress: new Set(["booked","finalized","cancelled","postponed"]),
+  finalized:            new Set(["completed","planning_in_progress","cancelled","postponed"]),
+  completed:            new Set(["finalized"]),           // allow un-complete for correction
+  cancelled:            new Set(["booked_pending","booked"]), // allow re-open
+  postponed:            new Set(["booked_pending","booked","cancelled"]),
+};
 
 const EVENT_WRITE_RULES = {
   admin:            { create: true, update: true, delete: true },
