@@ -6,10 +6,29 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import {
   Star, AlertTriangle, CheckCircle2, ClipboardList,
-  Eye, Loader2, ChevronDown, ChevronUp, User
+  Eye, Loader2, FileX, Clock, Ban
 } from "lucide-react";
 import SurveyResponseModal from "./SurveyResponseModal";
 import StaffSurveyModal from "./StaffSurveyModal";
+
+const scoreColor = (score) => {
+  if (score == null) return "text-gray-400";
+  if (score >= 8) return "text-emerald-700";
+  if (score >= 6) return "text-amber-700";
+  return "text-red-700";
+};
+
+function EmptyState({ icon: Icon, color, title, description }) {
+  return (
+    <div className={`flex items-start gap-3 rounded-lg px-3 py-3 border ${color}`}>
+      <Icon className="w-4 h-4 mt-0.5 flex-shrink-0" />
+      <div>
+        <p className="text-xs font-medium">{title}</p>
+        {description && <p className="text-[11px] mt-0.5 opacity-75">{description}</p>}
+      </div>
+    </div>
+  );
+}
 
 export default function EventSurveyCard({ event }) {
   const queryClient = useQueryClient();
@@ -24,19 +43,6 @@ export default function EventSurveyCard({ event }) {
     },
     enabled: !!event.id,
   });
-
-  const flagColor = (flag) => {
-    if (!flag) return "";
-    if (flag === "low_score") return "bg-red-50 text-red-700 border-red-200";
-    return "bg-amber-50 text-amber-700 border-amber-200";
-  };
-
-  const scoreColor = (score) => {
-    if (score == null) return "text-gray-400";
-    if (score >= 8) return "text-emerald-700";
-    if (score >= 6) return "text-amber-700";
-    return "text-red-700";
-  };
 
   if (isLoading) {
     return (
@@ -53,39 +59,22 @@ export default function EventSurveyCard({ event }) {
   const template = config?.selected_template;
   const response = config?.existing_response;
 
-  return (
-    <>
-      <Card className="border-0 shadow-sm">
-        <CardHeader className="pb-2">
-          <CardTitle className="text-sm font-semibold flex items-center gap-2">
-            <ClipboardList className="w-4 h-4 text-violet-500" /> Post-Event Survey
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="space-y-3">
-          {/* Status row */}
+  const renderBody = () => {
+    // Case 1: Response already submitted
+    if (hasResponse) {
+      return (
+        <>
           <div className="flex items-center gap-2 flex-wrap">
-            {hasResponse ? (
-              <Badge variant="outline" className="border-emerald-200 text-emerald-700 bg-emerald-50 gap-1">
-                <CheckCircle2 className="w-3 h-3" /> Response Received
-              </Badge>
-            ) : isEligible ? (
-              <Badge variant="outline" className="border-violet-200 text-violet-700 bg-violet-50 gap-1">
-                <ClipboardList className="w-3 h-3" /> Awaiting Response
-              </Badge>
-            ) : (
-              <Badge variant="outline" className="border-gray-200 text-gray-400 gap-1">
-                Not eligible yet
-              </Badge>
-            )}
-
+            <Badge variant="outline" className="border-emerald-200 text-emerald-700 bg-emerald-50 gap-1">
+              <CheckCircle2 className="w-3 h-3" /> Response Received
+            </Badge>
             {event.survey_flag === "low_score" && (
-              <Badge variant="outline" className={`gap-1 ${flagColor("low_score")}`}>
+              <Badge variant="outline" className="gap-1 bg-red-50 text-red-700 border-red-200">
                 <AlertTriangle className="w-3 h-3" /> Low Score Alert
               </Badge>
             )}
           </div>
 
-          {/* Score display */}
           {response?.average_score != null && (
             <div className="flex items-center gap-4">
               <div className="text-center">
@@ -107,40 +96,78 @@ export default function EventSurveyCard({ event }) {
             </div>
           )}
 
-          {/* Template info */}
           {template && (
             <p className="text-xs text-gray-500">
               Template: <span className="font-medium text-gray-700">{template.name}</span>
             </p>
           )}
 
-          {!template && !hasResponse && (
-            <p className="text-xs text-amber-600 bg-amber-50 px-3 py-2 rounded-lg border border-amber-100">
-              No active survey template matched for this event type/city.
-            </p>
-          )}
+          <Button variant="outline" size="sm" onClick={() => setShowResponse(true)} className="text-xs gap-1 w-full">
+            <Eye className="w-3.5 h-3.5" /> View Response
+          </Button>
+        </>
+      );
+    }
 
-          {/* Actions */}
-          <div className="flex gap-2 flex-wrap pt-1">
-            {hasResponse && (
-              <Button variant="outline" size="sm" onClick={() => setShowResponse(true)} className="text-xs gap-1">
-                <Eye className="w-3.5 h-3.5" /> View Response
-              </Button>
-            )}
-            {!hasResponse && isEligible && template && (
-              <Button
-                size="sm"
-                onClick={() => setShowSubmit(true)}
-                className="text-xs gap-1 bg-violet-600 hover:bg-violet-700"
-              >
-                <ClipboardList className="w-3.5 h-3.5" /> Submit Survey (Staff)
-              </Button>
-            )}
-          </div>
+    // Case 2: Not eligible yet
+    if (!isEligible) {
+      const eligibleList = config?.eligible_statuses?.join(", ") || "completed";
+      return (
+        <EmptyState
+          icon={Clock}
+          color="bg-gray-50 border-gray-200 text-gray-500"
+          title="Not eligible yet"
+          description={`Survey is available once the event reaches: ${eligibleList}.`}
+        />
+      );
+    }
 
-          {!isEligible && !hasResponse && (
-            <p className="text-[10px] text-gray-400">{config?.ineligible_reason}</p>
-          )}
+    // Case 3: Eligible but no template matched
+    if (!template) {
+      return (
+        <EmptyState
+          icon={FileX}
+          color="bg-amber-50 border-amber-200 text-amber-700"
+          title="No matching template"
+          description="No active survey template matches this event's type or city. Configure one in Settings → Surveys."
+        />
+      );
+    }
+
+    // Case 4: Eligible + template — ready to submit
+    return (
+      <>
+        <div className="flex items-center gap-2">
+          <Badge variant="outline" className="border-violet-200 text-violet-700 bg-violet-50 gap-1">
+            <ClipboardList className="w-3 h-3" /> Awaiting Response
+          </Badge>
+        </div>
+
+        <p className="text-xs text-gray-500">
+          Template: <span className="font-medium text-gray-700">{template.name}</span>
+        </p>
+
+        <Button
+          size="sm"
+          onClick={() => setShowSubmit(true)}
+          className="text-xs gap-1 bg-violet-600 hover:bg-violet-700 w-full"
+        >
+          <ClipboardList className="w-3.5 h-3.5" /> Submit Survey (Staff)
+        </Button>
+      </>
+    );
+  };
+
+  return (
+    <>
+      <Card className="border-0 shadow-sm">
+        <CardHeader className="pb-2">
+          <CardTitle className="text-sm font-semibold flex items-center gap-2">
+            <ClipboardList className="w-4 h-4 text-violet-500" /> Post-Event Survey
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="space-y-3">
+          {renderBody()}
         </CardContent>
       </Card>
 
@@ -152,10 +179,10 @@ export default function EventSurveyCard({ event }) {
         />
       )}
 
-      {showSubmit && config?.selected_template && (
+      {showSubmit && template && (
         <StaffSurveyModal
           event={event}
-          template={config.selected_template}
+          template={template}
           onClose={() => setShowSubmit(false)}
           onSubmitted={() => {
             queryClient.invalidateQueries(["survey-config", event.id]);

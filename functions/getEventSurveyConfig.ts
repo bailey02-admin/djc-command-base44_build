@@ -1,7 +1,16 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 const ALLOWED_ROLES = ["admin", "city_manager", "office_finalizer", "sales_manager", "finance"];
-const ELIGIBLE_STATUSES = ["completed"];
+const FALLBACK_ELIGIBLE_STATUSES = ["completed"];
+
+async function getEligibleStatuses(base44) {
+  try {
+    const groups = await base44.asServiceRole.entities.StatusGroup.filter({ key: "post_event" });
+    const group = groups?.[0];
+    if (group?.statuses?.length > 0) return group.statuses;
+  } catch (_) {}
+  return FALLBACK_ELIGIBLE_STATUSES;
+}
 
 Deno.serve(async (req) => {
   try {
@@ -21,20 +30,23 @@ Deno.serve(async (req) => {
     const { event_id } = body;
     if (!event_id) return Response.json({ error: "event_id required" }, { status: 400 });
 
-    const eventRows = await base44.asServiceRole.entities.Event.filter({ id: event_id });
+    const [eventRows, eligibleStatuses] = await Promise.all([
+      base44.asServiceRole.entities.Event.filter({ id: event_id }),
+      getEligibleStatuses(base44),
+    ]);
+
     const event = eventRows[0];
     if (!event) return Response.json({ error: "Event not found" }, { status: 404 });
 
-    const isEligible = ELIGIBLE_STATUSES.includes(event.status);
+    const isEligible = eligibleStatuses.includes(event.status);
 
-    // Check for existing response
-    const responses = await base44.asServiceRole.entities.SurveyResponse.filter({ event_id });
+    // Check for existing response and fetch templates in parallel
+    const [responses, templates] = await Promise.all([
+      base44.asServiceRole.entities.SurveyResponse.filter({ event_id }),
+      base44.asServiceRole.entities.SurveyTemplate.filter({ is_active: true }),
+    ]);
+
     const existingResponse = responses[0] || null;
-
-    // Find best matching active template
-    const templates = await base44.asServiceRole.entities.SurveyTemplate.filter({ is_active: true });
-
-    let selectedTemplate = null;
 
     // Priority: exact event_type + city match > event_type match > city match > generic (no filters)
     const rank = (t) => {
@@ -54,7 +66,12 @@ Deno.serve(async (req) => {
       .filter(x => x.r > 0)
       .sort((a, b) => b.r - a.r);
 
-    selectedTemplate = ranked[0]?.t || null;
+    const selectedTemplate = ranked[0]?.t || null;
+
+    let ineligibleReason = null;
+    if (!isEligible) {
+      ineligibleReason = `Event status "${event.status}" is not eligible for survey submission. Eligible statuses: ${eligibleStatuses.join(", ")}.`;
+    }
 
     return Response.json({
       event: { id: event.id, event_name: event.event_name, status: event.status, event_type: event.event_type, city: event.city, contact_id: event.contact_id },
@@ -62,7 +79,8 @@ Deno.serve(async (req) => {
       has_response: !!existingResponse,
       existing_response: existingResponse,
       is_eligible: isEligible,
-      ineligible_reason: isEligible ? null : `Event status "${event.status}" is not eligible for survey submission. Status must be: completed.`,
+      eligible_statuses: eligibleStatuses,
+      ineligible_reason: ineligibleReason,
     });
   } catch (err) {
     return Response.json({ error: err.message }, { status: 500 });

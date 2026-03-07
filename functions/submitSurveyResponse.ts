@@ -1,7 +1,16 @@
 import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 const STAFF_ROLES = ["admin", "city_manager", "office_finalizer", "sales_manager", "finance"];
-const ELIGIBLE_STATUSES = ["completed"];
+const FALLBACK_ELIGIBLE_STATUSES = ["completed"];
+
+async function getEligibleStatuses(base44) {
+  try {
+    const groups = await base44.asServiceRole.entities.StatusGroup.filter({ key: "post_event" });
+    const group = groups?.[0];
+    if (group?.statuses?.length > 0) return group.statuses;
+  } catch (_) {}
+  return FALLBACK_ELIGIBLE_STATUSES;
+}
 
 Deno.serve(async (req) => {
   try {
@@ -25,15 +34,19 @@ Deno.serve(async (req) => {
       return Response.json({ error: "event_id and template_id are required" }, { status: 400 });
     }
 
-    // Load event
-    const eventRows = await base44.asServiceRole.entities.Event.filter({ id: event_id });
+    // Load event + eligible statuses in parallel
+    const [eventRows, eligibleStatuses] = await Promise.all([
+      base44.asServiceRole.entities.Event.filter({ id: event_id }),
+      getEligibleStatuses(base44),
+    ]);
+
     const event = eventRows[0];
     if (!event) return Response.json({ error: "Event not found" }, { status: 404 });
 
-    // Eligibility check
-    if (!ELIGIBLE_STATUSES.includes(event.status)) {
+    // Eligibility check using dynamic status group
+    if (!eligibleStatuses.includes(event.status)) {
       return Response.json({
-        error: `Event is not eligible for survey. Status must be "completed". Current: "${event.status}"`,
+        error: `Event is not eligible for survey. Eligible statuses: ${eligibleStatuses.join(", ")}. Current: "${event.status}"`,
       }, { status: 422 });
     }
 
@@ -135,18 +148,17 @@ Deno.serve(async (req) => {
     );
 
     // Update Event fields
-    const eventUpdate = {
+    await base44.asServiceRole.entities.Event.update(event_id, {
       survey_avg: averageScore,
       survey_score: averageScore,
       survey_flag: lowScoreFlag ? "low_score" : "",
       review_submitted: true,
-    };
-    await base44.asServiceRole.entities.Event.update(event_id, eventUpdate);
+    });
 
     // Low-score workflow
     if (lowScoreFlag) {
-      // Log internal activity
-      await base44.asServiceRole.entities.Activity.create({
+      // Log internal activity (fire and forget)
+      base44.asServiceRole.entities.Activity.create({
         type: "system",
         subject: `⚠️ Low Survey Score: ${averageScore}/10`,
         description: `Survey submitted with average score ${averageScore}/10 (threshold: ${template.low_score_threshold ?? 7.0}). Service recovery required.`,
@@ -158,13 +170,18 @@ Deno.serve(async (req) => {
         performed_by: isClient ? "client" : (user.email || "staff"),
       }).catch(() => {});
 
-      // Idempotent recovery task
+      // Idempotent recovery task — check by idempotency_key AND by (related_id + category)
+      // to handle any edge case where idempotency_key was not stored
       const idempotencyKey = `low_score_recovery:${event_id}`;
-      const existingTasks = await base44.asServiceRole.entities.Task.filter({
-        idempotency_key: idempotencyKey,
-      }).catch(() => []);
 
-      if (!existingTasks || existingTasks.length === 0) {
+      const [byKey, byEvent] = await Promise.all([
+        base44.asServiceRole.entities.Task.filter({ idempotency_key: idempotencyKey }).catch(() => []),
+        base44.asServiceRole.entities.Task.filter({ related_id: event_id, category: "survey" }).catch(() => []),
+      ]);
+
+      const alreadyExists = (byKey?.length > 0) || (byEvent?.length > 0);
+
+      if (!alreadyExists) {
         // Find manager to assign
         let assignTo = event.assigned_city_manager || event.assigned_finalizer || "";
         if (!assignTo && event.city) {
