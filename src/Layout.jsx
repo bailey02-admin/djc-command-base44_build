@@ -7,7 +7,7 @@ import {
   FileText, MessageSquare, DollarSign, Building2, ChevronLeft,
   ChevronRight, LogOut, Menu, Disc3, UserCircle, Settings,
   Layers, Music2, FileSignature, Archive, Users,
-  TrendingUp, Sliders, Package, Sparkles, LayoutList, Wrench, ChevronDown
+  TrendingUp, Sliders, Package, Sparkles, LayoutList, Wrench, ChevronDown, ClipboardList
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import GlobalSearch from "./components/layout/GlobalSearch";
@@ -46,6 +46,7 @@ const SETTINGS_SUBNAV = [
 const SETTINGS_PAGES = new Set([
   "Settings", "TimelineTemplates", "TimelineTemplateBuilder",
   "PackagesSettings", "AddOnsSettings", "SettingsAdminTools",
+  "SurveyTemplates", "SurveyTemplateBuilder",
 ]);
 
 // Staff planning pages — not in sidebar nav, accessible via EventDetail
