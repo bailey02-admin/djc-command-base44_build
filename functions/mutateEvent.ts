@@ -317,6 +317,9 @@ Deno.serve(async (req) => {
 
       const cleaned = stripProtectedFields(data, role);
 
+      // ── readiness_score: always strip client value and recompute server-side ──
+      delete cleaned.readiness_score;
+
       // ── Status transition gate ────────────────────────────────
       // Reject invalid status transitions regardless of how the request was made
       if (cleaned.status && cleaned.status !== preUpdateEvent.status) {
