@@ -186,6 +186,22 @@ Deno.serve(async (req) => {
         return Response.json({ error: `Invalid stage: ${targetStage}` }, { status: 422 });
       }
 
+      // Validate transition is allowed from current stage
+      const currentStage = lead.pipeline_stage || "new_inquiry";
+      if (currentStage !== targetStage) {
+        const allowed = ALLOWED_TRANSITIONS[currentStage];
+        if (allowed && !allowed.has(targetStage)) {
+          await logDenial(base44, user, "advance_stage", id,
+            `invalid transition ${currentStage} → ${targetStage}`);
+          return Response.json({
+            error: `Transition not allowed: ${currentStage} → ${targetStage}`,
+            current_stage: currentStage,
+            target_stage: targetStage,
+            allowed_targets: allowed ? [...allowed] : [],
+          }, { status: 422 });
+        }
+      }
+
       // Merge incoming data onto lead for validation (allow caller to supply missing fields inline)
       const mergedLead = { ...lead, ...data };
 
@@ -196,10 +212,18 @@ Deno.serve(async (req) => {
           error: "Stage transition blocked — missing required fields",
           missing_fields: missing,
           target_stage: targetStage,
+          current_stage: currentStage,
         }, { status: 422 });
       }
 
       const cleaned = stripProtectedFields(data, role);
+
+      // Sync status field to match pipeline_stage (keep them from diverging)
+      const syncedStatus = STAGE_TO_STATUS[targetStage];
+      if (syncedStatus && !cleaned.status) {
+        cleaned.status = syncedStatus;
+      }
+
       const updated = await base44.asServiceRole.entities.Lead.update(id, cleaned);
       return Response.json({ lead: updated });
     }
