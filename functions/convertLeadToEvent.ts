@@ -146,9 +146,8 @@ Deno.serve(async (req) => {
       total_fee: 0,
     };
     try {
-      // Load quote via forLead
-      const quoteRes = await base44.asServiceRole.functions.invoke("getQuotes", { lead_id: lead.id });
-      const quotes = quoteRes.quotes || [];
+      // Direct entity access — no nested function invoke (avoids fragility)
+      const quotes = await base44.asServiceRole.entities.Quote.filter({ lead_id: lead.id }, "-created_date", 1);
       if (quotes.length > 0) {
         const quote = quotes[0];
         quoteSnapshot = {
