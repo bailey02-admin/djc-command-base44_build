@@ -6,7 +6,7 @@
  *   sync_flags      — re-evaluate all three flags from child records, update event
  *   create_payment_schedule — auto-create deposit + balance payment records if none exist
  */
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 // Rules for planning_complete: required planning fields
 const PLANNING_REQUIRED = [

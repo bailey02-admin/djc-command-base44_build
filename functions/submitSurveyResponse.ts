@@ -147,10 +147,9 @@ Deno.serve(async (req) => {
       )
     );
 
-    // Update Event fields
+    // Update Event summary fields (snapshot only — survey_score is deprecated, use survey_avg)
     await base44.asServiceRole.entities.Event.update(event_id, {
       survey_avg: averageScore,
-      survey_score: averageScore,
       survey_flag: lowScoreFlag ? "low_score" : "",
       review_submitted: true,
     });

@@ -60,14 +60,12 @@ Deno.serve(async (req) => {
 
     for (const event of candidates) {
       try {
-        // Fetch quote for this lead
+        // Fetch quote directly — no nested function call (more reliable)
         let quoteSnapshot = null;
         try {
-          const quoteRes = await base44.asServiceRole.functions.invoke("getQuotes", {
-            lead_id: event.lead_id,
-            slim: false
-          });
-          const quotes = (quoteRes.quotes || []);
+          const quotes = await base44.asServiceRole.entities.Quote.filter(
+            { lead_id: event.lead_id }, "-created_date", 1
+          );
           if (quotes.length === 0) {
             stats.skipped++;
             continue;

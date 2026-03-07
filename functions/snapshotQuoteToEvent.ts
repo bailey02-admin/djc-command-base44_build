@@ -62,31 +62,32 @@ Deno.serve(async (req) => {
       return Response.json({ ok: true, skipped: true, reason: "Snapshot already present" });
     }
 
-    // Load quote
+    // Load quote — direct entity access (no nested function call, more reliable)
     let quoteSnapshot = { add_ons: [], discount_amount: 0, discount_reason: "", tax_amount: 0, total_fee: 0 };
 
+    let quotes = [];
     try {
-      const quoteRes = await base44.asServiceRole.functions.invoke("getQuotes", { lead_id, slim: false });
-      const quotes = quoteRes.quotes || [];
-      if (quotes.length > 0) {
-        const quote = quotes[0];
-        const normalizedAddOns = (quote.add_ons || []).map(normalizeAddOn);
-        quoteSnapshot = {
-          package_id: quote.package_id || null,
-          package_name: quote.package_name || quote.package_name || null,
-          package_price: Number(quote.package_price || quote.base_price) || 0,
-          add_ons: normalizedAddOns,
-          discount_amount: Number(quote.discount_amount) || 0,
-          discount_reason: quote.discount_reason || "",
-          tax_amount: Number(quote.tax_amount) || 0,
-          travel_fee: Number(quote.travel_fee) || 0,
-          total_fee: Number(quote.total_fee || quote.total_amount) || 0,
-        };
-      }
+      quotes = await base44.asServiceRole.entities.Quote.filter({ lead_id }, "-created_date", 1);
     } catch (e) {
       console.warn(`[snapshotQuoteToEvent] quote fetch failed for lead ${lead_id}:`, e.message);
       return Response.json({ ok: true, skipped: true, reason: "No quote found" });
     }
+    if (quotes.length === 0) {
+      return Response.json({ ok: true, skipped: true, reason: "No quote found" });
+    }
+    const quote = quotes[0];
+    const normalizedAddOns = (quote.add_ons || []).map(normalizeAddOn);
+    quoteSnapshot = {
+      package_id: quote.package_id || null,
+      package_name: quote.package_name || null,
+      package_price: Number(quote.package_price || quote.base_price) || 0,
+      add_ons: normalizedAddOns,
+      discount_amount: Number(quote.discount_amount) || 0,
+      discount_reason: quote.discount_reason || "",
+      tax_amount: Number(quote.tax_amount) || 0,
+      travel_fee: Number(quote.travel_fee) || 0,
+      total_fee: Number(quote.total_fee || quote.total_amount) || 0,
+    };
 
     await base44.asServiceRole.entities.Event.update(event_id, quoteSnapshot);
     return Response.json({ ok: true, snapshot_applied: true });

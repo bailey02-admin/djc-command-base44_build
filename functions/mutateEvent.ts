@@ -250,16 +250,9 @@ Deno.serve(async (req) => {
        }).catch(() => {});
       }
 
-      if (cleaned.survey_score !== undefined && cleaned.survey_score !== null) {
-       const hadScoreBefore = preUpdateEvent.survey_score !== undefined && preUpdateEvent.survey_score !== null;
-       if (!hadScoreBefore) {
-         base44.asServiceRole.functions.invoke("postEventAutomation", {
-           action: "survey_received",
-           event_id: id,
-           survey_score: cleaned.survey_score,
-         }).catch(() => {});
-       }
-      }
+      // NOTE: survey automation is ONLY triggered from submitSurveyResponse.
+      // mutateEvent must NOT fire survey_received — survey_score/survey_avg are
+      // denormalized cache fields written by the survey system, not triggers.
 
       return Response.json({ event: updated });
     }
