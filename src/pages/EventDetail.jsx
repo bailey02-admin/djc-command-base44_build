@@ -111,7 +111,13 @@ export default function EventDetail() {
 
   const updateEvent = async (field, value) => {
     await trackEventChanges(event, { [field]: value }, user?.email || "");
-    await EventAPI.update(id, { [field]: value });
+    // Status changes must go through advance_status so the transition gate is enforced.
+    // All other field updates go through the regular update path.
+    if (field === "status") {
+      await EventAPI.advanceStatus(id, value);
+    } else {
+      await EventAPI.update(id, { [field]: value });
+    }
     queryClient.invalidateQueries(["event-bundle", id]);
     queryClient.invalidateQueries(["change-history", id]);
   };
