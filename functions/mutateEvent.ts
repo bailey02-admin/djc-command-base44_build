@@ -117,6 +117,31 @@ function checkFinalizationGate(event) {
   });
 }
 
+/**
+ * CANONICAL server-side readiness score computation.
+ * Mirrors components/crm/pipeline.js READINESS_ITEMS — backend is authoritative.
+ * Client-supplied readiness_score is ALWAYS stripped and replaced with this value.
+ */
+const READINESS_ITEMS = [
+  { key: "assigned_dj",            weight: 15 },
+  { key: "contract_signed",        weight: 15 },
+  { key: "deposit_paid",           weight: 10 },
+  { key: "planning_complete",      weight: 15 },
+  { key: "timeline_complete",      weight: 15 },
+  { key: "music_complete",         weight: 10 },
+  { key: "final_call_completed",   weight: 10 },
+  { key: "balance_paid",           weight:  5 },
+  { key: "pronunciation_complete", weight:  5 },
+];
+
+function computeReadinessScore(event) {
+  return READINESS_ITEMS.reduce((score, item) => {
+    const val = event[item.key];
+    // assigned_dj is a string — truthy check
+    return score + ((typeof val === "string" ? val !== "" : !!val) ? item.weight : 0);
+  }, 0);
+}
+
 async function logDenial(base44, user, action, eventId, reason) {
   await base44.asServiceRole.entities.Activity.create({
     type: "system",
