@@ -208,6 +208,16 @@ Deno.serve(async (req) => {
       }
     }
 
+    // Wire canonical postEventAutomation so AutomationLog is written and future
+    // survey_received hooks (review requests, etc.) fire from one place.
+    // Pass response_id for per-response idempotency (multiple surveys per event are OK).
+    base44.asServiceRole.functions.invoke("postEventAutomation", {
+      action: "survey_received",
+      event_id,
+      survey_score: averageScore,
+      response_id: surveyResponse.id,
+    }).catch(() => {});
+
     return Response.json({
       response: surveyResponse,
       average_score: averageScore,
