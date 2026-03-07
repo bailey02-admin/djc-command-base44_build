@@ -154,6 +154,65 @@ export default function Layout({ children, currentPageName }) {
             );
           })}
 
+          {/* Reports group */}
+          {(() => {
+            const role = user?.custom_role;
+            const visibleSubNav = REPORTS_SUBNAV.filter(item =>
+              !item.roles || !role || item.roles.includes(role)
+            );
+            if (visibleSubNav.length === 0) return null;
+
+            const isInReports = REPORTS_PAGES.has(currentPageName);
+
+            return (
+              <div>
+                <Link
+                  to={createPageUrl("SurveyReports")}
+                  onClick={() => setMobileOpen(false)}
+                  className={`
+                    flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium
+                    transition-all duration-150
+                    ${isInReports ? "bg-violet-50 text-violet-700" : "text-gray-500 hover:bg-gray-50 hover:text-gray-900"}
+                    ${collapsed ? "justify-center px-0" : ""}
+                  `}
+                >
+                  <FileText className={`w-[18px] h-[18px] flex-shrink-0 ${isInReports ? "text-violet-600" : ""}`} />
+                  {!collapsed && (
+                    <>
+                      <span className="flex-1">Reports</span>
+                      <ChevronDown className={`w-3.5 h-3.5 transition-transform ${isInReports ? "rotate-0" : "-rotate-90"}`} />
+                    </>
+                  )}
+                </Link>
+
+                {isInReports && !collapsed && (
+                  <div className="ml-3 mt-0.5 pl-3 border-l border-gray-200 space-y-0.5">
+                    {visibleSubNav.map(item => {
+                      const isActive = currentPageName === item.page ||
+                        (item.page === "SurveyReports" && ["SurveyResponsesReport","SurveyTrendsByDJ","SurveyLowScoreQueue"].includes(currentPageName)) ||
+                        (item.page === "Reports" && currentPageName === "ReportBuilder");
+                      return (
+                        <Link
+                          key={item.page}
+                          to={createPageUrl(item.page)}
+                          onClick={() => setMobileOpen(false)}
+                          className={`
+                            flex items-center gap-2.5 px-3 py-2 rounded-lg text-sm font-medium
+                            transition-all duration-150
+                            ${isActive ? "bg-violet-50 text-violet-700" : "text-gray-400 hover:bg-gray-50 hover:text-gray-800"}
+                          `}
+                        >
+                          <item.icon className={`w-3.5 h-3.5 flex-shrink-0 ${isActive ? "text-violet-600" : ""}`} />
+                          <span>{item.name}</span>
+                        </Link>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+            );
+          })()}
+
           {/* Settings group — shown if user has access to at least one settings item */}
           {(() => {
             const role = user?.custom_role;
