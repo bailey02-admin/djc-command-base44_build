@@ -155,6 +155,62 @@ Deno.serve(async (req) => {
       return Response.json({ event });
     }
 
+    // ── ADVANCE_STATUS (explicit transition with full gate checks) ─
+    if (action === "advance_status") {
+      if (!rules.update) {
+        await logDenial(base44, user, action, id, "role denied");
+        return Response.json({ error: "Forbidden: your role cannot update events" }, { status: 403 });
+      }
+      if (!id || !data.status) return Response.json({ error: "id and status required" }, { status: 400 });
+
+      const rows = await base44.asServiceRole.entities.Event.filter({ id });
+      const ev = rows[0];
+      if (!ev || ev.is_deleted) return Response.json({ error: "Event not found" }, { status: 404 });
+
+      if (!canAccessEvent(user, ev, role, profile)) {
+        await logDenial(base44, user, action, id, "outside city or not assigned");
+        return Response.json({ error: "Forbidden: access denied for this event's city" }, { status: 403 });
+      }
+
+      const targetStatus = data.status;
+      const allowedNext = EVENT_STATUS_TRANSITIONS[ev.status];
+      if (!allowedNext || !allowedNext.has(targetStatus)) {
+        await logDenial(base44, user, action, id,
+          `invalid transition ${ev.status} → ${targetStatus}`);
+        return Response.json({
+          error: `Status transition not allowed: ${ev.status} → ${targetStatus}`,
+          current_status: ev.status,
+          requested_status: targetStatus,
+          allowed_next: allowedNext ? [...allowedNext] : [],
+        }, { status: 422 });
+      }
+
+      // Finalization gate applies here too
+      if (targetStatus === "finalized") {
+        const mergedEvent = { ...ev, ...data };
+        const failing = checkFinalizationGate(mergedEvent);
+        if (failing.length > 0) {
+          return Response.json({
+            error: "Event cannot be finalized — checklist incomplete",
+            failing_items: failing.map(f => f.label),
+            failing_keys: failing.map(f => f.key),
+          }, { status: 422 });
+        }
+      }
+
+      const cleaned = stripProtectedFields({ ...data }, role);
+      const updated = await base44.asServiceRole.entities.Event.update(id, cleaned);
+      await base44.asServiceRole.entities.Activity.create({
+        type: "status_change",
+        subject: `Event status: ${ev.status} → ${targetStatus}`,
+        related_type: "event",
+        related_id: id,
+        is_internal: true,
+        performed_by: user.email,
+      }).catch(() => {});
+      return Response.json({ event: updated });
+    }
+
     // ── ASSIGN DJ ─────────────────────────────────────────────────
     if (action === "assign_dj") {
       if (!["admin", "city_manager", "sales_manager"].includes(role)) {
@@ -162,6 +218,17 @@ Deno.serve(async (req) => {
         return Response.json({ error: "Forbidden: your role cannot assign DJs" }, { status: 403 });
       }
       if (!id) return Response.json({ error: "id required" }, { status: 400 });
+
+      // City scoping for assign_dj (city_manager must own the event's city)
+      if (role === "city_manager") {
+        const rows = await base44.asServiceRole.entities.Event.filter({ id });
+        const ev = rows[0];
+        if (ev && !canAccessEvent(user, ev, role, profile)) {
+          await logDenial(base44, user, "assign_dj", id, "outside city");
+          return Response.json({ error: "Forbidden: access denied for this event's city" }, { status: 403 });
+        }
+      }
+
       const updated = await base44.asServiceRole.entities.Event.update(id, {
         assigned_dj:    data.assigned_dj,
         assigned_dj_id: data.assigned_dj_id,
