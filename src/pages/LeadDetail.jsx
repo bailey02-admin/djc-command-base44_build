@@ -18,7 +18,7 @@ import {
   ArrowLeft, Edit, Phone, Mail, MapPin, DollarSign,
   CheckCircle2, Loader2, AlertCircle, Plus, ExternalLink
 } from "lucide-react";
-import { PIPELINE_STAGES, STAGE_MAP, calculateSLAStatus, SLA_BADGE } from "../components/crm/pipeline";
+import usePipelineConfig from "@/components/hooks/usePipelineConfig";
 import { onStageChange, onEventBooked, logFirstResponse } from "../components/crm/automations";
 import StageAdvancer from "../components/leads/StageAdvancer";
 import SLABadge from "../components/leads/SLABadge";
@@ -58,19 +58,37 @@ export default function LeadDetail() {
     enabled: !!id,
   });
 
-  const updateLead = async (updates, newStage = null) => {
+  const { allStages, stageMap, getAllowedTargets } = usePipelineConfig();
+
+  const updateLead = async (updates, newStage = null, options = {}) => {
     const prevStage = lead.pipeline_stage;
-    await LeadAPI.update(id, updates);
+    if (!options.alreadySaved) {
+      await LeadAPI.update(id, updates);
+    }
     queryClient.invalidateQueries(["lead", id]);
 
     if (newStage && newStage !== prevStage) {
       await onStageChange({ ...lead, ...updates }, newStage);
     }
 
-    // Auto-set first response date if this is the first meaningful action
     if (!lead.first_response_date && ["contacted","qualified"].includes(newStage)) {
       await logFirstResponse(lead);
     }
+  };
+
+  const buildStageMetadata = (targetStage) => {
+    const now = new Date().toISOString();
+    const updates = {};
+    if (targetStage === "quote_sent" && !lead.quote_sent_date) updates.quote_sent_date = now;
+    if (targetStage === "booked" && !lead.booked_date) updates.booked_date = now;
+    if (targetStage === "deposit_requested" && !lead.deposit_requested_date) updates.deposit_requested_date = now;
+    return updates;
+  };
+
+  const handleValidatedStageChange = async (targetStage) => {
+    const updates = { pipeline_stage: targetStage, ...buildStageMetadata(targetStage) };
+    await LeadAPI.advanceStage(id, updates);
+    await updateLead(updates, targetStage, { alreadySaved: true });
   };
 
   const convertToEvent = async () => {
@@ -102,7 +120,12 @@ export default function LeadDetail() {
 
   if (isLoading || !lead) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-violet-600" /></div>;
 
-  const stage = STAGE_MAP[lead.pipeline_stage] || STAGE_MAP["new_inquiry"];
+  const stage = stageMap[lead.pipeline_stage] || stageMap["new_inquiry"];
+  const visibleStages = allStages.filter((item) => item.is_active || item.key === lead.pipeline_stage);
+  const progressStages = stage?.is_terminal
+    ? [...visibleStages.filter((item) => !item.is_terminal), stage].filter((item, index, arr) => arr.findIndex((x) => x.key === item.key) === index)
+    : visibleStages.filter((item) => !item.is_terminal);
+  const quickStageOptions = [stage, ...getAllowedTargets(lead.pipeline_stage || "new_inquiry")].filter((item, index, arr) => item && arr.findIndex((x) => x.key === item.key) === index);
 
   return (
     <div className="p-4 lg:p-8 max-w-6xl mx-auto space-y-6">
@@ -167,11 +190,11 @@ export default function LeadDetail() {
       {/* Pipeline progress bar */}
       <div className="bg-white rounded-xl border border-gray-100 p-4 overflow-x-auto">
         <div className="flex items-center gap-0 min-w-max">
-          {PIPELINE_STAGES.filter(s => !["ghosted","disqualified"].includes(s.key)).map((s, i, arr) => {
-            const stages = arr.map(x => x.key);
+          {progressStages.map((s, i, arr) => {
+            const stages = arr.map((x) => x.key);
             const currentIdx = stages.indexOf(lead.pipeline_stage);
             const stageIdx = stages.indexOf(s.key);
-            const isPast = stageIdx < currentIdx;
+            const isPast = currentIdx >= 0 && stageIdx < currentIdx;
             const isCurrent = stageIdx === currentIdx;
             return (
               <React.Fragment key={s.key}>
@@ -179,7 +202,7 @@ export default function LeadDetail() {
                   <div className={`w-3 h-3 rounded-full ${isCurrent ? s.dot : isPast ? "bg-emerald-400" : "bg-gray-200"}`} />
                   <span className={`text-[9px] font-medium ${isCurrent ? "text-violet-700" : isPast ? "text-gray-400" : "text-gray-300"} whitespace-nowrap`}>{s.label}</span>
                 </div>
-                {i < arr.length - 1 && <div className={`h-px w-6 flex-shrink-0 ${stageIdx < currentIdx ? "bg-emerald-300" : "bg-gray-200"}`} />}
+                {i < arr.length - 1 && <div className={`h-px w-6 flex-shrink-0 ${currentIdx >= 0 && stageIdx < currentIdx ? "bg-emerald-300" : "bg-gray-200"}`} />}
               </React.Fragment>
             );
           })}
@@ -193,10 +216,10 @@ export default function LeadDetail() {
             <CardContent className="p-5 grid grid-cols-2 gap-4">
               <div>
                 <Label className="text-xs text-gray-400">Pipeline Stage</Label>
-                <Select value={lead.pipeline_stage} onValueChange={v => updateLead({ pipeline_stage: v }, v)}>
+                <Select value={lead.pipeline_stage} onValueChange={handleValidatedStageChange}>
                   <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
                   <SelectContent>
-                    {PIPELINE_STAGES.map(s => <SelectItem key={s.key} value={s.key}>{s.label}</SelectItem>)}
+                    {quickStageOptions.map((item) => <SelectItem key={item.key} value={item.key}>{item.label}</SelectItem>)}
                   </SelectContent>
                 </Select>
               </div>
