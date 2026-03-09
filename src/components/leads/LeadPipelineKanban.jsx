@@ -4,43 +4,32 @@ import { createPageUrl } from "@/utils";
 import { Badge } from "@/components/ui/badge";
 import { format } from "date-fns";
 import { LeadAPI } from "@/components/api/secureApi";
-import { Phone, Mail, Calendar } from "lucide-react";
-
-const PIPELINE_STAGES = [
-  { key: "new_inquiry", label: "New", color: "bg-blue-500" },
-  { key: "qualified", label: "Qualified", color: "bg-indigo-500" },
-  { key: "consultation_scheduled", label: "Consult Scheduled", color: "bg-violet-500" },
-  { key: "consultation_completed", label: "Consult Done", color: "bg-purple-500" },
-  { key: "quote_sent", label: "Quote Sent", color: "bg-fuchsia-500" },
-  { key: "negotiation", label: "Negotiation", color: "bg-amber-500" },
-  { key: "deposit_requested", label: "Deposit Req.", color: "bg-orange-500" },
-  { key: "booked", label: "Booked", color: "bg-emerald-500" },
-];
+import { Calendar } from "lucide-react";
+import usePipelineConfig from "@/components/hooks/usePipelineConfig";
 
 export default function LeadPipelineKanban({ leads, onRefresh }) {
+  const { stages } = usePipelineConfig();
+
   const handleDragStart = (e, leadId) => {
     e.dataTransfer.setData("leadId", leadId);
   };
 
-  const handleDrop = async (e, stage) => {
+  const handleDrop = async (e, stageKey) => {
     e.preventDefault();
     const leadId = e.dataTransfer.getData("leadId");
     if (leadId) {
-      // Route through mutateLead so all transition + field validation gates apply
-      await LeadAPI.advanceStage(leadId, { pipeline_stage: stage }).catch(() => {
-        // If transition is invalid (e.g. dropping to a non-adjacent stage), silently ignore —
-        // the backend 422 is the authoritative rejection; UI will re-render unchanged on refresh
-      });
+      await LeadAPI.advanceStage(leadId, { pipeline_stage: stageKey }).catch(() => {});
       onRefresh?.();
     }
   };
 
   const handleDragOver = (e) => e.preventDefault();
+  const displayStages = stages.filter((stage) => stage.is_active || leads.some((lead) => lead.pipeline_stage === stage.key));
 
   return (
     <div className="flex gap-3 overflow-x-auto pb-4 min-h-[500px]">
-      {PIPELINE_STAGES.map(stage => {
-        const stageLeads = leads.filter(l => l.pipeline_stage === stage.key);
+      {displayStages.map((stage) => {
+        const stageLeads = leads.filter((lead) => lead.pipeline_stage === stage.key);
         return (
           <div
             key={stage.key}
@@ -49,12 +38,12 @@ export default function LeadPipelineKanban({ leads, onRefresh }) {
             onDragOver={handleDragOver}
           >
             <div className="flex items-center gap-2 mb-3 px-1">
-              <div className={`w-2 h-2 rounded-full ${stage.color}`} />
+              <div className={`w-2 h-2 rounded-full ${stage.dot}`} />
               <h3 className="text-xs font-semibold text-gray-600 uppercase tracking-wider">{stage.label}</h3>
               <span className="text-xs text-gray-400 ml-auto">{stageLeads.length}</span>
             </div>
             <div className="space-y-2">
-              {stageLeads.map(lead => (
+              {stageLeads.map((lead) => (
                 <Link
                   key={lead.id}
                   to={createPageUrl("LeadDetail") + `?id=${lead.id}`}

@@ -8,8 +8,9 @@ import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Save, Loader2 } from "lucide-react";
-import { PIPELINE_STAGES, AUTOMATION_TEMPLATES, READINESS_ITEMS } from "../components/crm/pipeline";
+import { AUTOMATION_TEMPLATES, READINESS_ITEMS } from "../components/crm/pipeline";
 import LabelsTab from "../components/settings/LabelsTab";
+import PipelineSettingsTab from "../components/settings/PipelineSettingsTab";
 
 const DEFAULT_SETTINGS = [
   { key: "sla_warning_minutes", value: "15", category: "sla", label: "SLA Warning Threshold (minutes)", description: "Show warning badge after this many minutes without response" },
@@ -91,29 +92,7 @@ export default function Settings() {
 
         {/* Pipeline */}
         <TabsContent value="pipeline" className="mt-6 space-y-4">
-          <Card className="border-0 shadow-sm">
-            <CardHeader className="pb-2"><CardTitle className="text-sm font-semibold">Pipeline Stage Definitions</CardTitle></CardHeader>
-            <CardContent>
-              <div className="space-y-3">
-                {PIPELINE_STAGES.map((stage, i) => (
-                  <div key={stage.key} className="flex items-start gap-3 p-3 rounded-lg bg-gray-50/50">
-                    <div className={`w-3 h-3 rounded-full ${stage.dot} flex-shrink-0 mt-0.5`} />
-                    <div className="flex-1 min-w-0">
-                      <div className="flex items-center gap-2">
-                        <span className="text-sm font-medium">{i + 1}. {stage.label}</span>
-                        <Badge variant="secondary" className={`text-[10px] ${stage.color}`}>{stage.key}</Badge>
-                      </div>
-                      <div className="mt-1 flex flex-wrap gap-1">
-                        {stage.required_fields.length > 0
-                          ? stage.required_fields.map(f => <Badge key={f} variant="outline" className="text-[10px]">{f.replace(/_/g, " ")}</Badge>)
-                          : <span className="text-[10px] text-gray-400">No required fields</span>}
-                      </div>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </CardContent>
-          </Card>
+          <PipelineSettingsTab />
         </TabsContent>
 
         {/* Automations */}
