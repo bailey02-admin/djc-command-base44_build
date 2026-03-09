@@ -8,7 +8,7 @@ import { Calendar } from "lucide-react";
 import usePipelineConfig from "@/components/hooks/usePipelineConfig";
 
 export default function LeadPipelineKanban({ leads, onRefresh }) {
-  const { stages } = usePipelineConfig();
+  const { allStages } = usePipelineConfig();
 
   const handleDragStart = (e, leadId) => {
     e.dataTransfer.setData("leadId", leadId);
@@ -24,7 +24,7 @@ export default function LeadPipelineKanban({ leads, onRefresh }) {
   };
 
   const handleDragOver = (e) => e.preventDefault();
-  const displayStages = stages.filter((stage) => stage.is_active || leads.some((lead) => lead.pipeline_stage === stage.key));
+  const displayStages = allStages.filter((stage) => stage.is_active || leads.some((lead) => lead.pipeline_stage === stage.key));
 
   return (
     <div className="flex gap-3 overflow-x-auto pb-4 min-h-[500px]">
