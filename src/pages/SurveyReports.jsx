@@ -39,29 +39,22 @@ const SURVEY_REPORT_LINKS = [
 export default function SurveyReports() {
   const navigate = useNavigate();
 
-  // Fetch all responses for KPI computation (limit 2000, no filters)
-  const { data: kpiData, isLoading: kpiLoading } = useQuery({
-    queryKey: ["survey-kpi-all"],
-    queryFn: () => base44.functions.invoke("getSurveyResponsesReport", { limit: 2000, skip: 0 }).then(r => r.data),
+  const { data: summaryData, isLoading: summaryLoading } = useQuery({
+    queryKey: ["survey-report-summary"],
+    queryFn: () => base44.functions.invoke("getSurveyReportSummary", {}).then(r => r.data),
   });
 
-  // Fetch open recovery tasks for KPI
-  const { data: recoveryData } = useQuery({
-    queryKey: ["survey-recovery-open"],
-    queryFn: () => base44.functions.invoke("getLowScoreRecoveryQueue", { task_status: "pending", limit: 500, skip: 0 }).then(r => r.data),
+  const { data: latestData, isLoading: latestLoading } = useQuery({
+    queryKey: ["survey-reports-latest"],
+    queryFn: () => base44.functions.invoke("getSurveyResponsesReport", { limit: 10, skip: 0 }).then(r => r.data),
   });
 
-  const allRows = kpiData?.rows || [];
-  const total = kpiData?.total ?? allRows.length;
-  const scored = allRows.filter(r => r.average_score != null);
-  const avgScore = scored.length > 0
-    ? Math.round((scored.reduce((s, r) => s + r.average_score, 0) / scored.length) * 10) / 10
-    : null;
-  const lowScoreCount = allRows.filter(r => r.low_score_flag).length;
-  const openRecoveryCount = recoveryData?.total ?? (recoveryData?.rows?.length ?? 0);
-
-  // Latest 10 for the preview table
-  const rows = allRows.slice(0, 10);
+  const total = summaryData?.total_responses ?? 0;
+  const avgScore = summaryData?.average_score ?? null;
+  const lowScoreCount = summaryData?.low_score_count ?? 0;
+  const openRecoveryCount = summaryData?.open_recovery_task_count ?? 0;
+  const scoredResponseCount = summaryData?.scored_response_count ?? 0;
+  const rows = latestData?.rows || [];
 
   return (
     <div className="p-6 max-w-6xl mx-auto space-y-8">
@@ -76,7 +69,7 @@ export default function SurveyReports() {
         {/* Total Responses */}
         <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-1">
           <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Total Responses</p>
-          {kpiLoading ? (
+          {summaryLoading ? (
             <div className="h-8 w-16 bg-gray-100 rounded animate-pulse" />
           ) : (
             <p className="text-2xl font-bold text-gray-900">{total}</p>
@@ -87,20 +80,20 @@ export default function SurveyReports() {
         {/* Avg Score */}
         <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-1">
           <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Avg Score</p>
-          {kpiLoading ? (
+          {summaryLoading ? (
             <div className="h-8 w-16 bg-gray-100 rounded animate-pulse" />
           ) : (
             <p className={`text-2xl font-bold ${avgScore == null ? "text-gray-300" : avgScore >= 8 ? "text-emerald-700" : avgScore >= 6 ? "text-amber-700" : "text-red-700"}`}>
-              {avgScore != null ? <>{avgScore}<span className="text-sm font-normal text-gray-400">/10</span></> : "—"}
+              {avgScore != null ? <>{avgScore.toFixed(1)}<span className="text-sm font-normal text-gray-400">/10</span></> : "—"}
             </p>
           )}
-          <p className="text-[11px] text-gray-400 flex items-center gap-1"><Star className="w-3 h-3" /> Across {scored.length} scored</p>
+          <p className="text-[11px] text-gray-400 flex items-center gap-1"><Star className="w-3 h-3" /> Across {scoredResponseCount} scored</p>
         </div>
 
         {/* Low Score Count */}
         <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-1">
           <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Low Scores</p>
-          {kpiLoading ? (
+          {summaryLoading ? (
             <div className="h-8 w-16 bg-gray-100 rounded animate-pulse" />
           ) : (
             <p className={`text-2xl font-bold ${lowScoreCount > 0 ? "text-red-700" : "text-gray-900"}`}>{lowScoreCount}</p>
@@ -111,8 +104,12 @@ export default function SurveyReports() {
         {/* Open Recovery Tasks */}
         <div className="bg-white border border-gray-200 rounded-xl p-4 space-y-1">
           <p className="text-xs font-medium text-gray-400 uppercase tracking-wide">Open Recovery</p>
-          <p className={`text-2xl font-bold ${openRecoveryCount > 0 ? "text-amber-700" : "text-gray-900"}`}>{openRecoveryCount}</p>
-          <p className="text-[11px] text-gray-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Pending tasks</p>
+          {summaryLoading ? (
+            <div className="h-8 w-16 bg-gray-100 rounded animate-pulse" />
+          ) : (
+            <p className={`text-2xl font-bold ${openRecoveryCount > 0 ? "text-amber-700" : "text-gray-900"}`}>{openRecoveryCount}</p>
+          )}
+          <p className="text-[11px] text-gray-400 flex items-center gap-1"><CheckCircle2 className="w-3 h-3" /> Open tasks</p>
         </div>
       </div>
 
@@ -147,7 +144,7 @@ export default function SurveyReports() {
         </div>
 
         <div className="bg-white border border-gray-200 rounded-xl overflow-hidden">
-          {isLoading ? (
+          {latestLoading ? (
             <div className="flex items-center justify-center py-16 gap-2 text-gray-400">
               <Loader2 className="w-5 h-5 animate-spin" /> Loading…
             </div>
