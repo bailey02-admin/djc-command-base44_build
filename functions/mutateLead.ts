@@ -229,6 +229,21 @@ Deno.serve(async (req) => {
       if (syncedStatus && !cleaned.status) cleaned.status = syncedStatus;
 
       const updated = await base44.asServiceRole.entities.Lead.update(id, cleaned);
+
+      // ── Fire stage automations (non-blocking, idempotent) ──────────────────
+      if (currentStage !== targetStage) {
+        const exitRules  = (currentConfig?.automations || []).filter(r => r.is_active !== false && r.trigger === 'on_exit');
+        const enterRules = (targetConfig?.automations   || []).filter(r => r.is_active !== false && r.trigger === 'on_enter');
+        const allRules   = [...exitRules, ...enterRules];
+
+        if (allRules.length > 0) {
+          const freshLead = { ...lead, ...cleaned };
+          await runStageAutomations(base44, freshLead, allRules, user, currentStage, targetStage).catch((err) => {
+            console.error('[automation] error running stage automations:', err.message);
+          });
+        }
+      }
+
       return Response.json({ lead: updated });
     }
 
