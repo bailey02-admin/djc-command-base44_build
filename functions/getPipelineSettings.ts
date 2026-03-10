@@ -49,6 +49,7 @@ function normalizePipelineStages(stages = []) {
       description: incoming.description ?? stage.description,
       required_fields: Array.isArray(incoming.required_fields) ? incoming.required_fields : stage.required_fields,
       allowed_next_stages: Array.isArray(incoming.allowed_next_stages) ? incoming.allowed_next_stages : stage.allowed_next_stages,
+      automations: Array.isArray(incoming.automations) ? incoming.automations : [],
     };
   }).sort((a, b) => a.sort_order - b.sort_order);
 }

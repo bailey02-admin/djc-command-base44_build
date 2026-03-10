@@ -49,6 +49,14 @@ async function fetchAllLeads(base44) {
   return rows;
 }
 
+const VALID_TRIGGER_TYPES = new Set(['on_enter', 'on_exit']);
+const VALID_ACTION_TYPES = new Set(['create_task', 'assign_owner', 'log_activity', 'send_message', 'sla_rule']);
+
+function sanitizeAutomations(rules) {
+  if (!Array.isArray(rules)) return [];
+  return rules.filter(r => r && r.id && VALID_TRIGGER_TYPES.has(r.trigger) && VALID_ACTION_TYPES.has(r.action_type));
+}
+
 function normalizeStages(stages) {
   const incomingMap = Object.fromEntries((stages || []).map((stage) => [stage.key, stage]));
   return DEFAULT_PIPELINE_STAGES.map((stage) => {
@@ -62,6 +70,7 @@ function normalizeStages(stages) {
       description: String(incoming.description ?? stage.description ?? '').trim(),
       required_fields: Array.isArray(incoming.required_fields) ? [...new Set(incoming.required_fields)] : [...stage.required_fields],
       allowed_next_stages: Array.isArray(incoming.allowed_next_stages) ? [...new Set(incoming.allowed_next_stages)] : [...stage.allowed_next_stages],
+      automations: sanitizeAutomations(incoming.automations),
     };
   }).sort((a, b) => a.sort_order - b.sort_order);
 }
