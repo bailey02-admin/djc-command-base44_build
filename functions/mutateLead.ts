@@ -281,6 +281,129 @@ Deno.serve(async (req) => {
   }
 });
 
+// ── Stage Automation Executor ──────────────────────────────────────────────
+function interpolate(template, lead) {
+  const clientName = [lead.client_first_name, lead.client_last_name].filter(Boolean).join(' ') || 'Client';
+  return String(template || '')
+    .replace(/\{\{client_name\}\}/g, clientName)
+    .replace(/\{\{event_type\}\}/g, lead.event_type || '')
+    .replace(/\{\{city\}\}/g, lead.city || '')
+    .replace(/\{\{event_date\}\}/g, lead.event_date || '');
+}
+
+async function runStageAutomations(base44, lead, rules, actor, fromStage, toStage) {
+  for (const rule of rules) {
+    const idempotencyKey = `stage_auto|${rule.id}|${lead.id}|${fromStage}→${toStage}`;
+    const payload = rule.payload || {};
+
+    try {
+      // Idempotency check via AutomationLog
+      const existing = await base44.asServiceRole.entities.AutomationLog.filter({ idempotency_key: idempotencyKey });
+      if (existing && existing.length > 0) {
+        console.log(`[automation] skipping duplicate: ${idempotencyKey}`);
+        continue;
+      }
+
+      let tasksCreated = 0;
+      let activitiesCreated = 0;
+
+      // ── create_task ──────────────────────────────────────────────────────
+      if (rule.action_type === 'create_task') {
+        const title = interpolate(payload.title || 'Follow up', lead);
+        const assignee = payload.assignee_rule === 'actor' ? actor.email :
+                         payload.assignee_rule === 'specific_email' ? (payload.assignee_email || actor.email) :
+                         lead.assigned_rep || actor.email;
+        const dueDate = payload.due_offset_days != null
+          ? new Date(Date.now() + Number(payload.due_offset_days) * 86400000).toISOString().slice(0, 10)
+          : null;
+
+        await base44.asServiceRole.entities.Task.create({
+          title,
+          assigned_to: assignee,
+          priority: payload.priority || 'medium',
+          due_date: dueDate,
+          related_type: 'lead',
+          related_id: lead.id,
+          status: 'open',
+          source: 'pipeline_automation',
+        });
+        tasksCreated = 1;
+      }
+
+      // ── assign_owner ──────────────────────────────────────────────────────
+      if (rule.action_type === 'assign_owner') {
+        const newRep = payload.assignee_rule === 'actor' ? actor.email :
+                       payload.assignee_rule === 'specific_email' ? (payload.assignee_email || null) : null;
+        if (newRep) {
+          await base44.asServiceRole.entities.Lead.update(lead.id, { assigned_rep: newRep });
+        }
+      }
+
+      // ── log_activity ──────────────────────────────────────────────────────
+      if (rule.action_type === 'log_activity') {
+        const note = interpolate(payload.note_template || `Lead moved from ${fromStage} to ${toStage}.`, lead);
+        await base44.asServiceRole.entities.Activity.create({
+          type: payload.activity_type || 'note',
+          subject: note,
+          related_type: 'lead',
+          related_id: lead.id,
+          is_internal: true,
+          performed_by: 'system',
+          source: 'pipeline_automation',
+        });
+        activitiesCreated = 1;
+      }
+
+      // ── send_message ──────────────────────────────────────────────────────
+      if (rule.action_type === 'send_message' && payload.template_id) {
+        const recipientEmail = payload.recipient_rule === 'assigned_rep'
+          ? (lead.assigned_rep || actor.email)
+          : (lead.email || null);
+        if (recipientEmail) {
+          await base44.asServiceRole.entities.Message.create({
+            template_id: payload.template_id,
+            channel: payload.channel || 'email',
+            to: recipientEmail,
+            related_type: 'lead',
+            related_id: lead.id,
+            status: 'queued',
+            source: 'pipeline_automation',
+          });
+        }
+      }
+
+      // ── sla_rule ──────────────────────────────────────────────────────────
+      if (rule.action_type === 'sla_rule') {
+        const slaAction = payload.sla_action || 'start';
+        if (slaAction === 'start' || slaAction === 'reset') {
+          await base44.asServiceRole.entities.Lead.update(lead.id, {
+            sla_status: 'on_time',
+            sla_minutes_elapsed: 0,
+            first_response_date: slaAction === 'start' && !lead.first_response_date ? new Date().toISOString() : lead.first_response_date,
+          });
+        } else if (slaAction === 'clear') {
+          await base44.asServiceRole.entities.Lead.update(lead.id, { sla_status: 'not_applicable' });
+        }
+      }
+
+      // Write audit log (also serves as idempotency guard)
+      await base44.asServiceRole.entities.AutomationLog.create({
+        trigger: `stage_auto:${rule.trigger}:${rule.action_type}`,
+        related_type: 'lead',
+        related_id: lead.id,
+        related_name: [lead.client_first_name, lead.client_last_name].filter(Boolean).join(' '),
+        tasks_created: tasksCreated,
+        activities_created: activitiesCreated,
+        idempotency_key: idempotencyKey,
+        notes: `rule_id=${rule.id} ${fromStage}→${toStage} by ${actor.email}`,
+      });
+
+    } catch (err) {
+      console.error(`[automation] rule ${rule.id} (${rule.action_type}) failed:`, err.message);
+    }
+  }
+}
+
 async function enforceOwnershipScope(base44, user, role, id, lead = null) {
   let profileCities = [];
   try {
