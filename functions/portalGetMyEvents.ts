@@ -6,7 +6,7 @@
  *
  * Returns upcoming + past split, with payment summary per event.
  */
-import { createClientFromRequest } from 'npm:@base44/sdk@0.8.6';
+import { createClientFromRequest } from 'npm:@base44/sdk@0.8.20';
 
 const CLIENT_EVENT_FIELDS = [
   "id", "event_name", "event_type", "event_date", "start_time", "end_time",
@@ -23,9 +23,15 @@ Deno.serve(async (req) => {
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
 
     // Admin impersonation: allow overriding contact_id
+    // Use StaffProfile.custom_role per Truth Doc — never platform role
     const body = await req.json().catch(() => ({}));
-    const isAdmin = user.role === "admin";
-    const overrideContactId = isAdmin && body.impersonate_contact_id ? body.impersonate_contact_id : null;
+    let isPrivileged = user.role === "admin"; // fast path for platform admins
+    if (!isPrivileged && body.impersonate_contact_id) {
+      const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email }).catch(() => []);
+      const profile = profiles?.[0];
+      isPrivileged = profile && ["admin", "city_manager", "office_finalizer"].includes(profile.custom_role);
+    }
+    const overrideContactId = isPrivileged && body.impersonate_contact_id ? body.impersonate_contact_id : null;
 
     // Resolve contact_id: PRIMARY = user.contact_id, FALLBACK = email lookup
     let contactId = overrideContactId || user.contact_id || null;

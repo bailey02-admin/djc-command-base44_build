@@ -168,7 +168,8 @@ Deno.serve(async (req) => {
     }
 
     // ─── Non-client access check ──────────────────────────────────────────────
-    if (!canAccessEvent(user, event)) {
+    // Use resolved StaffProfile role, not platform user.role (Truth Doc requirement)
+    if (!canAccessEvent({ ...user, role }, event)) {
       return Response.json({ error: "Forbidden: access denied" }, { status: 403 });
     }
 

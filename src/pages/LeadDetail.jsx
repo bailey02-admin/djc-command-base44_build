@@ -38,10 +38,11 @@ export default function LeadDetail() {
   const [lostDetail, setLostDetail] = useState("");
   const [sendMsgOpen, setSendMsgOpen] = useState(false);
 
-  const { data: leadBundle, isLoading } = useQuery({
+  const { data: leadBundle, isLoading, isError, error } = useQuery({
     queryKey: ["lead", id],
     queryFn: () => LeadAPI.get(id),
     enabled: !!id,
+    retry: 1,
   });
   const lead = leadBundle?.lead || leadBundle; // getLeadById returns { lead, contact }
   const linkedContact = leadBundle?.contact || null;
@@ -118,7 +119,16 @@ export default function LeadDetail() {
     queryClient.invalidateQueries(["lead", id]);
   };
 
-  if (isLoading || !lead) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-violet-600" /></div>;
+  if (!id) return <div className="flex items-center justify-center h-64 text-gray-400 text-sm">No lead ID provided.</div>;
+  if (isLoading) return <div className="flex items-center justify-center h-64"><Loader2 className="w-6 h-6 animate-spin text-violet-600" /></div>;
+  if (isError) return (
+    <div className="flex flex-col items-center justify-center h-64 gap-3 text-center">
+      <AlertCircle className="w-8 h-8 text-red-400" />
+      <p className="text-sm font-medium text-gray-700">Failed to load lead</p>
+      <p className="text-xs text-gray-400 max-w-xs">{error?.message || "The lead could not be found or you don't have access."}</p>
+    </div>
+  );
+  if (!lead) return <div className="flex items-center justify-center h-64 text-gray-400 text-sm">Lead not found.</div>;
 
   const stage = stageMap[lead.pipeline_stage] || stageMap["new_inquiry"];
   const visibleStages = allStages.filter((item) => item.is_active || item.key === lead.pipeline_stage);
