@@ -9,6 +9,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { ChevronDown, ChevronRight, Loader2, Save } from "lucide-react";
 import { PIPELINE_FIELD_OPTIONS, normalizePipelineStages } from "@/components/crm/pipeline";
+import StageAutomationsEditor from "./StageAutomationsEditor";
 
 // ── Stage accordion row ────────────────────────────────────────────────────
 function StageRow({ stage, savedStage, isOpen, onToggle, onUpdate, onToggleArray, sortedStages, onSave, saving }) {
@@ -52,6 +53,9 @@ function StageRow({ stage, savedStage, isOpen, onToggle, onUpdate, onToggleArray
             : <span className="text-gray-300">—</span>}
           <span>{stage.required_fields?.length || 0} req</span>
           <span>{stage.allowed_next_stages?.length || 0} next</span>
+          {(stage.automations?.length > 0) && (
+            <span className="text-violet-500">{stage.automations.length} auto</span>
+          )}
         </span>
       </button>
 
@@ -115,6 +119,13 @@ function StageRow({ stage, savedStage, isOpen, onToggle, onUpdate, onToggleArray
                 </label>
               ))}
             </div>
+          </div>
+
+          <div className="border-t border-gray-100 pt-4">
+            <StageAutomationsEditor
+              automations={stage.automations || []}
+              onChange={(automations) => onUpdate({ automations })}
+            />
           </div>
 
           <div className="flex justify-end gap-2 pt-1">
