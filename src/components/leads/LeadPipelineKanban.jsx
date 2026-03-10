@@ -44,33 +44,40 @@ export default function LeadPipelineKanban({ leads, onRefresh }) {
             </div>
             <div className="space-y-2">
               {stageLeads.map((lead) => (
-                <Link
+                // Drag is on the outer div; Link handles click navigation separately.
+                // Never put draggable on <Link> — browsers intercept mousedown for drag,
+                // which prevents click-to-navigate from firing.
+                <div
                   key={lead.id}
-                  to={createPageUrl("LeadDetail") + `?id=${lead.id}`}
                   draggable
                   onDragStart={(e) => handleDragStart(e, lead.id)}
-                  className="block p-3 bg-white rounded-lg border border-gray-200/60 shadow-sm hover:shadow-md transition-all cursor-grab active:cursor-grabbing"
+                  className="cursor-grab active:cursor-grabbing"
                 >
-                  <p className="text-sm font-medium text-gray-900 truncate">
-                    {lead.client_first_name} {lead.client_last_name}
-                  </p>
-                  <p className="text-xs text-gray-400 mt-1 truncate">
-                    {lead.event_type?.replace(/_/g, " ")}
-                  </p>
-                  <div className="flex items-center gap-2 mt-2 text-gray-400">
-                    {lead.event_date && (
-                      <span className="flex items-center gap-1 text-[10px]">
-                        <Calendar className="w-3 h-3" />
-                        {format(new Date(lead.event_date), "MMM d")}
-                      </span>
-                    )}
-                    {lead.city && (
-                      <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
-                        {lead.city}
-                      </Badge>
-                    )}
-                  </div>
-                </Link>
+                  <Link
+                    to={createPageUrl("LeadDetail") + `?id=${lead.id}`}
+                    className="block p-3 bg-white rounded-lg border border-gray-200/60 shadow-sm hover:shadow-md transition-all"
+                  >
+                    <p className="text-sm font-medium text-gray-900 truncate">
+                      {lead.client_first_name} {lead.client_last_name}
+                    </p>
+                    <p className="text-xs text-gray-400 mt-1 truncate">
+                      {lead.event_type?.replace(/_/g, " ")}
+                    </p>
+                    <div className="flex items-center gap-2 mt-2 text-gray-400">
+                      {lead.event_date && (
+                        <span className="flex items-center gap-1 text-[10px]">
+                          <Calendar className="w-3 h-3" />
+                          {format(new Date(lead.event_date), "MMM d")}
+                        </span>
+                      )}
+                      {lead.city && (
+                        <Badge variant="secondary" className="text-[10px] px-1.5 py-0">
+                          {lead.city}
+                        </Badge>
+                      )}
+                    </div>
+                  </Link>
+                </div>
               ))}
               {stageLeads.length === 0 && (
                 <div className="text-center py-8 text-xs text-gray-300">

@@ -20,8 +20,17 @@ Deno.serve(async (req) => {
     const user = await base44.auth.me().catch(() => null);
 
     if (!user) return Response.json({ error: "Unauthorized" }, { status: 401 });
-    if (!ALLOWED_ROLES.has(user.role)) {
-      return Response.json({ error: "Forbidden: insufficient role" }, { status: 403 });
+
+    // Truth Doc: always use StaffProfile.custom_role for permissions, never platform role
+    const profiles = await base44.asServiceRole.entities.StaffProfile.filter({ email: user.email });
+    const profile = profiles?.[0];
+    const customRole = profile?.custom_role || user.role;
+
+    if (profile?.is_active === false) {
+      return Response.json({ error: "Account deactivated" }, { status: 403 });
+    }
+    if (!ALLOWED_ROLES.has(customRole)) {
+      return Response.json({ error: `Forbidden: role '${customRole}' cannot impersonate clients` }, { status: 403 });
     }
 
     const body = await req.json().catch(() => ({}));

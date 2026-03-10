@@ -97,6 +97,7 @@ import TimelineTemplates from './pages/TimelineTemplates';
 import UserForm from './pages/UserForm';
 import Users from './pages/Users';
 import Venues from './pages/Venues';
+import FinanceIncoming from './pages/FinanceIncoming';
 import __Layout from './Layout.jsx';
 
 
@@ -151,6 +152,7 @@ export const PAGES = {
     "UserForm": UserForm,
     "Users": Users,
     "Venues": Venues,
+    "FinanceIncoming": FinanceIncoming,
 }
 
 export const pagesConfig = {
